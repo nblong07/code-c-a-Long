@@ -1,14 +1,13 @@
-
-
 /*--------------------------------------------------------------------------*/
 /* preview-frame */
 
 .preview-frame {
     width: 100%;
-    background-color: #e8ede9;
+    background-color: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid var(--border-color);
     display: none;
     justify-content: space-between;
-    margin: 2px 0;
+    margin: 0;
     height: 18.6vw;
     position: relative;
 }
@@ -20,12 +19,13 @@
     display: none;
     justify-content: center;
     align-items: center;
+    box-sizing: border-box;
+    padding: 10px;
 }  
 
 .preview-container.visible {
     display: flex;
 }
-
 
 .preview-image-wrapper,
 .current-preview-wrapper {
@@ -41,8 +41,17 @@
 .current-preview-wrapper img {
     max-width: 100%;
     max-height: 100%;
-    border: 3px solid #ff0000;
+    border: 2px solid var(--primary-color);
+    border-radius: 6px;
+    box-shadow: 0 0 15px var(--primary-glow);
     object-fit: contain;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.preview-image-wrapper img:hover,
+.current-preview-wrapper img:hover {
+    transform: scale(1.02);
 }
 
 .preview-image-wrapper .infor {
@@ -50,11 +59,12 @@
 }
 
 .current-preview-wrapper .infor {
-    display: none
+    display: none;
 }
 
 .left-preview {
     left: 0;
+    border-right: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .right-preview {
@@ -63,15 +73,23 @@
 
 .close-preview-button {
     position: absolute;
-    top: 0px;
+    top: 10px;
     right: 15px;
-    background: #ff0000;
-    border: none;
-    color: white;
-    font-size: 18px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-color);
+    font-size: 14px;
     cursor: pointer;
-    z-index: 1;
-    padding: 5px 10px;
+    z-index: 10;
+    padding: 4px 8px;
+    transition: all 0.2s ease;
+}
+
+.close-preview-button:hover {
+    background: var(--accent-red);
+    color: white;
+    border-color: var(--accent-red);
 }
 
 .positionIndex {
@@ -88,7 +106,8 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(71, 71, 71, 0.9);
+    background-color: rgba(5, 5, 8, 0.95);
+    backdrop-filter: blur(8px);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -99,31 +118,58 @@
     height: 85%;
     max-width: 90%;
     object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 #close-fullscreen-button {
     position: absolute;
-    top: 10px;
-    right: 10px;
-    font-size: 24px;
-    color: white;
-    background: none;
-    border: none;
+    top: 20px;
+    right: 20px;
+    font-size: 28px;
+    color: var(--text-muted);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#close-fullscreen-button:hover {
+    color: white;
+    background: var(--accent-red);
+    border-color: var(--accent-red);
 }
 
 #fullscreen-navigation {
     position: absolute;
-    bottom: 20px;
+    bottom: 30px;
     left: 50%;
     transform: translateX(-50%);
+    display: flex;
+    gap: 20px;
 }
 
 #fullscreen-navigation button {
-    font-size: 24px;
-    margin: 0 10px;
-    background: none;
-    border: none;
-    color: white;
+    font-size: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+    border-radius: 6px;
+    padding: 6px 16px;
     cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#fullscreen-navigation button:hover {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    box-shadow: 0 0 12px var(--primary-glow);
 }

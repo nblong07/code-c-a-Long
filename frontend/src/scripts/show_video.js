@@ -15,12 +15,14 @@ class VideoPlayer {
   
     // Initialize the video player depending on browser support
     initPlayer() {
-        if (Hls.isSupported()) {
+        if (this.hls) {
+            this.hls.destroy();
+            this.hls = null;
+        }
+        if (this.videoSrc && this.videoSrc.endsWith('.m3u8') && typeof Hls !== 'undefined' && Hls.isSupported()) {
             this.initHlsPlayer();
-        } else if (this.video.canPlayType('application/vnd.apple.mpegurl')) {
-            this.initNativePlayer();
         } else {
-            console.error('HLS is not supported in this browser.');
+            this.initNativePlayer();
         }
         this.addEventListeners();
     }
@@ -38,11 +40,12 @@ class VideoPlayer {
         });
     }
   
-    // Initialize native player for HLS streams if supported
+    // Initialize native player for HLS/MP4 streams
     initNativePlayer() {
         this.video.src = this.videoSrc;
+        this.video.load();
     }
-  
+
     // Add event listeners to handle video playback events
     addEventListeners() {
         this.video.addEventListener('loadedmetadata', () => this.onLoadedMetadata());
@@ -69,7 +72,11 @@ class VideoPlayer {
     }
 
     togglePlayPause() {
-        // console.log('Video pause');
+        if (this.video.paused) {
+            this.video.play();
+        } else {
+            this.video.pause();
+        }
     }
   
     play() {
@@ -96,18 +103,13 @@ class VideoPlayer {
         if (this.hls) {
             this.hls.destroy();
         }
-        this.video.removeEventListener('loadedmetadata', this.onLoadedMetadata);
-        this.video.removeEventListener('error', this.onError);
-        this.video.removeEventListener('waiting', this.onWaiting);
-        this.video.removeEventListener('canplay', this.onCanPlay);
-        this.video.removeEventListener('click', this.togglePlayPause);
     }
     
     //----------------------------------
     addCustomControls() {
-        document.getElementById('rewindBtn').addEventListener('click', () => this.skip(-10));
-        document.getElementById('forwardBtn').addEventListener('click', () => this.skip(10));
-        document.getElementById('initialTimeBtn').addEventListener('click', () => this.goToInitialTime());
+        document.getElementById('rewindBtn')?.addEventListener('click', () => this.skip(-10));
+        document.getElementById('forwardBtn')?.addEventListener('click', () => this.skip(10));
+        document.getElementById('initialTimeBtn')?.addEventListener('click', () => this.goToInitialTime());
     }
     
     skip(seconds) {
@@ -117,77 +119,74 @@ class VideoPlayer {
     goToInitialTime() {
         this.video.currentTime = this.initialTime;
     }
-  }
-
-
-// Generate the video URL based on video name
-async function getVideo(videoName) {
-    // let originalPath = `/mlcv2/Datasets/HCMAI24/streaming/batch1_audio/${videoName}/${videoName}.m3u8`;
-    let originalPath;
-    if (videoName >= 'L01_V001' && videoName < 'L13_V001') {
-        originalPath = `/mlcv2/Datasets/HCMAI24/streaming/batch1_audio/${videoName}/${videoName}.m3u8`;
-    } else if (videoName >= 'L13_V001' && videoName < 'L25_V001') {
-        originalPath = `/mlcv2/Datasets/HCMAI24/streaming/batch2_audio/${videoName}/${videoName}.m3u8`;
-    } else{
-        originalPath = `/mlcv2/Datasets/HCMAI24/streaming/batch3/${videoName}/${videoName}.m3u8`;
-    }
-    return originalPath;
 }
 
+async function getVideo(videoName) {
+    if (!videoName) return '';
+    const videoBase = window.VIDEO_BASE || 'http://localhost:8000/videos';
+    return `${videoBase}/${videoName}.mp4`;
+}
 
-
-// Show video details
-async function showVideo(img) {
-    const detailsDiv = document.getElementById('Details')
+// Play video at a specific time
+async function playVideoAtTime(videoName, timeInSeconds) {
+    const detailsDiv = document.getElementById('Details');
     const videoElement = document.getElementById('vid_details');
     let player = null;
 
-    // Show the details div
     detailsDiv.style.display = 'block';
-  
-    // Get video URL based on image data
-    const videoSrc= await getVideo(data.kq[img.id-1].entity.video)
 
-    console.log("videoName: " + data.kq[img.id-1].entity.video);
-    console.log("img.id: " + img.id);
-    console.log("videoSrc: " + videoSrc);
+    const videoSrc = await getVideo(videoName);
 
-    // Initialize the VideoPlayer if it hasn't been already
+    console.log("Playing videoName: " + videoName, "videoSrc: " + videoSrc, "time: " + timeInSeconds);
+
     if (!videoElement.playerInstance) {
         videoElement.playerInstance = new VideoPlayer('vid_details', videoSrc);
         player = videoElement.playerInstance;
     } else {
         player = videoElement.playerInstance;
         player.videoSrc = videoSrc;
-        player.initPlayer(); // Re-initialize the player with the new source
+        player.initPlayer();
     }
-  
-    // Set the video current time and play the video
-    player.video.currentTime = data.kq[img.id - 1].entity.time;
-    player.play();
 
-    console.log("currentTime 1: " + data.kq[img.id - 1].entity.time);
+    if (timeInSeconds !== undefined && !isNaN(timeInSeconds)) {
+        player.initialTime = timeInSeconds;
+        const setTimeAndPlay = () => {
+            try {
+                player.video.currentTime = timeInSeconds;
+            } catch(e) {}
+            player.play();
+        };
+        if (player.video.readyState >= 1) {
+            setTimeAndPlay();
+        } else {
+            player.video.addEventListener('loadedmetadata', setTimeAndPlay, { once: true });
+        }
+    } else {
+        player.play();
+    }
 
-    // Ensure frame navigation still works
     const divVideoFrames = document.getElementById('video-frames');
-    if (divVideoFrames.style.display === 'flex') {
-        setupNavigationButtons();
-        document.addEventListener('keydown', handleKeyPress);
+    if (divVideoFrames && divVideoFrames.style.display === 'flex') {
+        if (typeof setupNavigationButtons === 'function') {
+            setupNavigationButtons();
+        }
+        if (typeof handleKeyPress === 'function') {
+            document.addEventListener('keydown', handleKeyPress);
+        }
     }
-  
-     
-    // Set up event listeners for video control buttons
-    document.getElementById('playBtn')?.addEventListener('', () => player.play());
-    document.getElementById('pauseBtn')?.addEventListener('click', () => player.pause());
-    document.getElementById('seekBtn')?.addEventListener('click', () => player.seek(3)); // Seek to 10 seconds
-    document.getElementById('qualitySelect')?.addEventListener('change', (e) => player.setQuality(parseInt(e.target.value)));
+}
 
+// Show video details
+async function showVideo(img) {
+    if (!data || !data.kq || !data.kq[img.id - 1]) return;
 
-    // Set the video current time and play the video
-    const initialTime = data.kq[img.id - 1].entity.time;
-    player.video.currentTime = initialTime;
-    player.initialTime = initialTime;  // Store the initial time
-    player.play();
+    const item = data.kq[img.id - 1];
+    const entity = item.entity || {};
+    const videoName = entity.video_id || entity.video || '';
+    const frameId = entity.frame_id || 0;
+    const timeVal = entity.time !== undefined ? entity.time : (frameId / 25.0);
+
+    await playVideoAtTime(videoName, timeVal);
 }
   
 

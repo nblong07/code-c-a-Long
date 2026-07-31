@@ -1,120 +1,77 @@
-# Retrieval Frontend
+# Retrieval System Frontend 🌐
 
-This is the **frontend** of the Retrieval project. It provides a lightweight, browser-based interface for querying the backend service, visualizing search results, and interacting with image/text-based retrieval workflows.
+Giao diện web trực quan của hệ thống Video Retrieval System (AIC), được xây dựng bằng **HTML5, CSS3 Vanilla và JavaScript Async/WebSocket**.
 
----
-
-## ✨ Features
-
-* **Search UI**: Enter text queries or upload images to query the backend.
-* **WebSocket Support (optional)**: Live query/response updates (can be toggled).
-* **Result Visualization**: Grid/list view of retrieved frames, grouped by video.
-* **Export Tools**: Collect, preview, and export query results.
-* **Health Badge**: Automatically checks backend status.
+Tối ưu hóa cho môi trường: **Windows 11 (Google Chrome / Microsoft Edge / Brave)**.
 
 ---
 
-## 📂 Project Structure
+## ✨ Tính năng chính
+
+- **Tìm kiếm Ngữ nghĩa (Text Query)**: Nhập mô tả tiếng Anh để tìm kiếm khoảnh khắc video (Single & Temporal Query).
+- **Xem Video & Keyframe**: Trình chiếu HLS stream video, xem các khung hình filmstrip xung quanh keyframe.
+- **Rocchio Relevance Feedback**: Chọn các keyframe liên quan / không liên quan để tinh chỉnh kết quả tìm kiếm thời gian thực.
+- **Xuất Kết Quả (Export & Submit DRES)**: Thu thập danh sách frame, xem trước và gửi bài thi tới server DRES.
+- **Lịch sử & Phân trang (History & Pagination)**: Lưu lại các truy vấn trước đó và phân trang kết quả tìm kiếm mượt mà.
+
+---
+
+## 📂 Cấu Trúc Thư Mục
 
 ```
 frontend/
-├── index.html                # Entry point
-├── login.html                # Optional login page
-├── src/
-│   ├── scripts/              # Core JavaScript (query logic, sockets, UI updates)
-│   ├── styles/               # CSS files
-│   ├── Img/                  # Icons, assets
-│   └── websocket/            # Multi-query WebSocket handlers
-└── service-worker.js         # Basic PWA support
+├── index.html                # Trang chính giao diện tìm kiếm
+├── login.html                # Trang nhập thông tin Session / DRES Login
+├── service-worker.js         # Hỗ trợ cache PWA cơ bản
+└── src/
+    ├── Img/                  # Biểu tượng, icon giao diện
+    ├── scripts/              # Mã xử lý JavaScript (WebSocket, Render UI, Events)
+    │   ├── web_socket.js     # Quản lý kết nối WebSocket tới Backend
+    │   ├── show_videoframe.js# Hiển thị lưới kết quả keyframe
+    │   ├── show_video.js    # Trình phát video HLS & Filmstrip
+    │   ├── update_result.js # Cập nhật danh sách kết quả
+    │   ├── submit_dres.js   # Xử lý gửi bài thi DRES
+    │   └── ...
+    └── styles/               # CSS định dạng giao diện & layout
 ```
 
 ---
 
-## ⚙️ Configuration
+## ⚡ Hướng Dẫn Khởi Chạy Trên Windows 11
 
-The frontend reads its backend target from **`src/scripts/config.js`**:
-
-```js
-window.BACKEND_BASE = 'http://localhost:8000';   // REST API base
-window.WS_URL = (window.BACKEND_BASE).replace(/^http/, 'ws') + '/ws';
-window.USE_WS = false; // Disable legacy sockets by default
-```
-
-To change backend target (for deployment):
-
-```html
-<script>
-  window.BACKEND_BASE = 'https://your-domain.com';
-</script>
-```
+### Cách 1: Sử dụng Extension "Live Server" trong VS Code (Khuyên dùng)
+1. Mở thư mục dự án bằng **VS Code**.
+2. Cài đặt extension **Live Server** (của Ritwick Dey).
+3. Nhấp chuột phải vào file [frontend/index.html](file:///D:/code-c-a-Long/frontend/index.html) và chọn **Open with Live Server**.
+4. Trình duyệt sẽ mở giao diện tại địa chỉ `http://127.0.0.1:5500`.
 
 ---
 
-## 🌐 Hosting with Nginx
+### Cách 2: Sử dụng Python HTTP Server trên Windows PowerShell / CMD
+Mở Terminal trên Windows và chạy lệnh:
 
-Nginx is a fast and reliable way to serve the static frontend.
-
-### 1. Install Nginx
-
-On Ubuntu/Debian:
-
-```bash
-sudo apt update
-sudo apt install nginx -y
+```cmd
+# Phục vụ thư mục frontend tại port 8007
+python -m http.server 8007 --directory frontend
 ```
-
-### 2. Place frontend files
-
-Copy the built frontend into a directory Nginx can serve:
-
-```bash
-sudo mkdir -p /var/www/retrieval-frontend
-sudo cp -r frontend/* /var/www/retrieval-frontend/
-```
-
-### 3. Configure Nginx
-
-Edit a site config (e.g., `/etc/nginx/sites-available/retrieval`):
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    root /var/www/retrieval-frontend;
-    index index.html;
-
-    location / {
-        try_files $uri /index.html;
-    }
-
-    # (Optional) Proxy API requests to backend
-    location /api/ {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-Enable and reload:
-
-```bash
-sudo ln -s /etc/nginx/sites-available/retrieval /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-### 4. Reference Docs
-
-* [Nginx Beginner’s Guide](https://nginx.org/en/docs/beginners_guide.html)
-* [Nginx Official Documentation](https://nginx.org/en/docs/)
+Sau đó truy cập trình duyệt tại: **`http://localhost:8007`**
 
 ---
 
-## 🚀 Quick Start
+### Cách 3: Sử dụng Docker Desktop trên Windows
+Nếu bạn chạy bằng Docker Compose:
 
-1. Run your backend on `http://localhost:8000`.
-2. Serve this frontend via Nginx or any static server.
-3. Open `http://your-domain.com` in the browser.
-4. Start querying and visualizing results!
+```cmd
+docker compose up -d frontend
+```
+Nginx container sẽ tự động phục vụ frontend tại: **`http://localhost:8007`**
+
+---
+
+## 🔗 Kết Nối Backend
+
+Frontend được cấu hình tự động kết nối với Backend FastAPI tại:
+- **REST API:** `http://localhost:8000`
+- **WebSocket:** `ws://localhost:8000/ws`
+
+> 📖 Xem hướng dẫn chi tiết toàn bộ hệ thống tại [HUONG_DAN.md](file:///D:/code-c-a-Long/HUONG_DAN.md).

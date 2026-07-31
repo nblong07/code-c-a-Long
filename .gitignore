@@ -1,0 +1,66 @@
+# ===========================
+# Python
+# ===========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+.env
+.venv/
+ENV/
+
+# Miniconda / Anaconda environments (thư mục env tạo trong project)
+conda-env/
+.conda/
+
+# ===========================
+# Frontend config (quan trọng!)
+# Mỗi người tự tạo config.js riêng từ config.example.js
+# KHÔNG commit file này — chứa đường dẫn riêng của từng máy
+# ===========================
+frontend/src/scripts/config.js
+
+# ===========================
+# Dữ liệu lớn — không commit lên GitHub
+# ===========================
+output-keyframes/
+*.webp
+*.mp4
+*.m3u8
+*.ts
+database/volumes/
+
+# ===========================
+# IDE / Editor
+# ===========================
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ===========================
+# Logs
+# ===========================
+*.log
+logs/
+fail_load.txt
+
+# ===========================
+# Environment variables
+# ===========================
+.env
+.env.local
+.env.production
+backend/.env

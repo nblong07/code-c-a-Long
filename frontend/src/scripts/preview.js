@@ -190,6 +190,35 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
+
+  // Add click event listeners to preview images to play video
+  document.getElementById('preview-image')?.addEventListener('click', () => {
+    const infoText = document.querySelector('.left-preview .infor')?.textContent;
+    if (infoText) {
+      const parts = infoText.split('-');
+      if (parts.length >= 2) {
+        const videoName = parts[0];
+        const timeVal = parseFloat(parts[1]);
+        if (typeof playVideoAtTime === 'function') {
+          playVideoAtTime(videoName, timeVal);
+        }
+      }
+    }
+  });
+
+  document.getElementById('current-preview')?.addEventListener('click', () => {
+    const infoText = document.querySelector('.right-preview .infor')?.textContent;
+    if (infoText) {
+      const parts = infoText.split('-');
+      if (parts.length >= 2) {
+        const videoName = parts[0];
+        const timeVal = parseFloat(parts[1]);
+        if (typeof playVideoAtTime === 'function') {
+          playVideoAtTime(videoName, timeVal);
+        }
+      }
+    }
+  });
 });
 
 // Observer to watch for changes in the video frames and update the current preview accordingly
@@ -266,8 +295,9 @@ function navigateFullscreenImage(direction) {
   const image = document.getElementById('fullscreen-image');
   const imageIndex = document.getElementById('image-index');
   const isLeftPreview = container.dataset.previewType === 'left';
-  const frame_id= image.src.split('/')[14].split('_')[1]
-  console.log(frame_id)
+  const srcParts = (image && image.src) ? image.src.split('/') : [];
+  const lastPart = srcParts[srcParts.length - 1] || '';
+  const frame_id = lastPart.includes('_') ? lastPart.split('_')[1].split('.')[0] : '0';
   if (isLeftPreview) {
     const currentIndex = parseInt(imageIndex.textContent);
     const newIndex = currentIndex + direction;
@@ -324,7 +354,7 @@ function navigateFullscreenImage(direction) {
     const currentPreviewInfo = rightPreview.querySelector('.infor');
     
     currentPreview.src = newSrc;
-    const videoName = directory.split('/').filter(part => part.startsWith('L') && part.includes('V'))[0];
+    const videoName = typeof parseVideoNameFromDirOrInfo === 'function' ? parseVideoNameFromDirOrInfo(directory, currentPreviewInfo ? currentPreviewInfo.textContent : '') : (directory.split('/').filter(Boolean).slice(-2)[0] || 'video');
     currentPreviewInfo.textContent = `${videoName}-${newFrameNumber}`;
     
     // Update the main frame in the video frames section

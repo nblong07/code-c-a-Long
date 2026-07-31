@@ -20,15 +20,31 @@ const imageObserver = new IntersectionObserver((entries, observer) => {
 });
 
 
+/**
+ * Tạo một div chứa hình ảnh kết quả tìm kiếm.
+ * @param {Object} result - Đối tượng kết quả từ Milvus (có entity: {video, frame_id, time, ...})
+ * @param {number} index  - Vị trí hiển thị (1-indexed)
+ * @returns {HTMLElement}  - phần tử div có thể append vào DOM
+ */
+function getEntityInfo(result) {
+  const entity = (result && result.entity) ? result.entity : (result || {});
+  const video = entity.video_id || entity.video || 'video';
+  const frameId = entity.frame_id !== undefined ? entity.frame_id : 0;
+  const timeVal = entity.time !== undefined ? parseFloat(Number(entity.time).toFixed(2)) : frameId;
+  const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
+  const imgSrc = `${keyframeBase}/${video}/keyframes/keyframe_${frameId}.webp`;
+  return { video, frameId, timeVal, imgSrc, frameInfo: `${video}-${timeVal}` };
+}
+
 function createImageDiv(result, index) {
-  frameInfo = `${result.entity.video}-${parseFloat(result.entity.time.toFixed(2))}`;
-  // console.log(result)
+  const info = getEntityInfo(result);
 
   const div = document.createElement('div');
   div.className = 'img-dis';
-    div.innerHTML = `
-    <img alt="" class="result" loading="lazy" height="100px" id="${index}" src="/mlcv2/WorkingSpace/Personal/quannh/Project/Project/AIC/get_keyframes/data-batch-2/${result.entity.video}/keyframes/keyframe_${result.entity.frame_id}.webp">
-    <div class="infor">${frameInfo}</div>
+  div.innerHTML = `
+    <img alt="" class="result" loading="lazy" id="${index}"
+      src="${info.imgSrc}">
+    <div class="infor">${info.frameInfo}</div>
     <div name="similarity_search" class="similarity_search"></div>
     <div class="export_icon"></div>
   `;
@@ -39,15 +55,9 @@ function createImageDiv(result, index) {
   
   const exportIcon = div.querySelector('.export_icon');
   exportIcon.addEventListener('click', () => {
-      img.dataset.src = "/mlcv2/WorkingSpace/Personal/quannh/Project/Project/AIC/get_keyframes/data-batch-2/"  + result.entity.video + "/keyframes/keyframe_" + result.entity.frame_id + ".webp";
-    frameId = result.entity.time;
-    addImageToExportArea(frameId, imagePath, frameInfo);
+    const imagePath = img.src || img.dataset.src;
+    addImageToExportArea(info.frameId, imagePath, info.frameInfo);
   });
-
-  // // Using unified event listeners
-  // div.addEventListener('mousedown', handleMiddleClick);
-  // const exportIcon = div.querySelector('.export_icon');
-  // exportIcon.addEventListener('click', handleExportIconClick);
 
   return div;
 }
@@ -70,14 +80,14 @@ function updateRightPanel_list(results) {
           fragment.appendChild(div);
       }
 
+      const info = getEntityInfo(result);
       const img = div.querySelector('img');
       const infor = div.querySelector('.infor');
       img.id = index + 1;
 
-      img.dataset.src = "/mlcv2/WorkingSpace/Personal/quannh/Project/Project/AIC/get_keyframes/data-batch-2/"  + result.entity.video + "/keyframes/keyframe_" + result.entity.frame_id + ".webp";
-
-      img.src = '';
-      infor.textContent = `${result.entity.video}-${parseFloat(result.entity.time.toFixed(2))}`;
+      img.dataset.src = info.imgSrc;
+      img.src = info.imgSrc;
+      infor.textContent = info.frameInfo;
 
       imageObserver.observe(img);
       return div;
@@ -116,7 +126,7 @@ function getCurrentResults() {
 // Group the results by video
 function groupResultsByVideo(results) {
   return results.reduce((groups, result) => {
-      const videoName = result.entity.video;
+      const videoName = (result && result.entity) ? (result.entity.video_id || result.entity.video || 'video') : 'video';
       (groups[videoName] = groups[videoName] || []).push(result);
       return groups;
   }, {});
@@ -159,11 +169,12 @@ function updateRightPanel_rows(results) {
   imagesRows.scrollTop = 0;
 }
 
-// Update both panels
+// Update both panels (hiển thị 25 bức ảnh có xác suất cao nhất)
 function updateUIWithSearchResults(results) {
-  updateRightPanel_list(results);
-  updateRightPanel_rows(results);
-  updateObjectList(results);
+  const top25Results = Array.isArray(results) ? results.slice(0, 25) : [];
+  updateRightPanel_list(top25Results);
+  updateRightPanel_rows(top25Results);
+  updateObjectList(top25Results);
   
   // If the object list is visible, update its content
   if (isObjectListVisible) {

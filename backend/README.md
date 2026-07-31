@@ -1,143 +1,59 @@
 
-# Vector Search Service
+# Vector Search Service Backend 🚀
 
-A high-performance FastAPI service for vector similarity search using the CLIP model with Milvus database.
+FastAPI backend service cho hệ thống tìm kiếm vector (Video Retrieval System), tích hợp mô hình OpenCLIP `ViT-L-14` và cơ sở dữ liệu vector Milvus.
 
-## Features
+Tối ưu hóa cho môi trường: **Windows 11, RAM 16GB, GPU NVIDIA 6GB VRAM (PyTorch CUDA)**.
 
-* **CLIP Model Support**: Uses OpenAI CLIP for text and image encoding
-* **Temporal Queries**: Supports sequential queries with temporal relationship scoring
-* **Real-time Communication**: WebSocket support for live queries
-* **Configurable**: Easy configuration via JSON file or environment variables
-* **High Performance**: Async operations, caching, and vectorized computations
-* **Production Ready**: Comprehensive logging, error handling, and health checks
+## ✨ Tính năng chính
 
-## Installation
+- **OpenCLIP `ViT-L-14` (`laion2b_s32b_b82k`)**: Trích xuất embedding 768 chiều chất lượng cao, nhận diện ngữ nghĩa siêu chuẩn xác.
+- **Temporal Query**: Tìm kiếm theo chuỗi thời gian (First Query + Next Query) với thuật toán tính điểm khoảng cách thời gian.
+- **Rocchio Relevance Feedback**: Phản hồi tương tác tinh chỉnh vector tìm kiếm theo các keyframe đã chọn.
+- **Real-time WebSocket & REST API**: Hỗ trợ endpoint `/TextQuery` và WebSocket `/ws`.
+- **Cấu hình qua `config.json`**: Dễ dàng tùy chỉnh host, port, collection name, limit.
 
-### Requirements
+## 🛠️ Cài đặt & Khởi chạy
+
+### 1. Cài đặt thư viện
 
 ```bash
-# requirements.txt
-fastapi
-uvicorn[standard]
-torch
-torchvision
-ope_clip_torch
-transformers
-pillow
-pymilvus
-numpy
-pydantic
-python-multipart
+pip install fastapi uvicorn[standard] torch torchvision open_clip_torch pillow pymilvus numpy pydantic python-multipart
 ```
+*(Hoặc chạy [setup.bat](file:///D:/code-c-a-Long/setup.bat) từ thư mục gốc)*
 
-### Install Dependencies
+### 2. Cấu hình (`config.json`)
 
-```bash
-pip install -r requirements.txt
-```
-
-## Configuration
-
-### Method 1: Configuration File
-
-Create a `config.json` file (see example above) and set:
-
-```bash
-export CONFIG_FILE=config.json
-```
-
-### Method 2: Environment Variables
-
-```bash
-# Model Configuration
-export CLIP_MODEL_NAME="ViT-H-14-378-quickgelu"
-export CLIP_PRETRAINED="dfn5b"
-export DEVICE="cuda"
-
-# Database Configuration
-export MILVUS_HOST="192.168.20.156"
-export MILVUS_PORT="19530"
-export MILVUS_DATABASE="default"
-export COLLECTION_NAME="AIC_2024_1"
-export SEARCH_LIMIT="3000"
-
-# Server Configuration
-export CORS_ORIGINS="http://localhost:8007,https://localhost:8005"
-export MAX_WORKERS="4"
-export LOG_LEVEL="INFO"
-```
-
-## Usage
-
-### Starting the Service
-
-```bash
-# Using the refactored code
-python main.py
-
-# Or with uvicorn directly
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### API Endpoints
-
-#### 1. Health Check
-
-```bash
-GET /health
-```
-
-#### 2. Text Query (REST)
-
-```bash
-POST /TextQuery
-Content-Type: application/json
-
+Mẫu file `config.json`:
+```json
 {
-  "First_query": "person walking",
-  "Next_query": "person sitting"  // Optional
+  "clip_model_name": "ViT-L-14",
+  "clip_pretrained": "laion2b_s32b_b82k",
+  "device": "cuda",
+  "milvus_host": "localhost",
+  "milvus_port": 19530,
+  "collection_name": "AIC25_fullbatch1",
+  "keyframes_dir": "./data-keyframes"
 }
 ```
 
-#### 3. WebSocket Connection
-
-```javascript
-const ws = new WebSocket('ws://localhost:8000/ws');
-ws.send(JSON.stringify({
-  type: 'text_query',
-  firstQuery: 'person walking',
-  secondQuery: 'person sitting'
-}));
-```
-
-#### 4. Configuration Info
+### 3. Khởi chạy Server
 
 ```bash
-GET /config
+python main.py
 ```
+Server sẽ lắng nghe tại: `http://localhost:8000` (Docs Swagger UI tại `http://localhost:8000/docs`).
 
-## File Structure
+## 📡 Các API chính
 
-```
-project/
-├── main.py              # Main application file
-├── config.json          # Configuration file
-├── requirements.txt     # Python dependencies
-├── README.md           # This file
-└── .env                # Environment variables (optional)
-```
+| Endpoint | Phương thức | Mô tả |
+| --- | --- | --- |
+| `/health` | `GET` | Kiểm tra trạng thái kết nối Milvus & Model |
+| `/TextQuery` | `POST` | Truy vấn Text-to-Video (Hỗ trợ 1 hoặc 2 query thời gian) |
+| `/ws` | `WebSocket` | Kết nối thời gian thực |
+| `/config` | `GET` | Lấy thông tin cấu hình hiện tại |
 
-## Configuration Options
-
-| Setting           | Description                 | Default                |
-| ----------------- | --------------------------- | ---------------------- |
-| `clip_model_name` | CLIP model identifier       | ViT-H-14-378-quickgelu |
-| `device`          | Computing device (cuda/cpu) | cuda                   |
-| `milvus_host`     | Milvus server host          | 192.168.20.156         |
-| `collection_name` | Milvus collection name      | AIC\_2024\_1           |
-| `search_limit`    | Maximum search results      | 3000                   |
-| `max_workers`     | Thread pool size            | 4                      |
+Xem hướng dẫn sử dụng toàn bộ hệ thống tại [HUONG_DAN.md](file:///D:/code-c-a-Long/HUONG_DAN.md).
 
 ## Temporal Query Logic
 

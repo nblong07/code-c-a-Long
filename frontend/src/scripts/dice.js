@@ -12,17 +12,18 @@ function generateRandomString(length = 10) {
 
 // Handle dice click function
 async function handleDiceClick() {
-    const diceIcon = document.getElementById("dice-icon");
-    diceIcon.parentElement.classList.add('shake');
-    
-    setTimeout(() => {
-        diceIcon.parentElement.classList.remove('shake');
-    }, 200); // Remove the class after the animation duration
+    const diceContainer = document.querySelector(".dice-logo");
+    if (diceContainer) {
+        diceContainer.classList.add('shake');
+        setTimeout(() => {
+            diceContainer.classList.remove('shake');
+        }, 500);
+    }
 
     const randomQuery = generateRandomString();
     document.getElementById("Text-Query-First").value = randomQuery;
     document.getElementById("Text-Query-Second").value = "";
-    toggleLoadingIndicator(true)
+    toggleLoadingIndicator(true);
 
     if (isQuickSearch) {
         // Quick search mode
@@ -31,7 +32,7 @@ async function handleDiceClick() {
         // Normal search mode
         await performCombinedSearch();
     }
-    toggleLoadingIndicator(false)
+    toggleLoadingIndicator(false);
 }
 
 
@@ -44,9 +45,9 @@ function handleKeyboardShortcuts(event) {
 
 // Add event listeners when the DOM is fully loaded
 document.addEventListener('DOMContentLoaded', function() {
-    const diceIcon = document.querySelector(".dice-logo img");
-    if (diceIcon) {
-        diceIcon.addEventListener("click", handleDiceClick);
+    const diceBtn = document.querySelector(".dice-logo");
+    if (diceBtn) {
+        diceBtn.addEventListener("click", handleDiceClick);
     }
     document.addEventListener('keydown', handleKeyboardShortcuts);
 });

@@ -53,7 +53,8 @@ const batchObserver = new IntersectionObserver((entries, observer) => {
 });
 // Establish WebSocket connection
 function connectPagnitionWebSocket() {
-    Pagnitionsocket = new WebSocket("ws://localhost:8000/ws/pagnition");
+    const tokenParam = window.API_KEY ? `?token=${encodeURIComponent(window.API_KEY)}` : '';
+    Pagnitionsocket = new WebSocket(`ws://localhost:8000/ws/pagnition${tokenParam}`);
 
     Pagnitionsocket.onopen = function(event) {
         console.log("WebSocket connection established");
@@ -118,14 +119,26 @@ window.onload = function() {
 };
 
 
+function getPagnitionEntityInfo(result) {
+    const entity = (result && result.entity) ? result.entity : (result || {});
+    const video = entity.video_id || entity.video || 'video';
+    const frameId = entity.frame_id !== undefined ? entity.frame_id : 0;
+    const timeVal = entity.time !== undefined ? parseFloat(Number(entity.time).toFixed(2)) : frameId;
+    const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
+    const imgSrc = `${keyframeBase}/${video}/keyframes/keyframe_${frameId}.webp`;
+    return { video, frameId, timeVal, imgSrc, frameInfo: `${video}-${timeVal}` };
+}
+
 function createPagnitionImageDiv(result, index) {
-    const frameInfo = `${result.entity.video}-${result.entity.time}`;
+    const info = getPagnitionEntityInfo(result);
     
     const div = document.createElement('div');
     div.className = 'img-dis';
     div.innerHTML = `
-        <img alt="" class="result" loading="lazy" height="100px" id="${index}" data-src="/mlcv2/WorkingSpace/Personal/quannh/Project/Project/AIC/get_keyframes/data-batch-2/${result.entity.video}/keyframes/keyframe_${result.entity.frame_id}.webp" src="">
-        <div class="infor">${frameInfo}</div>
+        <img alt="" class="result" loading="lazy" id="${index}"
+          data-src="${info.imgSrc}"
+          src="${info.imgSrc}">
+        <div class="infor">${info.frameInfo}</div>
         <div name="similarity_search" class="similarity_search"></div>
         <div class="export_icon"></div>
     `;
@@ -134,26 +147,19 @@ function createPagnitionImageDiv(result, index) {
     img.setAttribute('draggable', 'true');
     img.addEventListener('dragstart', drag);
 
-
     // Add middle click event listener
     div.addEventListener('mousedown', (event) => {
         if (event.button === 1) { // Middle mouse button
             event.preventDefault(); // Prevent default middle-click behavior
-            const frameId = result.entity.frame_id;
-            const imagePath = img.dataset.src;
-            addImageToExportArea(frameId, imagePath, frameInfo);
+            addImageToExportArea(info.frameId, info.imgSrc, info.frameInfo);
         }
     });
 
     // Using unified event listeners
     const exportIcon = div.querySelector('.export_icon');
     exportIcon.addEventListener('click', () => {
-        const imagePath = img.dataset.src;
-        const frameId = result.entity.frame_id;
-        addImageToExportArea(frameId, imagePath, frameInfo);
+        addImageToExportArea(info.frameId, info.imgSrc, info.frameInfo);
     });
-
-    
 
     return div;
 }

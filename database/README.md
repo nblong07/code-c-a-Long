@@ -16,10 +16,10 @@ In this project, it stores embeddings for keyframe retrieval.
 * Schema:
 
   * `id`: Primary key (INT64)
-  * `filepath`: Path to keyframe image
-  * `embedding`: 1024-dim float vector (from OpenCLIP)
-  * `video_id`: Parent video folder
-  * `frame_id`: Frame index in original video
+  * `filepath`: Path to keyframe image (VARCHAR)
+  * `embedding`: Float vector (e.g. 768-dim from OpenCLIP `ViT-L-14`, auto-detected based on model)
+  * `video_id`: Parent video folder (VARCHAR)
+  * `frame_id`: Frame index in original video (INT64)
 
 For advanced Milvus features (e.g., partitioning, hybrid search, scaling, query optimization), see the official docs:
 👉 [Milvus Documentation](https://milvus.io/docs)
@@ -41,16 +41,10 @@ This repo includes a ready-to-use **Docker Compose** file to start Milvus and it
 If you haven't installed Docker yet, install **Docker Engine** and **Docker Compose v2** on your machine.
 
 ### What this Compose file starts
-- **etcd** (`quay.io/coreos/etcd:v3.5.18`)
-- **environment**
-- **volumes**
-- **healthcheck**
-- **minio** (`minio/minio:RELEASE.2024-12-18T13-15-44Z`)
-- **ports**
-- **standalone** (`milvusdb/milvus:v2.6.2`)
-- **security_opt**
-- **depends_on**
-- **default**
+- **etcd** (`quay.io/coreos/etcd:v3.5.18`): Metadata storage for Milvus.
+- **minio** (`minio/minio:RELEASE.2024-12-18T13-15-44Z`): Object storage for logs and index files.
+- **standalone** (`milvusdb/milvus:v2.6.2`): Core Milvus vector database engine.
+
 ### Quick start
 
 From the repository folder that contains `docker-compose.yml`:
@@ -66,17 +60,17 @@ docker compose ps
 docker compose logs -f
 ```
 
-When everything is healthy, Milvus should accept connections on **port 19530** (gRPC) and **port 9091/9092** (HTTP REST, if exposed).
+When everything is healthy, Milvus should accept connections on **port 19530** (gRPC) and **port 9091** (HTTP REST/health).
 
 ### Verify the connection (Python)
 
 ```python
 from pymilvus import connections, utility
-connections.connect("default", host="127.0.0.1", port="19530")
+connections.connect("default", host="localhost", port="19530")
 print("Connected:", utility.get_server_version())
 ```
 
-> Tip: If you run Milvus in the cloud or a remote server, replace `127.0.0.1` with the server IP/hostname and make sure the port is open in your firewall.
+> Tip: If you run Milvus in the cloud or a remote server, replace `localhost` with the server IP/hostname and make sure the port is open in your firewall.
 
 ### Stop & clean up
 
@@ -117,10 +111,14 @@ python get_keyframes.py \
 ### Key Arguments
 
 * `--input-folder`: Root folder containing videos (`.mp4` by default).
-* `--output-base`: Where keyframes and maps will be stored.
-* `--clip-threshold`: Cosine similarity threshold (lower similarity → new keyframe).
-* `--skip-frames`: Process every `(skip_frames + 1)`th frame.
+* `--output-base`: Where keyframes and maps will be stored (default: `./output-keyframes`).
+* `--clip-threshold`: Cosine similarity threshold (lower similarity → new keyframe, default: `0.93`).
+* `--skip-frames`: Process every `(skip_frames + 1)`th frame (default: `5`).
 * `--pattern`: Glob pattern for video files (default: `*.mp4`).
+* `--batch-size`: Batch size for CLIP visual encoding (default: `32`).
+* `--model`: OpenCLIP model architecture (default: `ViT-L-14`).
+* `--pretrained`: Pretrained weights tag (default: `laion2b_s32b_b82k`).
+* `--cpu`: Force CPU execution instead of GPU.
 
 Each processed video produces:
 
@@ -147,10 +145,10 @@ This script takes the extracted keyframes (`.webp`) and inserts their embeddings
 
 ### Features
 
-* Multi-GPU or CPU-only encoding
+* GPU and CPU encoding support
 * Batch-wise insertion with configurable flush interval
-* Automatic collection creation with HNSW index
-* Option to rebuild index after ingestion for faster queries
+* Automatic collection creation with HNSW index and vector dimension detection
+* Option to build HNSW index after ingestion for faster queries
 
 ### Usage
 
@@ -164,13 +162,15 @@ python upload_database.py \
 
 ### Key Arguments
 
-* `--root`: Root folder containing keyframes.
-* `--collection-name`: Milvus collection name.
+* `--root`: Root folder containing keyframes (default: `./output-keyframes`).
+* `--collection-name`: Milvus collection name (default: `AIC25_fullbatch1`).
 * `--recreate`: Drop and recreate the collection if it exists.
-* `--build-index`: Build HNSW index after insertions.
-* `--batch-size`: Number of keyframes per encoding batch (default: 16).
-* `--flush-interval`: Flush every N inserts (default: 2000).
-* `--workers`: `auto` = use all GPUs, `cpu` = single worker on CPU, or integer for #workers.
+* `--build-index`: Build HNSW index and load collection after upload.
+* `--batch-size`: Number of keyframes per encoding batch (default: `32`).
+* `--flush-interval`: Flush every N inserts (default: `2000`).
+* `--model`: OpenCLIP model architecture (default: `ViT-L-14`).
+* `--pretrained`: Pretrained weights tag (default: `laion2b_s32b_b82k`).
+* `--cpu`: Force CPU execution instead of GPU.
 
 ---
 
@@ -205,4 +205,5 @@ pip install torch torchvision tqdm opencv-python pillow pymilvus open_clip_torch
 
 * You can extract **compact sets of representative frames** from large video datasets.
 * Store them in **Milvus** for fast semantic search and retrieval.
+
 

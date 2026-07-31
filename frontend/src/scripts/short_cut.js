@@ -80,16 +80,54 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Add event listener for the search button
+    // Helper function to trigger combined search
+    async function triggerSearchExecution() {
+        toggleLoadingIndicator(true);
+        collectTextQueries();
+
+        const searchScenes = document.querySelectorAll('.Search_Scene');
+        let filledQueriesCount = 0;
+
+        for (const scene of searchScenes) {
+            const query = await getQueryContent(scene);
+            if (query && query.content) {
+                filledQueriesCount++;
+            }
+        }
+
+        if (typeof isQuickSearch !== 'undefined' && isQuickSearch) {
+            if (filledQueriesCount === 1) {
+                await performPagnitionCombinedSearch();
+            } else {
+                await performCombinedSearch();
+            }
+        } else {
+            await performCombinedSearch();
+        }
+    }
+
+    // Add event listener for the search button in bottom panel
     const searchButton = document.getElementById('search-button');
     if (searchButton) {
         searchButton.addEventListener('click', function() {
-            toggleLoadingIndicator(true);
+            triggerSearchExecution();
+        });
+    }
 
-            // Collect text queries before performing search
-            collectTextQueries();
-            
-            performCombinedSearch();
+    // Add event listener for the main search button inside search card
+    const cardSearchButton = document.getElementById('card-search-button');
+    if (cardSearchButton) {
+        cardSearchButton.addEventListener('click', function() {
+            triggerSearchExecution();
+        });
+    }
+
+    // Form submit listener to prevent page refresh and trigger search
+    const searchForm = document.getElementById('Search');
+    if (searchForm) {
+        searchForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            triggerSearchExecution();
         });
     }
 

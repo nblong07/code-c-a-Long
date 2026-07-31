@@ -1,13 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Trang web này chỉ để nói yêu em <3 <3 </title>
-    <!-- <link rel="preconnect" href="https://cdnjs.cloudflare.com"> -->
-    <!-- <link rel="preconnect" href="https://cdn.jsdelivr.net"> -->
-    <!-- <link rel="preconnect" href="https://vjs.zencdn.net"> -->
-
+    <title>AI Video Retrieval System v2.0 (DINOv2)</title>
+    <link rel="icon" type="image/svg+xml" href="src/Img/icon-video-ai.svg" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <link rel="stylesheet" href="src/styles/layout.css" />
@@ -50,37 +48,23 @@
 </head>
   <body>
     <script>
-      // Check if the user has entered a name and session ID
+      /**
+       * Kiểm tra xem người dùng đã đăng nhập chưa.
+       * Nếu chưa có evaluationID hoặc contestSessionID trong localStorage
+       * thì redirect về trang login.
+       * (Hiện tại bỏ comment redirect để dễ phát triển)
+       */
       if (!localStorage.getItem('evaluationID') || !localStorage.getItem('contestSessionID')) {
-        // If not, redirect to the login page
-        //window.location.href = 'login.html';
+        // Bỏ comment dòng dưới để bật chức năng redirect về login khi chưa đăng nhập:
+        // window.location.href = 'login.html';
       }
-    
-      // Function to use the stored name and session ID
-      function useSessionInfo() {
-        const evaluationID = localStorage.getItem('evaluationID');
-        const contestSessionID = localStorage.getItem('contestSessionID');
-        
-        // You can use userName and sessionId here as needed
-        console.log('User Name:', userName);
-        console.log('Session ID:', sessionId);
-    
-        // TODO: Add your logic to use these values in your application
-        // For example, you might want to display the user's name somewhere:
-        document.getElementById('user-name-display').textContent = userName;
-    
-        // And use the sessionId for your submissions:
-        // (Assuming you have a submit function that uses the session ID)
-        // submitFunction(sessionId);
-      }
-    
-      // Call this function when the page loads
-      window.onload = useSessionInfo;
-    
-      // Add a logout function
+
+      /**
+       * Hàm đăng xuất: xóa session khỏi localStorage và chuyển về trang login.
+       */
       function logout() {
-        localStorage.removeItem('userName');
-        localStorage.removeItem('sessionId');
+        localStorage.removeItem('evaluationID');
+        localStorage.removeItem('contestSessionID');
         window.location.href = 'login.html';
       }
     </script>
@@ -88,8 +72,8 @@
 
       <div class="header-left">
         
-        <div class="logo">
-          <img src="src/Img/icons8-heart-80.png" alt="Icon" id="shortcut-icon">
+        <div class="logo" title="AI Video Retrieval (OpenCLIP ViT-L-14 768d)">
+          <img src="src/Img/logo-video-ai.svg" alt="VideoAI Logo" id="shortcut-icon" style="height: 38px;">
         </div> 
 
         <div class="object-list-button-container">
@@ -101,25 +85,39 @@
 
       </div>
 
-      <div class="dice-logo">
-        <img src="src/Img/icon-dice.png" id="dice-icon" alt="Dice Logo">
+      <div class="dice-logo" id="dice-container" title="Random Search / Tráo câu truy vấn ngẫu nhiên (Ctrl + D)">
+        <button type="button" class="random-dice-btn" id="dice-icon" aria-label="Random Search">
+          <svg class="dice-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="2" fill="rgba(255,255,255,0.05)"/>
+            <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
+            <circle cx="16" cy="8" r="1.5" fill="currentColor"/>
+            <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+            <circle cx="8" cy="16" r="1.5" fill="currentColor"/>
+            <circle cx="16" cy="16" r="1.5" fill="currentColor"/>
+          </svg>
+          <span class="random-dice-badge">Random</span>
+        </button>
       </div>
 
       <div class="header-right">
 
+        <div id="system-status-badge" class="system-status-badge connecting" title="Trạng thái kết nối máy chủ AI Backend">
+          <span class="status-dot connecting" id="status-dot"></span>
+          <span id="status-text">Đang kết nối hệ thống...</span>
+        </div>
         
-        <button class="quick-search-button" id="quick-search">
+        <button class="quick-search-button" id="quick-search" title="Nhấn để tìm kiếm ngay">
           <img src="src/Img/icon-lighting-grey.png" alt="icon">
         </button>
 
-        <label class="mode-option">          
+        <label class="mode-option" title="Gạt để chuyển giữa chế độ xem ảnh và xem video chi tiết">          
           <input type="checkbox" id="mode-toggle" class="toggle-checkbox">
           <span class="slider"></span>
         </label>
 
         <div class="button-header-group">
-          <button type="button" id="export-button">Export</button>
-          <button type="button" id="submit-button">Submit</button>
+          <button type="button" id="export-button" title="Xuất danh sách kết quả">Xuất File</button>
+          <button type="button" id="submit-button" title="Nộp kết quả thi AI">Nộp Bài</button>
         </div>
 
     </div>
@@ -132,10 +130,10 @@
       <div class="left-panel">
 
         <div class="model-option">
-          <button class="clip active">CLIP</button>
-          <button class="beit">BEIT</button>
-          <button class="blip">BLIP</button>
-          <button class="mix">MIX</button>
+          <button class="clip active" title="Mô hình Meta DINOv2 (ViT-B/14)">DINOv2</button>
+          <button class="beit" title="Mô hình BEIT">BEIT</button>
+          <button class="blip" title="Mô hình BLIP">BLIP</button>
+          <button class="mix" title="Mô hình kết hợp">MIX</button>
         </div>
 
         <div class="Box_Function">
@@ -145,22 +143,22 @@
 
               <div class="Search_Scene" id="search-scene-1">
                 <div class="tab-buttons">
-                  <button class="text-button active">
+                  <button class="text-button active" title="Tìm bằng chữ">
                     <img src="src/Img/icon-outline-text.png" alt="icon">
                   </button>
-                  <button class="image-button">
+                  <button class="image-button" title="Tìm bằng hình ảnh">
                     <img src="src/Img/icon-image-plus.png" alt="icon">
                   </button>
                 </div>
                 
                 <div class="mode-button">
-                  <button class="temporal-search active">Temporal</button>
-                  <button class="query-expansion">Expansion</button>
+                  <button class="temporal-search active" title="Tìm chuỗi cảnh theo thời gian">Cảnh 1</button>
+                  <button class="query-expansion" title="Mở rộng từ khóa">Mở Rộng</button>
                 </div>
 
                 <div class="query-group">
                   <div class="query-content-area">
-                    <textarea name="Text_Query" id="Text-Query-First" rows="4" placeholder="Enter the Query for First Scene"></textarea>
+                    <textarea name="Text_Query" id="Text-Query-First" rows="4" placeholder="Nhập mô tả hình ảnh cho Cảnh 1 (Ví dụ: tòa nhà, xe ô tô màu đỏ...)"></textarea>
                     
                     <div class="image-drop-area" style="display: none;">
                       <p class="drop-instruction">Drag and drop image here or click to upload</p>
@@ -203,13 +201,13 @@
                 </div>
 
                 <div class="mode-button">
-                  <button class="temporal-search active">Temporal</button>
-                  <button class="query-expansion">Expansion</button>
+                  <button class="temporal-search active" title="Cảnh tiếp theo trong cùng video">Cảnh 2</button>
+                  <button class="query-expansion" title="Mở rộng từ khóa">Mở Rộng</button>
                 </div>
 
                 <div class="query-group">
                   <div class="query-content-area">
-                    <textarea name="Text_Query" id="Text-Query-Second" rows="4" placeholder="Enter the Query for Second Scene"></textarea>
+                    <textarea name="Text_Query" id="Text-Query-Second" rows="4" placeholder="Nhập mô tả cho Cảnh 2 (Tùy chọn: sự kiện xảy ra sau cảnh 1)"></textarea>
                     
                     <div class="image-drop-area" style="display: none;">
                       <p class="drop-instruction">Drag and drop image here or click to upload</p>
@@ -242,6 +240,12 @@
               </div>
 
             </form>
+
+            <div class="main-search-btn-container">
+              <button type="button" id="card-search-button" class="card-search-btn" title="Click để tìm kiếm (hoặc nhấn phím Enter trên bàn phím)">
+                <i class="fas fa-search"></i> TÌM KIẾM ↵
+              </button>
+            </div>
           </div>
               
             <form class="object-detail">
@@ -507,16 +511,17 @@
 
 
 
-    <!-- Show the previous and next frame of a frame in the video -->
+    <!-- Hiển thị các frame trước/sau của frame hiện tại trong video -->
     <div class="video-frames" id="video-frames">
     </div>
 
 
-    <!-- Show the loading indicator -->
-    </div>
-      <div id="loading-indicator" class="loading-indicator">
-        <div class="spinner"></div>
-        <div class="loading-text">Searching...</div>
+    <!-- Hiển thị indicator loading khi đang tìm kiếm -->
+    <div id="loading-indicator" class="loading-indicator">
+      <div class="spinner"></div>
+      <div class="loading-text-container">
+        <div class="loading-text">🔍 Đang tìm kiếm video...</div>
+        <div class="loading-subtext">Đang truy vấn AI DINOv2 (ViT-B/14) & Milvus DB</div>
       </div>
     </div>
 
@@ -526,9 +531,7 @@
       <div class="details_bg" id="details_bg">
         <div class="draggable-bar"></div>
         <span class="close">×</span>
-        <video id="vid_details" class="vid_details" controls preload="auto" fluid="true">
-          <source src="" type="application/x-mpegURL"/>
-        </video>
+        <video id="vid_details" class="vid_details" controls preload="auto"></video>
         <div class="custom-controls">
           <button id="rewindBtn"><i class="fas fa-backward"></i></button>
           <button id="initialTimeBtn"><i class="fas fa-redo"></i></button>
@@ -581,6 +584,7 @@
 
     <div id="notification-container"></div>
     
+    <script src="src/scripts/config.js"></script>
     <script src="src/scripts/filter_get_infor.js"></script>
     <script src="src/scripts/short_cut.js"></script>
     <script src="src/scripts/preview.js"></script>
@@ -598,9 +602,5 @@
     <script src="src/scripts/object_list.js"></script>
     <script src="src/scripts/pagnition.js"></script>
     <script src="src/scripts/submit_dres.js"></script>
-
-    <!-- <script src="src/scripts/query_backend.js"></script> -->
   </body>
 </html>
-
-

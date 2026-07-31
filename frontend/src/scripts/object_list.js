@@ -8,17 +8,20 @@ let selectedObjects = new Set(); // Store selected objects
 function extractUniqueObjects(results) {
   objectToFramesMap.clear(); // Clear existing mappings
 
-  results.forEach(result => {
-    const video = result.entity.video;
-    const frameId = result.entity.frame_id;
-    
-    Object.keys(result.entity.object || {}).forEach(objectType => {
-      if (!objectToFramesMap.has(objectType)) {
-        objectToFramesMap.set(objectType, []);
-      }
-      objectToFramesMap.get(objectType).push({ video, frameId });
+  if (Array.isArray(results)) {
+    results.forEach(result => {
+      const entity = (result && result.entity) ? result.entity : (result || {});
+      const video = entity.video_id || entity.video || 'video';
+      const frameId = entity.frame_id !== undefined ? entity.frame_id : 0;
+      
+      Object.keys(entity.object || {}).forEach(objectType => {
+        if (!objectToFramesMap.has(objectType)) {
+          objectToFramesMap.set(objectType, []);
+        }
+        objectToFramesMap.get(objectType).push({ video, frameId });
+      });
     });
-  });
+  }
 
   return Array.from(objectToFramesMap.keys());
 }

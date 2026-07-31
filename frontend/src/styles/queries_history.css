@@ -5,36 +5,39 @@
     position: absolute;
     bottom: 20px;
     right: 20px;
-    width: 42px;
-    height: 42px;
-    background-color: white;
+    width: 44px;
+    height: 44px;
+    background-color: rgba(18, 19, 28, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-color);
     border-radius: 50%;
     display: flex;
     justify-content: center;
     align-items: center;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
     cursor: pointer;
     z-index: 15;
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, border-color 0.2s ease;
     user-select: none;
 }
 
 .queries-icon-container:hover {
     transform: scale(1.1);
+    border-color: var(--primary-color);
 }
 
 .queries-icon-container img {
     position: absolute;
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     transition: opacity 0.3s ease;
+    filter: invert(1);
 }
-
 
 .queries-icon-container .close-icon {
     position: absolute;
-    width: 30px;
-    height: 30px;
+    width: 24px;
+    height: 24px;
     transition: opacity 0.3s ease;
 }
 
@@ -51,28 +54,28 @@
 }
 
 .close-icon path {
-    stroke: #3a7bd5;
-    stroke-width: 2;
+    stroke: var(--primary-color);
+    stroke-width: 2.5;
     stroke-linecap: round;
     stroke-linejoin: round;
 }
 
 
-
 /*--------------------------------------------------------------------------*/
-
-
 
 .queries-popup {
     display: none;
     position: absolute;
-    bottom: 70px;
+    bottom: 76px;
     right: 20px;
-    width: 300px;
+    width: 320px;
     height: 480px;
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.2);
+    background-color: rgba(18, 19, 28, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
     z-index: 99;
     transition: opacity 0.3s ease, transform 0.3s ease;
     opacity: 0;
@@ -87,74 +90,92 @@
 }
 
 .queries-header {
-    background-color: #3a7bd5;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #1d4ed8 100%);
     color: white;
-    padding: 8px;
-    border-radius: 8px 8px 0 0;
-    font-weight: bold;
+    padding: 10px 14px;
+    border-radius: 12px 12px 0 0;
+    font-weight: 600;
     font-size: 14px;
     flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
+
 .queries-history, .shared-queries {
     flex-grow: 1;
-    padding: 10px;
+    padding: 12px;
     overflow: hidden;
     position: relative;
 }
+
 .queries-history {
     height: 200px;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--border-color);
 }
+
 .shared-queries {
     height: 150px;
 }
+
 .share-container {
     display: flex;
-    padding: 10px;
-    border-top: 1px solid #ddd;
+    padding: 10px 12px 14px;
+    border-top: 1px solid var(--border-color);
+    background-color: rgba(0,0,0,0.15);
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
 }
+
 #share-input {
     flex-grow: 1;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px 0 0 4px;
-    font-size: 14px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px 0 0 6px;
+    background-color: rgba(0, 0, 0, 0.25);
+    color: var(--text-color);
+    font-size: 12.5px;
     resize: none;
+    outline: none;
+    box-sizing: border-box;
     overflow-y: auto;
-    min-height: 20px; 
-    max-height: 100px;
-    transition: height 0.2s ease;
+    min-height: 32px; 
+    max-height: 80px;
 }
+
+#share-input:focus {
+    border-color: var(--primary-color);
+}
+
 #share-button {
-    padding: 8px 8px;
-    background-color: #3a7bd5;
+    padding: 8px 14px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #1d4ed8 100%);
     color: white;
     border: none;
-    border-radius: 0 4px 4px 0;
+    border-radius: 0 6px 6px 0;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s ease;
 }
+
 #share-button:hover {
-    background-color: #2c5fa8;
+    filter: brightness(1.1);
 }
 
 .clear-button {
     position: absolute;
-    top: 0px;
-    right: 5px;
+    top: 6px;
+    right: 8px;
     background-color: transparent;
     border: none;
-    color: #999;
+    color: var(--text-muted);
     font-size: 16px;
     cursor: pointer;
     padding: 0;
-    line-height: 1;
     z-index: 10;
 }
 
 .clear-button:hover {
-    color: #333;
-    background-color: transparent;
+    color: var(--accent-red);
 }
 
 .query-container {
@@ -162,41 +183,54 @@
     margin-top: 5px;
     overflow-y: auto;
     position: relative;
+    padding-right: 4px;
+}
+
+.query-container::-webkit-scrollbar {
+    width: 3px;
+}
+.query-container::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.08);
+    border-radius: 1px;
 }
 
 .query-item {
-    background-color: #f0f0f0;
-    border-radius: 4px;
-    padding: 4px;
-    padding-right: 18px;
-    margin-bottom: 5px;
-    font-size: 14px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 28px 6px 8px;
+    margin-bottom: 6px;
+    font-size: 12.5px;
     word-wrap: break-word;
-    position: relative
+    position: relative;
+    color: var(--text-color);
+    line-height: 1.4;
 }
-
-
 
 .copy-button {
     position: absolute;
-    top: 4px;
-    right: 4px;
+    top: 50%;
+    right: 6px;
+    transform: translateY(-50%);
     background-color: transparent;
     border: none;
     cursor: pointer;
-    padding: 2px;
-    width: 16px;
-    height: 16px;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
 }
 .copy-button svg {
-    width: 16px;
-    height: 16px;
-    fill: #3a7bd5;
+    width: 14px;
+    height: 14px;
+    fill: var(--text-muted);
+    transition: fill 0.2s ease;
+}
+.copy-button:hover {
+    background-color: rgba(255,255,255,0.05);
 }
 .copy-button:hover svg {
-    fill: #2c5fa8;
-}
-
-.copy-button:hover {
-    background-color: transparent
+    fill: var(--accent-color);
 }

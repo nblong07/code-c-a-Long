@@ -2,7 +2,29 @@
 
 // Global variable to store the frame list
 let globalFrameList = [];
-let globalSecondList =[];
+let globalSecondList = [];
+
+function parseVideoNameFromDirOrInfo(directory, frameInfo) {
+  if (frameInfo && frameInfo.includes('-')) {
+    const vName = frameInfo.split('-')[0].trim();
+    if (vName) return vName;
+  }
+  if (directory) {
+    const parts = directory.split('/').filter(Boolean);
+    const kfIdx = parts.indexOf('keyframes');
+    if (kfIdx > 0) {
+      return parts[kfIdx - 1];
+    }
+    const lvPart = parts.find(part => part.startsWith('L') && part.includes('V'));
+    if (lvPart) return lvPart;
+    if (parts.length > 0) {
+      const last = parts[parts.length - 1];
+      if (last !== 'keyframes') return last;
+      if (parts.length > 1) return parts[parts.length - 2];
+    }
+  }
+  return 'video';
+}
 
 // Display video frames and set up the UI
 async function showVideoFrames(imgDiv) {
@@ -80,37 +102,51 @@ function setupNavigationButtons() {
 }
 
 async function loadFrameListFromCSV(directory, imageInfo) {
-  const videoName = directory.split('/').filter(part => part.startsWith('L') && part.includes('V'))[0];
-  // const csvFilePath = `${directory.split('/data-batch-3')[0]}/map_keyframes/${imageInfo.split('_')[0]}_${imageInfo.split('_')[1].slice(0, 4)}.csv`;
-  // const csvFilePath = `http://localhost:8007/mlcv2/WorkingSpace/Personal/quannh/Project/Project/AIC/get_keyframes/data-batch-2/maps/${videoName}_map.csv`
-  const csvFilePath = `http://localhost:8007/mlcv2/WorkingSpace/Personal/quannh/Project/Project/AIC/get_keyframes/map_keyframes_3/${videoName}.csv`
-  try {
-    const response = await fetch(csvFilePath);
-    const csvData = await response.text();
-
-    const lines = csvData.trim().split('\n');
-     globalSecondList = lines.reduce((acc, line) => {
-      const [key, value] = line.split(',');
-      acc[key.trim()] = parseFloat(value.trim());
-      return acc;
-  }, {});
-  
-  // Convert the object to a JSON string
-  // globalSecondList = JSON.stringify(jsonData, null, 2);
-    globalFrameList = lines.map(line => parseInt(line.trim(), 10)).filter(num => !isNaN(num)); 
-    // globalSecondList = lines.map(line => {
-      // const parts = line.split(',');
-      // if (parts.length > 1) {
-          // return parseFloat(parts[1]);
-      // }
-      // return NaN;
-  // }).filter(num => !isNaN(num))
-    // console.log(globalFrameList)
-    if (globalFrameList.length === 0) {
-      console.error('No valid frames found in CSV');
+  let videoName = '';
+  if (imageInfo && imageInfo.includes('-')) {
+    videoName = imageInfo.split('-')[0];
+  } else {
+    const parts = directory.split('/').filter(Boolean);
+    const kfIdx = parts.indexOf('keyframes');
+    if (kfIdx > 0) {
+      videoName = parts[kfIdx - 1];
+    } else {
+      videoName = parts[parts.length - 1] || 'video';
     }
-  } catch (error) {
-    console.error('Error loading CSV file:', error);
+  }
+
+  const csvBase = window.CSV_BASE || 'http://localhost:8000/keyframes/maps';
+  let csvFilePath = `${csvBase}/${videoName}_map.csv`;
+
+  try {
+    let response = await fetch(csvFilePath);
+    if (!response.ok) {
+      csvFilePath = `${csvBase}/${videoName}.csv`;
+      response = await fetch(csvFilePath);
+    }
+    if (response.ok) {
+      const csvData = await response.text();
+      const lines = csvData.trim().split('\n');
+      globalSecondList = {};
+      globalFrameList = [];
+      lines.forEach((line, idx) => {
+        if (idx === 0 && line.toLowerCase().includes('frameid')) return;
+        const parts = line.split(',');
+        if (parts.length >= 2) {
+          const fid = parseInt(parts[0].trim(), 10);
+          const sec = parseFloat(parts[1].trim());
+          if (!isNaN(fid)) {
+            globalFrameList.push(fid);
+            globalSecondList[fid] = isNaN(sec) ? fid : sec;
+          }
+        }
+      });
+    }
+  } catch (e) {
+    console.warn("Could not load CSV mapping for", videoName, e);
+  }
+  if (globalFrameList.length === 0) {
+    console.error('No valid frames found in CSV');
   }
 }
   
@@ -142,7 +178,11 @@ function createFrameContainer(src, frameNumber, isCurrent, frameInfo) {
   frameContainer.appendChild(frameNameDiv);
 
   frameContainer.addEventListener('click', () => {
-    updateMainFrame(frameNumber, src.substring(0, src.lastIndexOf('/') + 1), frameInfo);
+    const directory = src.substring(0, src.lastIndexOf('/') + 1);
+    const videoName = parseVideoNameFromDirOrInfo(directory, frameInfo);
+    updateMainFrame(frameNumber, directory, frameInfo);
+    const seconds = globalSecondList[`${frameNumber}`] !== undefined ? globalSecondList[`${frameNumber}`] : (frameNumber / 25.0);
+    playVideoAtTime(videoName, seconds);
   });
 
   console.log(frameContainer);
@@ -231,23 +271,23 @@ async function updateFrameContainer(frameContainer, frameNumber, directory, isCu
   const frameElement = frameContainer.querySelector('img');
   const frameNameDiv = frameContainer.querySelector('.infor');
 
-  // Adjust this part based on your naming convention
-  const framePath = `${directory}keyframe_${frameNumber}.webp`;
+  const videoName = parseVideoNameFromDirOrInfo(directory, frameNameDiv ? frameNameDiv.textContent : '');
+  const framePath = `${window.KEYFRAME_BASE}/${videoName}/keyframes/keyframe_${frameNumber}.webp`;
 
   frameElement.src = framePath;
   frameElement.className = 'video-frame' + (isCurrent ? ' current-frame' : '');
   frameElement.dataset.frameNumber = frameNumber;
-  // console.log(globalSecondList)
-  // Extract video name from the directory path
-  const seconds_json= globalSecondList[`${frameNumber}`]
-  const videoName = directory.split('/').filter(part => part.startsWith('L') && part.includes('V'))[0];
+  const seconds_json = globalSecondList[`${frameNumber}`];
   const frameInfo = `${videoName}-${seconds_json}`;
   frameNameDiv.textContent = frameInfo;
+
 
   frameContainer.className = 'frame-container' + (isCurrent ? ' current-frame-container' : '');
 
   frameContainer.addEventListener('click', () => {
     updateMainFrame(frameNumber, directory, frameInfo);
+    const seconds = globalSecondList[`${frameNumber}`] !== undefined ? globalSecondList[`${frameNumber}`] : (frameNumber / 25.0);
+    playVideoAtTime(videoName, seconds);
   });
 
   frameElement.setAttribute('draggable', 'true');
