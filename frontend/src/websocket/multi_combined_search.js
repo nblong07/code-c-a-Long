@@ -27,7 +27,7 @@ async function performCombinedSearch() {
             model: modelType,  // Include the active model type in the message
             queries: queries.map(q => ({
                 type: q.type,
-                content: q.type === 'image' ? q.content.split(',')[1] : q.content,
+                content: q.type === 'image' ? (q.content.includes(',') ? q.content.split(',')[1] : q.content) : q.content,
                 mode: q.mode,  // Include the mode for each search scene in the message
                 detail: q.detail
             }))

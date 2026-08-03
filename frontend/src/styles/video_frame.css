@@ -4,7 +4,7 @@
     left: 0;
     width: 100%;
     height: 16vh;
-    background-color: rgba(18, 19, 28, 0.9);
+    background-color: rgba(255, 253, 247, 0.95);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-top: 1px solid var(--border-color);
@@ -12,7 +12,7 @@
     justify-content: center;
     align-items: center;
     z-index: 1000;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 -4px 20px rgba(197, 160, 89, 0.15);
 }
 
 .frames-container {

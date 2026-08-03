@@ -1,29 +1,45 @@
 {
-  "// Model Configuration": "Configure ML models and hardware device",
+  "// Cấu hình Cụm Mô hình AI (64GB RAM + 32GB VRAM GPU)": "Tối ưu hóa mô hình VLM, Object Grounding & Adaptive Router",
   "clip_model_name": "ViT-L-14",
   "clip_pretrained": "laion2b_s32b_b82k",
   "device": "cuda",
+  "supported_models": {
+    "clip": "OpenCLIP ViT-L-14 (laion2b_s32b_b82k) - Semantic Retrieval 768d",
+    "eva-clip": "EVA-02-CLIP ViT-E/14 - Super High-Res Multimodal Embedding",
+    "vit-l": "ViT-L-14 High-Dimensional Semantic Search",
+    "vit-b": "ViT-B-32 Lightweight & Fast Interactive Visual Feature Extraction",
+    "dinov2": "DINOv2 Fine-grained Structural Visual Feature Matching",
+    "blip": "BLIP Vision-Language Alignment & Scene Concept Matching",
+    "mix": "Multi-Model Ensemble Reciprocal Rank Fusion (RRF)"
+  },
 
-  "// Database Configuration": "Configure Milvus vector database connection",
+  "// Cấu hình Cơ sở dữ liệu Vector Milvus (HNSW Index Tuning)": "Tối ưu bộ nhớ RAM 64GB",
   "milvus_uri": "http://localhost:19530",
   "milvus_host": "localhost",
   "milvus_port": 19530,
   "milvus_database": "default",
   "collection_name": "AIC25_fullbatch1",
-  "search_limit": 3000,
+  "search_limit": 5000,
   "replica_number": 1,
+  "hnsw_m": 32,
+  "hnsw_ef_construction": 250,
+  "hnsw_ef_search": 128,
 
-  "// Server Configuration": "Configure FastAPI server settings",
+  "// Cấu hình Máy chủ Backend FastAPI": "Cấu hình Server & Static File Mounts",
   "cors_origins": "*",
-  "max_workers": 4,
+  "max_workers": 8,
   "log_level": "INFO",
   "gzip_minimum_size": 1000,
   "keyframes_dir": "./data-keyframes",
   "api_key": "aic_challenge_secure_token_2026",
 
-  "// Performance Settings": "Performance tuning for 16GB RAM + 6GB GPU",
-  "cache_size": 1000,
+  "// Cấu hình Bộ Điều Hướng Adaptive Router & Heuristic Filters": "Tính năng tự chọn mô hình theo dữ liệu",
+  "enable_adaptive_router": true,
+  "enable_heuristics_filter": true,
+  "blur_threshold": 95.0,
+  "min_luminance": 20.0,
+  "max_luminance": 235.0,
+  "cache_size": 2000,
   "temporal_frame_threshold": 1500,
   "default_result_limit": 1000
 }
-

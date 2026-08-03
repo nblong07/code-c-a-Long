@@ -4,8 +4,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Video Retrieval System v2.0 (DINOv2)</title>
-    <link rel="icon" type="image/svg+xml" href="src/Img/icon-video-ai.svg" />
+    <title>AIC2026</title>
+    <link rel="icon" type="image/svg+xml" href="src/Img/favicon-robot.svg?v=3" />
+    <link rel="shortcut icon" type="image/svg+xml" href="src/Img/favicon-robot.svg?v=3" />
+    <link rel="apple-touch-icon" href="src/Img/favicon-robot.svg?v=3" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <link rel="stylesheet" href="src/styles/layout.css" />
@@ -72,8 +74,9 @@
 
       <div class="header-left">
         
-        <div class="logo" title="AI Video Retrieval (OpenCLIP ViT-L-14 768d)">
-          <img src="src/Img/logo-video-ai.svg" alt="VideoAI Logo" id="shortcut-icon" style="height: 38px;">
+        <div class="logo-uit-tt" title="UIT-TT AI Video Retrieval System (AIC2026)">
+          <div class="uit-badge">UIT-TT</div>
+          <span class="logo-title">AIC2026</span>
         </div> 
 
         <div class="object-list-button-container">
@@ -105,10 +108,6 @@
           <span class="status-dot connecting" id="status-dot"></span>
           <span id="status-text">Đang kết nối hệ thống...</span>
         </div>
-        
-        <button class="quick-search-button" id="quick-search" title="Nhấn để tìm kiếm ngay">
-          <img src="src/Img/icon-lighting-grey.png" alt="icon">
-        </button>
 
         <label class="mode-option" title="Gạt để chuyển giữa chế độ xem ảnh và xem video chi tiết">          
           <input type="checkbox" id="mode-toggle" class="toggle-checkbox">
@@ -143,17 +142,19 @@
 
               <div class="Search_Scene" id="search-scene-1">
                 <div class="tab-buttons">
-                  <button class="text-button active" title="Tìm bằng chữ">
-                    <img src="src/Img/icon-outline-text.png" alt="icon">
+                  <button type="button" class="text-button active" title="Tìm kiếm bằng mô tả chữ văn bản">
+                    <i class="fa-solid fa-font"></i>
+                    <span>Mô tả chữ</span>
                   </button>
-                  <button class="image-button" title="Tìm bằng hình ảnh">
-                    <img src="src/Img/icon-image-plus.png" alt="icon">
+                  <button type="button" class="image-button" title="Tìm kiếm bằng mẫu hình ảnh">
+                    <i class="fa-solid fa-image"></i>
+                    <span>Tải ảnh mẫu</span>
                   </button>
                 </div>
                 
                 <div class="mode-button">
-                  <button class="temporal-search active" title="Tìm chuỗi cảnh theo thời gian">Cảnh 1</button>
-                  <button class="query-expansion" title="Mở rộng từ khóa">Mở Rộng</button>
+                  <button type="button" class="temporal-search active" title="Tìm chuỗi cảnh theo thời gian">Cảnh 1</button>
+                  <button type="button" class="query-expansion" title="Mở rộng từ khóa">Mở Rộng</button>
                 </div>
 
                 <div class="query-group">
@@ -161,48 +162,30 @@
                     <textarea name="Text_Query" id="Text-Query-First" rows="4" placeholder="Nhập mô tả hình ảnh cho Cảnh 1 (Ví dụ: tòa nhà, xe ô tô màu đỏ...)"></textarea>
                     
                     <div class="image-drop-area" style="display: none;">
-                      <p class="drop-instruction">Drag and drop image here or click to upload</p>
+                      <p class="drop-instruction">Kéo thả hình ảnh vào đây hoặc click để chọn ảnh</p>
                       <input type="file" accept="image/*" style="display: none;" id="Image-Query-1">
                       <div class="preview-upload-container"></div>
                     </div>
 
                   </div>
-
-                  <!--                   
-                  <div class="ocr-container">
-                    <textarea name="Ocr_Query" rows="2" placeholder="Search ocr"></textarea>
-                    <button class="close-ocr-button">×</button>
-                  </div>
-
-                  <div class="asm-container">
-                    <textarea name="Asm_Query" rows="2" placeholder="Search asm"></textarea>
-                    <button class="close-asm-button">×</button>
-                  </div>
-
-                  <div class="object-filter">
-                    <label>Object:</label>
-                    <input type="text" class="objectInput" list="suggestions">
-                    <input type="text" class="valueInput" data-type="text">
-                    <button class="close-filter-button">×</button>
-                  </div>
-                   -->
-
                 </div>
               </div>
                   
               <div class="Search_Scene" id="search-scene-2">
                 <div class="tab-buttons">
-                  <button class="text-button active">
-                    <img src="src/Img/icon-outline-text.png" alt="icon">
+                  <button type="button" class="text-button active" title="Tìm kiếm bằng mô tả chữ văn bản">
+                    <i class="fa-solid fa-font"></i>
+                    <span>Mô tả chữ</span>
                   </button>
-                  <button class="image-button">
-                    <img src="src/Img/icon-image-plus.png" alt="icon">
+                  <button type="button" class="image-button" title="Tìm kiếm bằng mẫu hình ảnh">
+                    <i class="fa-solid fa-image"></i>
+                    <span>Tải ảnh mẫu</span>
                   </button>
                 </div>
 
                 <div class="mode-button">
-                  <button class="temporal-search active" title="Cảnh tiếp theo trong cùng video">Cảnh 2</button>
-                  <button class="query-expansion" title="Mở rộng từ khóa">Mở Rộng</button>
+                  <button type="button" class="temporal-search active" title="Cảnh tiếp theo trong cùng video">Cảnh 2</button>
+                  <button type="button" class="query-expansion" title="Mở rộng từ khóa">Mở Rộng</button>
                 </div>
 
                 <div class="query-group">

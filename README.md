@@ -5,10 +5,11 @@ Hệ thống tìm kiếm hình ảnh & khoảnh khắc video thông minh dựa t
 Dự án cung cấp một giải pháp end-to-end hiệu năng cao: từ khâu trích xuất khung hình tiêu biểu (Keyframe), mã hóa đặc trưng vector, lưu trữ tìm kiếm trên Cơ sở dữ liệu Vector cho đến giao diện người dùng tương tác thời gian thực, tích hợp gửi kết quả thi DRES trực tiếp.
 
 > [!NOTE]
-> **Tối ưu hóa đặc biệt cho cấu hình máy:**
-> - **Hệ điều hành:** Windows 11 (hỗ trợ Pathlib an toàn, không lỗi path và đa tiến trình)
-> - **Phần cứng đề xuất:** RAM từ 16 GB, GPU NVIDIA từ 6GB VRAM (hỗ trợ tăng tốc CUDA PyTorch)
-> - **Môi trường chạy:** Miniconda / Anaconda Python 3.11
+> **Tối ưu hóa cao cấp cho phần cứng:**
+> - **Hệ điều hành:** Windows 11 (Pathlib an toàn, xử lý bất đồng bộ & đa tiến trình)
+> - **Cấu hình phần cứng tối ưu:** System RAM **64 GB**, GPU NVIDIA **32 GB VRAM** (hỗ trợ CUDA PyTorch, FlashAttention-2 & FP16/INT4 Autocast)
+> - **Bộ điều hướng tự động:** Dynamic Adaptive Query Router + Heuristics Frame Filter + Tree of Thoughts Agent + HippoRAG Memory System
+> - **Môi trường chạy:** Python 3.11 / PyTorch 2.x CUDA
 
 ---
 

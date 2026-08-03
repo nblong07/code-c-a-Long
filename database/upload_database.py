@@ -198,20 +198,21 @@ def build_index_and_load(collection_name: str, milvus_host: str, milvus_port: st
 
     has_index = any(idx.field_name == field_name for idx in collection.indexes)
     if not has_index:
-        print("🔨 Building HNSW vector index (M=16, efConstruction=200)...")
+        # Cấu hình HNSW Index đồ thị cao cấp tối ưu hóa cho System RAM 64GB
+        print("🔨 Đang xây dựng HNSW vector index (M=32, efConstruction=250, Metric=COSINE)...")
         index_params = {
             "metric_type": "COSINE",
             "index_type": "HNSW",
-            "params": {"M": 16, "efConstruction": 200}
+            "params": {"M": 32, "efConstruction": 250}
         }
         collection.create_index(field_name, index_params)
-        print("✅ HNSW Index created successfully.")
+        print("✅ HNSW Index đã được khởi tạo thành công trên Milvus DB.")
     else:
-        print("ℹ️ Index already exists; skipping build.")
+        print("ℹ️ Chỉ mục HNSW đã tồn tại; bỏ qua bước tạo lại.")
 
-    print("⚡ Loading collection into Milvus memory for query serving...")
+    print("⚡ Đang load toàn bộ Collection vào bộ nhớ RAM của Milvus để phục vụ truy vấn siêu tốc...")
     collection.load()
-    print("🚀 Vector Database ready for fast queries!")
+    print("🚀 Cơ sở dữ liệu Vector đã sẵn sàng cho truy vấn!")
 
 
 def parse_args():

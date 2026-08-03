@@ -53,9 +53,9 @@
     position: relative;
     border-radius: 8px;
     overflow: hidden;
-    background-color: #0b0c10;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    background-color: #FFFFFF;
+    border: 1.5px solid var(--border-color);
+    box-shadow: 0 4px 15px rgba(230, 126, 34, 0.12);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -65,15 +65,15 @@
     height: 100%;
     object-fit: contain;
     object-position: center;
-    background-color: #0b0c10;
+    background-color: #FAF2E4;
     transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Hover effects for grid cards */
 .list .img-dis:hover {
     transform: translateY(-4px);
-    border-color: var(--primary-color);
-    box-shadow: 0 10px 25px rgba(59, 130, 246, 0.25);
+    border-color: #E67E22;
+    box-shadow: 0 10px 25px rgba(230, 126, 34, 0.35);
     z-index: 10;
 }
 
@@ -92,7 +92,7 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%) scale(0.85);
-    background: linear-gradient(135deg, var(--primary-color) 0%, #1d4ed8 100%);
+    background: linear-gradient(135deg, #FF9F43 0%, #E67E22 50%, #D35400 100%);
     width: 46px;
     height: 46px;
     border-radius: 50%;

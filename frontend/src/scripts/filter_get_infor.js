@@ -31,14 +31,13 @@ async function handleFilterAction(event) {
     const allOcrTexts = [];
     const allAsmTexts = [];
 
-    // Translate queries
+    // Extract queries from each search scene
     for (let scene of scenes) {
-            const Text = await getQueryContent(scene)
-            if (Text['type'] === 'image'){
-                allImageQueries.push(Text)
-            }else{
-                if (Text["content"==='']){
-                }else{
+        const Text = await getQueryContent(scene);
+        if (Text['type'] === 'image') {
+            allImageQueries.push(Text);
+        } else {
+            if (Text.content && Text.content.trim() !== '') {
                 allTextQueries.push(Text);
             }
         }

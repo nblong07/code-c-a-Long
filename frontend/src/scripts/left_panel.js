@@ -488,11 +488,13 @@ function addNewSearchScene() {
     const newSceneHTML = `
         <div class="Search_Scene" id="search-scene-${newSceneNumber}">
             <div class="tab-buttons">
-                <button class="text-button active">
-                    <img src="src/Img/icon-outline-text.png" alt="icon">
+                <button type="button" class="text-button active">
+                    <i class="fa-solid fa-font"></i>
+                    <span>Mô tả chữ</span>
                 </button>
-                <button class="image-button">
-                    <img src="src/Img/icon-image-plus.png" alt="icon">
+                <button type="button" class="image-button">
+                    <i class="fa-solid fa-image"></i>
+                    <span>Tải ảnh mẫu</span>
                 </button>
             </div>
             

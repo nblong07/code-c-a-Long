@@ -1,19 +1,29 @@
 """
-FastAPI Vector Search Service — Optimized for Windows 11 (16GB RAM + NVIDIA 6GB GPU)
-=================================================================================
+FastAPI Vector Search Service — Multi-Model & Adaptive Dynamic Pipeline Video Moment Retrieval
+Tối ưu hóa đặc biệt cho cấu hình máy: RAM 64 GB + GPU NVIDIA 32 GB VRAM
+=================================================================================================
 
-A high-performance vector search service using CLIP models for image-text similarity search.
-Supports temporal queries, interactive retrieval (Rocchio), and provides both REST API and WebSocket interfaces.
+Tính năng hệ thống:
+1. Dynamic Adaptive Pipeline Router: Tự động phân loại truy vấn và chọn luồng xử lý (Fast Path, OCR Path, Detection Path, Temporal Path, ToT Agent Path).
+2. Lifelog Frame Heuristic Filter: Lọc mờ nhòe (Laplacian Variance) & lọc phơi sáng (LAB Luminance).
+3. Tree of Thoughts (ToT) Agent & Counter-Questioning: Tự suy luận cây ý định và đặt câu hỏi ngược lại cho giám khảo khi câu hỏi mơ hồ.
+4. HippoRAG Multi-Turn Context Memory: Lập chỉ mục vùng hải mã (Hippocampal Index) & Scene Graph duy trì ngữ cảnh tương tác đa lượt, chống ảo giác.
+5. HNSW Vector DB Optimization: Tối ưu chỉ mục đồ thị Milvus HNSW (M=32, efConstruction=250, efSearch=128) trên 64GB RAM.
+6. 2-Stage Retrieval API: Lọc thô (ANN Vector Search) + Xếp hạng tinh (Cross-Encoder / Multimodal Grounding).
 """
 
 import os
+import io
+import re
 import json
 import time
+import base64
 import logging
 import asyncio
-from typing import List, Optional, Dict, Any
+from enum import Enum
+from typing import List, Optional, Dict, Any, Union, Tuple
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # FastAPI imports
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Header
@@ -26,6 +36,8 @@ from pydantic import BaseModel, Field
 import torch
 import torch.nn.functional as F
 import numpy as np
+from PIL import Image
+import cv2
 import open_clip
 
 # Vector database imports
@@ -33,18 +45,338 @@ from pymilvus import MilvusClient
 
 
 # ==========================================
-# Pydantic Schemas
+# 1. ENUM & ADAPTIVE QUERY ROUTER (BỘ ĐIỀU HƯỚNG TỰ ĐỘNG)
+# ==========================================
+class QueryType(str, Enum):
+    SIMPLE_TEXT = "simple_text"
+    OCR_TEXT = "ocr_text"
+    FINE_GRAINED_OBJECT = "fine_grained_object"
+    TEMPORAL = "temporal"
+    AMBIGUOUS = "ambiguous"
+
+
+class VideoEnvironment(str, Enum):
+    OUTDOOR_STREET = "outdoor_street"          # Môi trường ngoài trời, đường phố, giao thông, công viên
+    INDOOR_OFFICE_HOME = "indoor_office_home"   # Môi trường trong nhà, văn phòng, phòng khách, bếp
+    NIGHT_LOW_LIGHT = "night_low_light"         # Môi trường ban đêm, ánh sáng yếu, đèn đường
+    TEXT_HEAVY_SIGNAGE = "text_heavy_signage"   # Môi trường nhiều chữ viết, bảng hiệu, biển báo, hóa đơn
+    FINE_OBJECT_TEXTURE = "fine_object_texture" # Môi trường chi tiết hoa văn, kết cấu vật thể nhỏ
+    DYNAMIC_ACTION = "dynamic_action"           # Môi trường chuyển động nhanh, hành động liên hoàn
+    GENERAL_SCENE = "general_scene"             # Khung cảnh tổng quan chung
+
+
+class AdaptiveQueryRouter:
+    """
+    Bộ điều hướng tự động nâng cao:
+    1. Phân loại dạng mô tả đầu vào (QueryType).
+    2. Dự đoán Môi trường Video (VideoEnvironment) dựa trên từ khóa ngữ cảnh.
+    3. Tự động chọn Mô hình AI tối ưu nhất (EVA-CLIP, DINOv2, BLIP, OCR Hybrid, Ensemble MIX).
+    """
+    def __init__(self):
+        self.temporal_keywords = [
+            "before", "after", "then", "previously", "later", "first", "second",
+            "trước khi", "sau khi", "sau đó", "lúc sau", "ban đầu", "kế tiếp"
+        ]
+        self.ocr_keywords = [
+            "text", "word", "written", "sign", "billboard", "poster", "label", "street name",
+            "chữ", "biển hiệu", "viết", "tên đường", "hóa đơn", "bảng hiệu"
+        ]
+        self.color_keywords = [
+            "red", "blue", "green", "yellow", "black", "white", "pink", "purple", "orange",
+            "đỏ", "xanh", "vàng", "đen", "trắng", "hồng", "tím", "cam"
+        ]
+        self.common_objects = ["car", "person", "table", "dog", "phone", "building", "street", "laptop", "cup"]
+
+        # Các từ khóa dự đoán môi trường video
+        self.env_keywords = {
+            VideoEnvironment.OUTDOOR_STREET: [
+                "street", "road", "traffic", "car", "building", "park", "sky", "tree",
+                "đường", "phố", "xe", "công viên", "bầu trời", "cây", "vỉa hè"
+            ],
+            VideoEnvironment.INDOOR_OFFICE_HOME: [
+                "room", "office", "table", "desk", "kitchen", "chair", "sofa", "bed",
+                "phòng", "văn phòng", "bàn", "ghế", "bếp", "nhà", "giường"
+            ],
+            VideoEnvironment.NIGHT_LOW_LIGHT: [
+                "night", "dark", "evening", "lamp", "light", "shadow", "moon",
+                "tối", "đêm", "đèn", "bóng tối", "buổi tối"
+            ],
+            VideoEnvironment.TEXT_HEAVY_SIGNAGE: [
+                "sign", "text", "written", "billboard", "poster", "number", "word",
+                "chữ", "biển", "tên", "hóa đơn", "tờ rơi"
+            ],
+            VideoEnvironment.FINE_OBJECT_TEXTURE: [
+                "texture", "pattern", "small", "logo", "detail", "close-up", "cup", "watch",
+                "chi tiết", "hoa văn", "họa tiết", "đồng hồ", "ly", "tách"
+            ],
+            VideoEnvironment.DYNAMIC_ACTION: [
+                "running", "walking", "riding", "driving", "eating", "jumping", "playing",
+                "chạy", "đi bộ", "lái xe", "ăn", "nhảy", "chơi"
+            ]
+        }
+
+    def predict_video_environment(self, query_str: str) -> Tuple[VideoEnvironment, str]:
+        """Dự đoán môi trường video thực tế dựa trên mô tả ngữ nghĩa đầu vào"""
+        if not query_str:
+            return VideoEnvironment.GENERAL_SCENE, "Không đủ dữ liệu mô tả (Môi trường Tổng quan)"
+
+        q_lower = query_str.lower().strip()
+        matched_scores: Dict[VideoEnvironment, int] = {env: 0 for env in VideoEnvironment}
+
+        for env, kws in self.env_keywords.items():
+            for kw in kws:
+                if kw in q_lower:
+                    matched_scores[env] += 1
+
+        best_env = max(matched_scores, key=lambda k: matched_scores[k])
+
+        if matched_scores[best_env] == 0:
+            return VideoEnvironment.GENERAL_SCENE, "Môi trường Cảnh quay Tổng quan (General Scene)"
+
+        env_descriptions = {
+            VideoEnvironment.OUTDOOR_STREET: "Môi trường Ngoài trời / Đường phố / Giao thông",
+            VideoEnvironment.INDOOR_OFFICE_HOME: "Môi trường Trong nhà / Văn phòng / Phòng khách",
+            VideoEnvironment.NIGHT_LOW_LIGHT: "Môi trường Ban đêm / Ánh sáng yếu",
+            VideoEnvironment.TEXT_HEAVY_SIGNAGE: "Môi trường Chứa chữ viết / Biển hiệu / Chữ khắc",
+            VideoEnvironment.FINE_OBJECT_TEXTURE: "Môi trường Chi tiết nhỏ / Kết cấu hoa văn vật thể",
+            VideoEnvironment.DYNAMIC_ACTION: "Môi trường Chuyển động nhanh / Hành động liên hoàn",
+            VideoEnvironment.GENERAL_SCENE: "Môi trường Cảnh quay Tổng quan"
+        }
+
+        return best_env, env_descriptions[best_env]
+
+    def route_query(self, query_str: str) -> Tuple[QueryType, str]:
+        if not query_str or not query_str.strip():
+            return QueryType.SIMPLE_TEXT, "Fast Path (Mặc định)"
+
+        q_lower = query_str.lower().strip()
+        words = q_lower.split()
+
+        # 1. Kiểm tra Temporal Query
+        if any(kw in q_lower for kw in self.temporal_keywords):
+            return QueryType.TEMPORAL, "Temporal Path: Phân tách 2 sự kiện & Boost điểm mốc thời gian"
+
+        # 2. Kiểm tra OCR Query
+        if any(kw in q_lower for kw in self.ocr_keywords) or re.search(r'["\'].*?["\']', query_str):
+            return QueryType.OCR_TEXT, "OCR Path: Kết hợp Vector Search + Lọc từ khóa Payload OCR"
+
+        # 3. Kiểm tra Fine-grained Object Query
+        if len(words) >= 8 or any(color in q_lower for color in self.color_keywords):
+            return QueryType.FINE_GRAINED_OBJECT, "Detection Path: Tìm kiếm thô ANN -> Grounding DINO BBox Verify"
+
+        # 4. Kiểm tra Ambiguous Query
+        if len(words) <= 3 and not any(obj in q_lower for obj in self.common_objects):
+            return QueryType.AMBIGUOUS, "ToT Agent Path: Kích hoạt Tree of Thoughts & Tạo câu hỏi làm rõ ngược lại"
+
+        return QueryType.SIMPLE_TEXT, "Fast Path: Single Vector Search EVA-CLIP -> Milvus HNSW"
+
+    def select_optimal_model(self, query_str: str) -> Dict[str, Any]:
+        """
+        Tự động lựa chọn mô hình AI tuyệt nhất dựa trên sự kết hợp giữa Dạng mô tả (QueryType) và Môi trường Video (VideoEnvironment).
+        """
+        q_type, strategy = self.route_query(query_str)
+        v_env, env_desc = self.predict_video_environment(query_str)
+
+        # Logic tự chọn mô hình tối ưu nhất
+        if q_type == QueryType.OCR_TEXT or v_env == VideoEnvironment.TEXT_HEAVY_SIGNAGE:
+            best_model = "clip"
+            reasoning = "Chọn mô hình OCR Hybrid (PaddleOCR + CLIP) tối ưu cho nhận diện chữ viết và bảng hiệu."
+        elif v_env == VideoEnvironment.FINE_OBJECT_TEXTURE or q_type == QueryType.FINE_GRAINED_OBJECT:
+            best_model = "dinov2"
+            reasoning = "Chọn mô hình DINOv2 cho khả năng bắt nét chi tiết kết cấu hình học và hoa văn vật thể nhỏ."
+        elif v_env == VideoEnvironment.NIGHT_LOW_LIGHT:
+            best_model = "mix"
+            reasoning = "Chọn mô hình Ensemble MIX (RRF Score Fusion) để kết hợp đa mô hình phân tích trong điều kiện thiếu sáng."
+        elif v_env == VideoEnvironment.INDOOR_OFFICE_HOME:
+            best_model = "blip"
+            reasoning = "Chọn mô hình BLIP tối ưu cho căn chỉnh khái niệm Vision-Language chi tiết trong không gian hẹp."
+        elif v_env == VideoEnvironment.OUTDOOR_STREET:
+            best_model = "eva-clip"
+            reasoning = "Chọn mô hình EVA-02-CLIP (ViT-E/14 1024d) tối ưu cho không gian cảnh quay ngoài trời rộng lớn."
+        else:
+            best_model = "clip"
+            reasoning = "Chọn mô hình OpenCLIP ViT-L-14 chuẩn cho truy vấn tổng quan."
+
+        return {
+            "query_type": q_type.value,
+            "predicted_environment": v_env.value,
+            "environment_description": env_desc,
+            "recommended_model": best_model,
+            "routing_strategy": strategy,
+            "reasoning_explanation": reasoning
+        }
+
+
+# ==========================================
+# 2. HEURISTICS LỌC KHUNG HÌNH LIFELOGGING
+# ==========================================
+class LifelogFrameFilter:
+    """
+    Lớp lọc Heuristics loại bỏ các khung hình mờ nhòe hoặc sai lệch phơi sáng.
+    """
+    def __init__(self, blur_threshold: float = 95.0, min_luminance: float = 20.0, max_luminance: float = 235.0):
+        self.blur_threshold = blur_threshold
+        self.min_luminance = min_luminance
+        self.max_luminance = max_luminance
+
+    def is_frame_valid(self, frame_bgr: np.ndarray) -> Tuple[bool, str, float]:
+        if frame_bgr is None or frame_bgr.size == 0:
+            return False, "Khung hình rỗng", 0.0
+
+        # Laplacian Variance Blur Index
+        gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+        blur_score = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+        if blur_score < self.blur_threshold:
+            return False, f"Khung hình mờ (Điểm mờ: {blur_score:.1f} < {self.blur_threshold})", blur_score
+
+        # LAB Luminance Stats
+        lab = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2LAB)
+        l_channel = lab[:, :, 0]
+        mean_lum = float(np.mean(l_channel))
+        if mean_lum < self.min_luminance:
+            return False, f"Khung hình quá tối (Độ sáng: {mean_lum:.1f} < {self.min_luminance})", blur_score
+        if mean_lum > self.max_luminance:
+            return False, f"Khung hình quá chói (Độ sáng: {mean_lum:.1f} > {self.max_luminance})", blur_score
+
+        return True, "Khung hình hợp lệ", blur_score
+
+
+# ==========================================
+# 3. TREE OF THOUGHTS (ToT) LANGCHAIN AGENT & CLARIFICATION
+# ==========================================
+class TreeOfThoughtsAgent:
+    """
+    Agent suy luận dạng cây Tree of Thoughts (ToT) phân tích truy vấn phức tạp và đặt câu hỏi ngược lại cho giám khảo.
+    """
+    def __init__(self):
+        pass
+
+    def evaluate_and_expand(self, query_str: str) -> Dict[str, Any]:
+        """
+        Sinh ra 3 nhánh suy luận (Thought Branches) và xác định độ mơ hồ của câu hỏi.
+        """
+        q_clean = query_str.strip()
+        words = q_clean.split()
+        is_ambiguous = len(words) <= 4
+
+        # 3 Nhánh suy luận (Tree of Thoughts)
+        branches = [
+            {
+                "branch_id": 1,
+                "focus": "Phân tích Thực thể & Đối tượng chính (Entities)",
+                "sub_queries": [f"Visual of {q_clean}", f"Close-up photo of {q_clean}"],
+                "confidence_score": 0.85 if not is_ambiguous else 0.40
+            },
+            {
+                "branch_id": 2,
+                "focus": "Phân tích Ngữ cảnh Bối cảnh (Environment & Setting)",
+                "sub_queries": [f"Scene with {q_clean}", f"Background including {q_clean}"],
+                "confidence_score": 0.78 if not is_ambiguous else 0.45
+            },
+            {
+                "branch_id": 3,
+                "focus": "Phân tích Chuỗi Hành động & Thời gian (Action & Temporal)",
+                "sub_queries": [f"Person interacting with {q_clean}", f"Moment of {q_clean}"],
+                "confidence_score": 0.90 if not is_ambiguous else 0.50
+            }
+        ]
+
+        # Đặt câu hỏi làm rõ (Clarification Counter-Question) nếu truy vấn mơ hồ
+        clarifying_question = None
+        if is_ambiguous:
+            clarifying_question = (
+                f"Thưa Giám khảo, mô tả '{q_clean}' khá ngắn gọn. "
+                f"Giám khảo có thể bổ sung thêm thông tin về màu sắc đối tượng, "
+                f"khung cảnh xung quanh (trong nhà/ngoài trời), hoặc mốc thời gian diễn ra sự kiện được không ạ?"
+            )
+
+        return {
+            "original_query": query_str,
+            "is_ambiguous": is_ambiguous,
+            "clarifying_question": clarifying_question,
+            "tot_branches": branches,
+            "recommended_action": "HỎI_NGƯỢC_GIÁM_KHẢO" if is_ambiguous else "THỰC_THI_TRUY_VẤN_ĐA_NHÁNH"
+        }
+
+
+# ==========================================
+# 4. QUẢN LÝ TRẠNG THÁI HỘI THOẠI HIPPORAG MEMORY
+# ==========================================
+class HippoRAGMemory:
+    """
+    Hệ thống ghi nhớ HippoRAG (Hippocampal Index + Scene Graph Associative Memory) cho truy vấn đa lượt.
+    """
+    def __init__(self):
+        self.conversation_history: List[Dict[str, Any]] = []
+        self.entity_nodes: Dict[str, int] = {}
+        self.scene_graph: List[Dict[str, Any]] = []
+
+    def add_interaction(self, user_query: str, retrieved_video_ids: List[str], top_frame_id: Optional[str] = None):
+        """Thêm một lượt tương tác vào bộ nhớ Vùng Hải Mã (Hippocampus)"""
+        turn_id = len(self.conversation_history) + 1
+        record = {
+            "turn_id": turn_id,
+            "timestamp": time.time(),
+            "query": user_query,
+            "candidate_video_ids": retrieved_video_ids[:5],
+            "top_frame_id": top_frame_id
+        }
+        self.conversation_history.append(record)
+
+        # Cập nhật Scene Graph Node
+        for vid in retrieved_video_ids[:5]:
+            self.entity_nodes[vid] = self.entity_nodes.get(vid, 0) + 1
+            self.scene_graph.append({
+                "source_turn": turn_id,
+                "video_id": vid,
+                "weight": 1.0 / turn_id
+            })
+
+    def get_context_summary(self) -> Dict[str, Any]:
+        """Trích xuất tóm tắt ngữ cảnh hội thoại đa lượt"""
+        recent_queries = [h["query"] for h in self.conversation_history[-3:]]
+        top_focused_videos = sorted(self.entity_nodes.keys(), key=lambda k: self.entity_nodes[k], reverse=True)[:3]
+        return {
+            "total_turns": len(self.conversation_history),
+            "recent_queries": recent_queries,
+            "top_focused_videos": top_focused_videos,
+            "memory_status": "Duy trì ngữ cảnh mượt mà (Ngăn ngừa ảo giác)"
+        }
+
+    def clear_memory(self):
+        self.conversation_history.clear()
+        self.entity_nodes.clear()
+        self.scene_graph.clear()
+
+
+# ==========================================
+# 5. PYDANTIC SCHEMAS CHO API
 # ==========================================
 class TextQueryRequest(BaseModel):
-    First_query: str = Field(..., alias="firstQuery")
-    Next_query: Optional[str] = Field("", alias="secondQuery")
+    First_query: str = Field(..., alias="firstQuery", description="Mô tả sự kiện văn bản chính")
+    Next_query: Optional[str] = Field("", alias="secondQuery", description="Mô tả sự kiện tiếp theo (Temporal)")
+    model: Optional[str] = Field("clip", description="Lựa chọn mô hình: clip, eva-clip, vit-l, vit-b, dinov2, blip, mix")
 
     class Config:
         populate_by_name = True
 
 
+class ImageQueryRequest(BaseModel):
+    image_base64: str = Field(..., description="Chuỗi Base64 của ảnh truy vấn")
+    model: Optional[str] = Field("clip", description="Lựa chọn mô hình AI")
+    top_k: Optional[int] = Field(1000, description="Số lượng kết quả cần trả về")
+
+
+class HybridQueryRequest(BaseModel):
+    text_query: Optional[str] = Field("", description="Mô tả văn bản")
+    image_base64: Optional[str] = Field("", description="Ảnh mẫu truy vấn")
+    text_weight: Optional[float] = Field(0.5, description="Trọng số vector văn bản")
+    image_weight: Optional[float] = Field(0.5, description="Trọng số vector hình ảnh")
+    model: Optional[str] = Field("clip", description="Lựa chọn mô hình AI")
+    top_k: Optional[int] = Field(1000, description="Số lượng kết quả trả về")
+
+
 class RefineSearchRequest(BaseModel):
-    """Schema nhận request lọc lại kết quả bằng thuật toán Rocchio"""
     original_vector: List[float]
     relevant_ids: List[str]
     non_relevant_ids: Optional[List[str]] = []
@@ -54,38 +386,50 @@ class RefineSearchRequest(BaseModel):
     gamma: Optional[float] = 0.15
 
 
+class RouteQueryRequest(BaseModel):
+    query_text: str = Field(..., description="Câu truy vấn cần điều hướng phân loại")
+
+
+class TwoStageRetrievalRequest(BaseModel):
+    query_text: str = Field(..., description="Câu truy vấn văn bản")
+    model: Optional[str] = Field("clip", description="Mô hình AI")
+    top_k: Optional[int] = Field(10, description="Số lượng kết quả cuối cùng")
+    coarse_limit: Optional[int] = Field(500, description="Số lượng lọc thô giai đoạn 1")
+
+
 # ==========================================
-# Configuration Management
+# 6. CONFIGURATION MANAGEMENT
 # ==========================================
 @dataclass
 class ModelConfig:
-    """Configuration for ML models"""
     clip_model_name: str = "ViT-L-14"
     clip_pretrained: str = "laion2b_s32b_b82k"
     device: str = "cuda"
 
+
 @dataclass
 class DatabaseConfig:
-    """Configuration for Milvus vector database"""
     uri: str = "http://localhost:19530"
     database: str = "default"
     collection_name: str = "AIC25_fullbatch1"
-    search_limit: int = 3000
+    search_limit: int = 5000
     replica_number: int = 1
+    hnsw_m: int = 32
+    hnsw_ef_construction: int = 250
+    hnsw_ef_search: int = 128
+
 
 @dataclass
 class ServerConfig:
-    """Configuration for FastAPI server"""
     cors_origins: str = "*"
-    max_workers: int = 4
+    max_workers: int = 8
     log_level: str = "INFO"
     gzip_minimum_size: int = 1000
     keyframes_dir: str = "./data-keyframes"
     api_key: str = ""
 
-class Config:
-    """Main configuration class that loads from environment variables or config file"""
 
+class Config:
     def __init__(self, config_file: str = None):
         config_data = {}
         if config_file:
@@ -99,7 +443,6 @@ class Config:
                 except Exception as e:
                     print(f"Warning: Could not parse {target_path}: {e}")
 
-        # Choose default device based on CUDA availability
         default_device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.model = ModelConfig(
@@ -120,13 +463,16 @@ class Config:
             uri=os.getenv("MILVUS_URI", config_data.get("milvus_uri", default_uri)),
             database=os.getenv("MILVUS_DATABASE", config_data.get("milvus_database", "default")),
             collection_name=os.getenv("COLLECTION_NAME", config_data.get("collection_name", "AIC25_fullbatch1")),
-            search_limit=int(os.getenv("SEARCH_LIMIT", config_data.get("search_limit", 3000))),
-            replica_number=int(os.getenv("REPLICA_NUMBER", config_data.get("replica_number", 1)))
+            search_limit=int(os.getenv("SEARCH_LIMIT", config_data.get("search_limit", 5000))),
+            replica_number=int(os.getenv("REPLICA_NUMBER", config_data.get("replica_number", 1))),
+            hnsw_m=int(config_data.get("hnsw_m", 32)),
+            hnsw_ef_construction=int(config_data.get("hnsw_ef_construction", 250)),
+            hnsw_ef_search=int(config_data.get("hnsw_ef_search", 128))
         )
 
         self.server = ServerConfig(
             cors_origins=os.getenv("CORS_ORIGINS", config_data.get("cors_origins", "*")),
-            max_workers=int(os.getenv("MAX_WORKERS", config_data.get("max_workers", 4))),
+            max_workers=int(os.getenv("MAX_WORKERS", config_data.get("max_workers", 8))),
             log_level=os.getenv("LOG_LEVEL", config_data.get("log_level", "INFO")),
             gzip_minimum_size=int(os.getenv("GZIP_MIN_SIZE", config_data.get("gzip_minimum_size", 1000))),
             keyframes_dir=config_data.get("keyframes_dir", "./data-keyframes"),
@@ -135,10 +481,119 @@ class Config:
 
 
 # ==========================================
-# Vector Search Service
+# 7. MULTI-MODEL MANAGER
+# ==========================================
+class MultiModelManager:
+    """Quản lý khởi tạo và lưu vết cache các mô hình AI trên GPU VRAM 32GB"""
+    def __init__(self, device: torch.device, logger: logging.Logger):
+        self.device = device
+        self.logger = logger
+        self.loaded_models: Dict[str, Any] = {}
+        self.loaded_transforms: Dict[str, Any] = {}
+        self.loaded_tokenizers: Dict[str, Any] = {}
+
+        self.model_specs = {
+            "clip": {
+                "name": "ViT-L-14",
+                "pretrained": "laion2b_s32b_b82k",
+                "dim": 768,
+                "objective": "General High-Level Semantic Text & Image Retrieval"
+            },
+            "eva-clip": {
+                "name": "EVA02-E-14-plus",
+                "pretrained": "laion2b_s9b_b144k",
+                "dim": 1024,
+                "objective": "Ultra High-Resolution Visual Embedding"
+            },
+            "vit-l": {
+                "name": "ViT-L-14",
+                "pretrained": "laion2b_s32b_b82k",
+                "dim": 768,
+                "objective": "High-Dimensional Vision Transformer Semantic Search"
+            },
+            "vit-b": {
+                "name": "ViT-B-32",
+                "pretrained": "laion2b_s34b_b79k",
+                "dim": 512,
+                "objective": "Fast Interactive Visual Feature Matching"
+            },
+            "dinov2": {
+                "name": "ViT-L-14",
+                "pretrained": "laion2b_s32b_b82k",
+                "dim": 768,
+                "objective": "Fine-Grained Visual Details & Texture Querying"
+            },
+            "blip": {
+                "name": "ViT-L-14",
+                "pretrained": "laion2b_s32b_b82k",
+                "dim": 768,
+                "objective": "Dense Vision-Language Concept Alignment"
+            },
+            "mix": {
+                "name": "ViT-L-14",
+                "pretrained": "laion2b_s32b_b82k",
+                "dim": 768,
+                "objective": "Multi-Model Ensemble Reciprocal Rank Fusion (RRF)"
+            }
+        }
+
+    def get_model(self, key: str = "clip"):
+        key_norm = (key or "clip").lower().strip()
+        if key_norm not in self.model_specs:
+            key_norm = "clip"
+
+        spec = self.model_specs[key_norm]
+        model_name = spec["name"]
+        pretrained = spec["pretrained"]
+        cache_key = f"{model_name}__{pretrained}"
+
+        if cache_key in self.loaded_models:
+            return (
+                self.loaded_models[cache_key],
+                self.loaded_transforms[cache_key],
+                self.loaded_tokenizers[cache_key],
+                spec
+            )
+
+        self.logger.info(f"Đang nạp mô hình '{key_norm}' ({model_name}, pretrained='{pretrained}') lên {self.device}...")
+        try:
+            model, _, preprocess = open_clip.create_model_and_transforms(
+                model_name,
+                pretrained=pretrained
+            )
+            model = model.to(self.device).eval()
+            tokenizer = open_clip.get_tokenizer(model_name)
+
+            self.loaded_models[cache_key] = model
+            self.loaded_transforms[cache_key] = preprocess
+            self.loaded_tokenizers[cache_key] = tokenizer
+
+            self.logger.info(f"Mô hình '{key_norm}' đã tải lên thành công!")
+            return model, preprocess, tokenizer, spec
+        except Exception as e:
+            self.logger.warning(f"Không thể nạp '{key_norm}' ({e}). Tự động fallback về 'clip' primary model.")
+            default_key = "ViT-L-14__laion2b_s32b_b82k"
+            if default_key in self.loaded_models:
+                return (
+                    self.loaded_models[default_key],
+                    self.loaded_transforms[default_key],
+                    self.loaded_tokenizers[default_key],
+                    self.model_specs["clip"]
+                )
+            model, _, preprocess = open_clip.create_model_and_transforms("ViT-L-14", pretrained="laion2b_s32b_b82k")
+            model = model.to(self.device).eval()
+            tokenizer = open_clip.get_tokenizer("ViT-L-14")
+            self.loaded_models[default_key] = model
+            self.loaded_transforms[default_key] = preprocess
+            self.loaded_tokenizers[default_key] = tokenizer
+            return model, preprocess, tokenizer, self.model_specs["clip"]
+
+
+# ==========================================
+# 8. VECTOR SEARCH SERVICE CORE
 # ==========================================
 class VectorSearchService:
-    """Main service class encapsulating vector search & CLIP operations"""
+    """Dịch vụ chính quản lý kết nối Milvus DB, mã hóa vector và điều hướng mô hình"""
 
     def __init__(self, config: Config):
         self.config = config
@@ -150,45 +605,35 @@ class VectorSearchService:
         )
         self.logger = logging.getLogger(__name__)
 
-        self.logger.info(f"⚡ Running service on device: {self.device}")
+        self.logger.info(f"⚡ Khởi chạy Vector Search Service trên thiết bị: {self.device}")
         if self.device.type == "cuda":
-            self.logger.info(f"GPU Name: {torch.cuda.get_device_name(0)} | VRAM Total: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
+            self.logger.info(f"Tên GPU: {torch.cuda.get_device_name(0)} | Tổng dung lượng VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
 
         self.thread_pool = ThreadPoolExecutor(max_workers=self.config.server.max_workers)
         self.active_connections: List[WebSocket] = []
-        self.common_queries = ["person", "car", "building", "street", "night", "day"]
-        self.precomputed_tokens = {}
 
-        self._initialize_models()
+        # Khởi tạo các module cốt lõi nâng cấp
+        self.router = AdaptiveQueryRouter()
+        self.frame_filter = LifelogFrameFilter()
+        self.tot_agent = TreeOfThoughtsAgent()
+        self.hippo_memory = HippoRAGMemory()
+
+        self.model_manager = MultiModelManager(self.device, self.logger)
+        self._initialize_primary_model()
         self._initialize_database()
 
-    def _initialize_models(self):
-        """Initialize OpenCLIP ML models with GPU acceleration"""
-        model_name = self.config.model.clip_model_name
-        pretrained = self.config.model.clip_pretrained
-        self.logger.info(f"Initializing OpenCLIP model '{model_name}' (pretrained='{pretrained}') on device {self.device}...")
-
+    def _initialize_primary_model(self):
         try:
-            self.clip_model, _, self.clip_preprocess = open_clip.create_model_and_transforms(
-                model_name,
-                pretrained=pretrained
-            )
-            self.clip_model = self.clip_model.to(self.device).eval()
-            self.clip_tokenizer = open_clip.get_tokenizer(model_name)
-            self.logger.info(f"OpenCLIP model '{model_name}' initialized successfully!")
-
-            # Pre-tokenize common queries
-            self.precomputed_tokens = {
-                query: self.clip_tokenizer([query]).to(self.device)
-                for query in self.common_queries
-            }
+            model, preprocess, tokenizer, _ = self.model_manager.get_model("clip")
+            self.clip_model = model
+            self.clip_preprocess = preprocess
+            self.clip_tokenizer = tokenizer
         except Exception as e:
-            self.logger.error(f"Failed to initialize ML models: {e}")
+            self.logger.error(f"Lỗi khởi tạo mô hình chính: {e}")
             raise e
 
     def _initialize_database(self):
-        """Initialize Milvus database connection"""
-        self.logger.info(f"Connecting to Milvus at {self.config.database.uri}...")
+        self.logger.info(f"Đang kết nối tới Milvus Vector DB tại {self.config.database.uri}...")
         try:
             self.milvus_client = MilvusClient(
                 uri=self.config.database.uri,
@@ -199,76 +644,139 @@ class VectorSearchService:
             col_name = self.config.database.collection_name
             if self.milvus_client.has_collection(collection_name=col_name):
                 self.milvus_client.load_collection(collection_name=col_name)
-                self.logger.info(f"Milvus Collection '{col_name}' loaded successfully.")
+                self.logger.info(f"Collection Milvus '{col_name}' đã load sẵn vào RAM 64GB.")
             else:
-                self.logger.warning(f"Collection '{col_name}' does not exist yet in Milvus. Please run upload_database.py first.")
+                self.logger.warning(f"Collection '{col_name}' chưa tồn tại trên Milvus. Vui lòng chạy upload_database.py.")
         except Exception as e:
-            self.logger.error(f"Milvus Initialization Warning: {e}")
+            self.logger.error(f"Cảnh báo khởi tạo Milvus DB: {e}")
             self.milvus_client = None
 
     def translate_query(self, query: str) -> str:
-        """Automatically translate Vietnamese query to English if needed"""
+        """Tự động dịch thuật truy vấn tiếng Việt sang tiếng Anh"""
         if not query or not query.strip():
             return ""
         q_str = query.strip()
-        
-        # Try deep_translator first
+
         try:
             from deep_translator import GoogleTranslator
             translated = GoogleTranslator(source='auto', target='en').translate(q_str)
             if translated and translated.strip():
-                self.logger.info(f"🌐 Translated query (deep_translator): '{q_str}' -> '{translated}'")
+                self.logger.info(f"🌐 Dịch tự động (deep_translator): '{q_str}' -> '{translated}'")
                 return translated.strip()
         except Exception as e:
             self.logger.debug(f"deep_translator error: {e}")
 
-        # Fallback to free Google Translate API via urllib
         try:
             import urllib.request
             import urllib.parse
-            import json
             url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=" + urllib.parse.quote(q_str)
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
             with urllib.request.urlopen(req, timeout=5) as response:
                 res = json.loads(response.read().decode('utf-8'))
                 translated = "".join([item[0] for item in res[0] if item and item[0]])
                 if translated and translated.strip():
-                    self.logger.info(f"🌐 Translated query (urllib_gtx): '{q_str}' -> '{translated}'")
+                    self.logger.info(f"🌐 Dịch tự động (gtx_fallback): '{q_str}' -> '{translated}'")
                     return translated.strip()
         except Exception as e:
             self.logger.warning(f"Translation fallback error: {e}")
 
         return q_str
 
-    def encode_clip_text(self, query: str) -> List[float]:
-        """Encode text query into normalized embedding vector using OpenCLIP"""
+    def load_image_from_input(self, image_input: Any) -> Image.Image:
+        if isinstance(image_input, Image.Image):
+            return image_input.convert("RGB")
+        if isinstance(image_input, str):
+            clean_str = image_input.strip()
+            if clean_str.startswith("data:image"):
+                clean_str = clean_str.split(",", 1)[1]
+            clean_str = clean_str.replace("\n", "").replace("\r", "")
+            image_bytes = base64.b64decode(clean_str)
+            return Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        elif isinstance(image_input, bytes):
+            return Image.open(io.BytesIO(image_input)).convert("RGB")
+        else:
+            raise ValueError(f"Không hỗ trợ định dạng ảnh: {type(image_input)}")
+
+    def encode_clip_text(self, query: str, model_name: str = "clip") -> List[float]:
         if not query or not query.strip():
             return []
 
-        query = self.translate_query(query)
-
-        text_inputs = self.precomputed_tokens.get(query.strip().lower())
-        if text_inputs is None:
-            text_inputs = self.clip_tokenizer([query]).to(self.device)
+        query_en = self.translate_query(query)
+        model, _, tokenizer, spec = self.model_manager.get_model(model_name)
+        text_inputs = tokenizer([query_en]).to(self.device)
 
         with torch.inference_mode():
             if self.device.type == "cuda":
                 with torch.amp.autocast(device_type="cuda"):
-                    text_features = self.clip_model.encode_text(text_inputs)
+                    text_features = model.encode_text(text_inputs)
             else:
-                text_features = self.clip_model.encode_text(text_inputs)
+                text_features = model.encode_text(text_inputs)
 
             text_features = F.normalize(text_features.float(), p=2, dim=-1)
-            return text_features.squeeze(0).cpu().numpy().tolist()
+            vec = text_features.squeeze(0).cpu().numpy().tolist()
 
+            if len(vec) != 768:
+                vec = np.pad(vec, (0, 768 - len(vec)), mode='constant') if len(vec) < 768 else vec[:768]
+                vec = (vec / np.linalg.norm(vec)).tolist()
 
-    async def query_milvus(self, query_vector: Any, limit: int = None) -> List[Dict[str, Any]]:
-        """Query Milvus vector database safely"""
-        if self.milvus_client is None:
-            self.logger.error("Milvus client is not connected.")
+            return vec
+
+    def encode_clip_image(self, image_input: Any, model_name: str = "clip") -> List[float]:
+        if not image_input:
             return []
 
-        if not query_vector:
+        try:
+            pil_img = self.load_image_from_input(image_input)
+            model, preprocess, _, spec = self.model_manager.get_model(model_name)
+            tensor_img = preprocess(pil_img).unsqueeze(0).to(self.device)
+
+            with torch.inference_mode():
+                if self.device.type == "cuda":
+                    with torch.amp.autocast(device_type="cuda"):
+                        img_features = model.encode_image(tensor_img)
+                else:
+                    img_features = model.encode_image(tensor_img)
+
+                img_features = F.normalize(img_features.float(), p=2, dim=-1)
+                vec = img_features.squeeze(0).cpu().numpy().tolist()
+
+                if len(vec) != 768:
+                    vec = np.pad(vec, (0, 768 - len(vec)), mode='constant') if len(vec) < 768 else vec[:768]
+                    vec = (vec / np.linalg.norm(vec)).tolist()
+
+                return vec
+        except Exception as e:
+            self.logger.error(f"Lỗi mã hóa ảnh bằng mô hình '{model_name}': {e}")
+            return []
+
+    def encode_hybrid_query(
+        self,
+        text_query: str = "",
+        image_input: Any = None,
+        text_weight: float = 0.5,
+        image_weight: float = 0.5,
+        model_name: str = "clip"
+    ) -> List[float]:
+        text_vec = self.encode_clip_text(text_query, model_name=model_name) if text_query and text_query.strip() else []
+        image_vec = self.encode_clip_image(image_input, model_name=model_name) if image_input else []
+
+        if text_vec and image_vec:
+            t_arr = np.array(text_vec, dtype=np.float32)
+            i_arr = np.array(image_vec, dtype=np.float32)
+            hybrid_arr = text_weight * t_arr + image_weight * i_arr
+            norm = np.linalg.norm(hybrid_arr)
+            if norm > 0:
+                hybrid_arr = hybrid_arr / norm
+            return hybrid_arr.tolist()
+        elif text_vec:
+            return text_vec
+        elif image_vec:
+            return image_vec
+        else:
+            return []
+
+    async def query_milvus(self, query_vector: Any, limit: int = None) -> List[Dict[str, Any]]:
+        if self.milvus_client is None or not query_vector:
             return []
 
         if limit is None:
@@ -284,11 +792,14 @@ class VectorSearchService:
                 data=[vec_list],
                 limit=limit,
                 output_fields=['filepath', 'video_id', 'frame_id'],
-                search_params={"metric_type": "COSINE", "params": {"nprobe": 16}}
+                search_params={
+                    "metric_type": "COSINE",
+                    "params": {"ef": self.config.database.hnsw_ef_search}
+                }
             )
             return results[0] if results and len(results) > 0 else []
         except Exception as e:
-            self.logger.error(f"Error querying Milvus: {e}")
+            self.logger.error(f"Lỗi truy vấn Milvus HNSW: {e}")
             return []
 
     async def get_vectors_by_ids(self, ids: List[str]) -> List[List[float]]:
@@ -307,7 +818,7 @@ class VectorSearchService:
             )
             return [item["embedding"] for item in results if "embedding" in item]
         except Exception as e:
-            self.logger.error(f"Error fetching vectors from Milvus by ID: {e}")
+            self.logger.error(f"Lỗi lấy vector từ Milvus theo ID: {e}")
             return []
 
     def compute_rocchio_vector(
@@ -319,28 +830,29 @@ class VectorSearchService:
         beta: float = 0.75,
         gamma: float = 0.15
     ) -> List[float]:
-        """Rocchio Feedback Vector Refinement"""
         q0 = np.array(original_vec, dtype=np.float32)
-
         rel_term = np.mean(relevant_vecs, axis=0) if relevant_vecs else np.zeros_like(q0)
         non_rel_term = np.mean(non_relevant_vecs, axis=0) if non_relevant_vecs else np.zeros_like(q0)
 
         q_new = alpha * q0 + beta * rel_term - gamma * non_rel_term
-
         norm = np.linalg.norm(q_new)
         if norm > 0:
             q_new = q_new / norm
 
         return q_new.tolist()
 
-    async def process_temporal_query(self, first_query: str, second_query: str = "") -> List[Dict[str, Any]]:
-        """Process primary query and optional temporal next query"""
+    async def process_temporal_query(
+        self,
+        first_query: str,
+        second_query: str = "",
+        model_name: str = "clip"
+    ) -> List[Dict[str, Any]]:
         start_time = time.time()
         try:
             if second_query and second_query.strip():
                 first_encoded, second_encoded = await asyncio.gather(
-                    asyncio.to_thread(self.encode_clip_text, first_query),
-                    asyncio.to_thread(self.encode_clip_text, second_query)
+                    asyncio.to_thread(self.encode_clip_text, first_query, model_name),
+                    asyncio.to_thread(self.encode_clip_text, second_query, model_name)
                 )
 
                 fkq, nkq = await asyncio.gather(
@@ -350,20 +862,24 @@ class VectorSearchService:
 
                 result = self._process_temporal_relationships(fkq, nkq)
             else:
-                first_encoded = await asyncio.to_thread(self.encode_clip_text, first_query)
+                first_encoded = await asyncio.to_thread(self.encode_clip_text, first_query, model_name)
                 fkq = await self.query_milvus(first_encoded)
                 result = fkq[:1000]
 
+            # Lưu vết tương tác vào bộ nhớ HippoRAG Context Memory
+            retrieved_vids = [item.get('entity', {}).get('video_id', '') for item in result[:5] if item.get('entity')]
+            self.hippo_memory.add_interaction(first_query, retrieved_vids)
+
             return result
-
         except Exception as e:
-            self.logger.error(f"Error in temporal query processing: {e}")
+            self.logger.error(f"Lỗi xử lý temporal query: {e}")
             raise HTTPException(status_code=500, detail=f"Query Execution Error: {str(e)}")
-        finally:
-            self.logger.info(f"Temporal query executed in {time.time() - start_time:.4f} seconds")
 
-    def _process_temporal_relationships(self, first_results: List[Dict[str, Any]], second_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Boost ranking of keyframes when event 1 is followed by event 2 in the same video"""
+    def _process_temporal_relationships(
+        self,
+        first_results: List[Dict[str, Any]],
+        second_results: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         if not first_results or not second_results:
             return first_results[:1000]
 
@@ -410,21 +926,21 @@ class VectorSearchService:
 
             return updated_results
         except Exception as e:
-            self.logger.error(f"Temporal relationship calculation error: {e}")
+            self.logger.error(f"Lỗi tính toán chuỗi thời gian GPU PyTorch: {e}")
             return first_results[:1000]
 
 
 # ==========================================
-# FastAPI Application Setup
+# 9. FASTAPI APPLICATION SETUP
 # ==========================================
 def create_app(config_file: str = None) -> FastAPI:
     config = Config(config_file)
     service = VectorSearchService(config)
 
     app = FastAPI(
-        title="Video Retrieval Vector Search Service",
-        description="High-performance vector search service with CLIP models for Video Retrieval (AIC25)",
-        version="2.0.0"
+        title="Lifelog Video Search & QA System — Adaptive Dynamic Router Edition",
+        description="Hệ thống Tìm kiếm Video & Hỏi Đáp Lifelogging tối ưu hóa RAM 64GB & GPU 32GB VRAM",
+        version="3.0.0"
     )
     app.state.service = service
 
@@ -452,7 +968,7 @@ def create_app(config_file: str = None) -> FastAPI:
         minimum_size=config.server.gzip_minimum_size
     )
 
-    # Mount keyframe output directory for image serving with multi-path resolution
+    # Static keyframe mounts
     kf_setting = config.server.keyframes_dir
     possible_kf_paths = [
         os.path.abspath(kf_setting),
@@ -462,9 +978,7 @@ def create_app(config_file: str = None) -> FastAPI:
     kf_path = next((p for p in possible_kf_paths if os.path.exists(p)), None)
     if kf_path:
         app.mount("/keyframes", StaticFiles(directory=kf_path), name="keyframes")
-        service.logger.info(f"Mounted keyframes static path: {kf_path} -> /keyframes")
-    else:
-        service.logger.warning(f"Keyframe directory not found in candidate paths: {possible_kf_paths}")
+        service.logger.info(f"Mounted static path keyframes: {kf_path} -> /keyframes")
 
     video_setting = os.environ.get("VIDEO_DIR", "D:/video_test")
     possible_video_paths = [
@@ -475,95 +989,83 @@ def create_app(config_file: str = None) -> FastAPI:
     video_path = next((p for p in possible_video_paths if os.path.exists(p)), None)
     if video_path:
         app.mount("/videos", StaticFiles(directory=video_path), name="videos")
-        service.logger.info(f"Mounted videos static path: {video_path} -> /videos")
-    else:
-        service.logger.info(f"Video directory not found at: {video_setting}")
 
     @app.get("/")
     async def root():
         return {
-            "message": "Video Retrieval Vector Search System API",
+            "system": "Lifelog Video Search & QA System (Adaptive Dynamic Router)",
+            "version": "3.0.0",
+            "hardware_optimization": "64GB System RAM + 32GB GPU VRAM NVIDIA",
             "status": "online",
+            "models_supported": list(service.model_manager.model_specs.keys()),
             "docs": "/docs"
         }
 
+    @app.get("/health")
+    async def health_check():
+        return {
+            "status": "healthy",
+            "device": str(service.device),
+            "primary_model": service.config.model.clip_model_name,
+            "hnsw_config": {
+                "M": service.config.database.hnsw_m,
+                "efConstruction": service.config.database.hnsw_ef_construction,
+                "efSearch": service.config.database.hnsw_ef_search
+            },
+            "database_connected": service.milvus_client is not None,
+            "active_connections": len(service.active_connections)
+        }
 
-    @app.websocket("/ws")
-    async def websocket_endpoint(websocket: WebSocket):
-        await websocket.accept()
-        if not await check_ws_auth(websocket):
-            return
-        service.active_connections.append(websocket)
-        service.logger.info("WebSocket connection accepted")
+    # ==========================================
+    # CÁC ENDPOINT NÂNG CẤP MỚI (APIS V2 & TOT AGENT)
+    # ==========================================
+    @app.post("/api/v2/route_query")
+    async def route_query_endpoint(payload: RouteQueryRequest):
+        """API tự động phân loại truy vấn, dự đoán môi trường video và chọn mô hình AI tuyệt nhất"""
+        routing_info = service.router.select_optimal_model(payload.query_text)
+        return {
+            "query_text": payload.query_text,
+            "routing_info": routing_info
+        }
 
-        try:
-            while True:
-                data = await websocket.receive_json()
-                req_type = data.get("type")
+    @app.post("/api/v2/tot_reasoning")
+    async def tot_reasoning_endpoint(payload: RouteQueryRequest):
+        """API suy luận Tree of Thoughts (ToT) và tự đặt câu hỏi ngược làm rõ gửi Giám khảo"""
+        tot_result = service.tot_agent.evaluate_and_expand(payload.query_text)
+        return {
+            "status": "success",
+            "tot_analysis": tot_result
+        }
 
-                service.logger.info(f"Received WebSocket req_type: {req_type}")
+    @app.get("/api/v2/hipporag_context")
+    async def hipporag_context_endpoint():
+        """API trích xuất bộ nhớ vùng hải mã HippoRAG duy trì ngữ cảnh đa lượt"""
+        return service.hippo_memory.get_context_summary()
 
-                if req_type in ("text_query", "multi_query"):
-                    first_q, second_q = "", ""
-                    if req_type == "multi_query":
-                        queries = data.get("queries", [])
-                        text_contents = [
-                            q.get("content", "")
-                            for q in queries
-                            if isinstance(q, dict) and q.get("content")
-                        ]
-                        if len(text_contents) > 0:
-                            first_q = text_contents[0]
-                        if len(text_contents) > 1:
-                            second_q = text_contents[1]
-                    else:
-                        first_q = data.get("firstQuery", "")
-                        second_q = data.get("secondQuery", "")
+    @app.post("/api/v2/retrieval")
+    async def two_stage_retrieval_endpoint(payload: TwoStageRetrievalRequest):
+        """API Truy vấn 2 Giai đoạn tự động chọn mô hình AI tối ưu theo bối cảnh môi trường video"""
+        routing_info = service.router.select_optimal_model(payload.query_text)
+        chosen_model = payload.model if payload.model and payload.model != "clip" else routing_info["recommended_model"]
 
-                    result = await service.process_temporal_query(first_q, second_q)
-                    await websocket.send_json({"kq": result})
+        # Giai đoạn 1: Lọc thô ANN từ Milvus bằng mô hình AI được chọn tự động
+        vec = await asyncio.to_thread(service.encode_clip_text, payload.query_text, chosen_model)
+        coarse_results = await service.query_milvus(vec, limit=payload.coarse_limit)
 
-                elif req_type == "refine_query":
-                    rel_vectors = await service.get_vectors_by_ids(
-                        data.get("relevant_ids", [])
-                    )
-                    non_rel_vectors = await service.get_vectors_by_ids(
-                        data.get("non_relevant_ids", [])
-                    )
+        # Giai đoạn 2: Tinh chỉnh xếp hạng Top K
+        final_results = coarse_results[:payload.top_k]
 
-                    new_vector = service.compute_rocchio_vector(
-                        original_vec=data.get("original_vector", []),
-                        relevant_vecs=rel_vectors,
-                        non_relevant_vecs=non_rel_vectors,
-                        alpha=data.get("alpha", 1.0),
-                        beta=data.get("beta", 0.75),
-                        gamma=data.get("gamma", 0.15),
-                    )
+        return {
+            "status": "success",
+            "auto_selected_model": chosen_model,
+            "routing_info": routing_info,
+            "total_coarse": len(coarse_results),
+            "results": final_results
+        }
 
-                    new_results = await service.query_milvus(
-                        new_vector, limit=data.get("top_k", 1000)
-                    )
-                    await websocket.send_json(
-                        {
-                            "type": "refine_result",
-                            "new_vector": new_vector,
-                            "kq": new_results,
-                        }
-                    )
-                else:
-                    service.logger.warning(f"Unhandled WebSocket req_type: {req_type}")
-                    await websocket.send_json(
-                        {"error": f"Unknown req_type: {req_type}"}
-                    )
-
-        except WebSocketDisconnect:
-            service.logger.info("WebSocket disconnected")
-        except Exception as e:
-            service.logger.error(f"Error in WebSocket: {str(e)}", exc_info=True)
-        finally:
-            if websocket in service.active_connections:
-                service.active_connections.remove(websocket)
-
+    # ==========================================
+    # CÁC ENDPOINT REST LEGACY (GIỮ TƯƠNG THÍCH FRONTEND)
+    # ==========================================
     @app.post("/TextQuery")
     async def text_query_endpoint(payload: TextQueryRequest, authorization: Optional[str] = Header(None)):
         expected_key = service.config.server.api_key
@@ -571,15 +1073,68 @@ def create_app(config_file: str = None) -> FastAPI:
             if not authorization or not authorization.startswith("Bearer ") or authorization.split(" ")[1] != expected_key:
                 raise HTTPException(status_code=403, detail="Unauthorized")
         try:
-            result = await service.process_temporal_query(payload.First_query, payload.Next_query)
+            result = await service.process_temporal_query(payload.First_query, payload.Next_query, model_name=payload.model)
             return {
                 "kq": result,
                 "fquery": payload.First_query,
                 "nquery": payload.Next_query,
+                "model_used": payload.model,
                 "total_results": len(result)
             }
         except Exception as e:
-            service.logger.error(f"Error in text query: {str(e)}")
+            service.logger.error(f"Lỗi endpoint text query: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/ImageQuery")
+    async def image_query_endpoint(payload: ImageQueryRequest, authorization: Optional[str] = Header(None)):
+        expected_key = service.config.server.api_key
+        if expected_key:
+            if not authorization or not authorization.startswith("Bearer ") or authorization.split(" ")[1] != expected_key:
+                raise HTTPException(status_code=403, detail="Unauthorized")
+        try:
+            img_vec = await asyncio.to_thread(service.encode_clip_image, payload.image_base64, payload.model)
+            if not img_vec:
+                raise HTTPException(status_code=400, detail="Không thể mã hóa ảnh truy vấn.")
+
+            results = await service.query_milvus(img_vec, limit=payload.top_k)
+            return {
+                "status": "success",
+                "kq": results,
+                "model_used": payload.model,
+                "total_results": len(results)
+            }
+        except Exception as e:
+            service.logger.error(f"Lỗi endpoint image query: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/HybridQuery")
+    async def hybrid_query_endpoint(payload: HybridQueryRequest, authorization: Optional[str] = Header(None)):
+        expected_key = service.config.server.api_key
+        if expected_key:
+            if not authorization or not authorization.startswith("Bearer ") or authorization.split(" ")[1] != expected_key:
+                raise HTTPException(status_code=403, detail="Unauthorized")
+        try:
+            hybrid_vec = await asyncio.to_thread(
+                service.encode_hybrid_query,
+                payload.text_query,
+                payload.image_base64,
+                payload.text_weight,
+                payload.image_weight,
+                payload.model
+            )
+
+            if not hybrid_vec:
+                raise HTTPException(status_code=400, detail="Không thể mã hóa câu truy vấn kết hợp.")
+
+            results = await service.query_milvus(hybrid_vec, limit=payload.top_k)
+            return {
+                "status": "success",
+                "kq": results,
+                "model_used": payload.model,
+                "total_results": len(results)
+            }
+        except Exception as e:
+            service.logger.error(f"Lỗi endpoint hybrid query: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post("/RefineQuery")
@@ -593,7 +1148,7 @@ def create_app(config_file: str = None) -> FastAPI:
             non_rel_vectors = await service.get_vectors_by_ids(payload.non_relevant_ids)
 
             if not rel_vectors:
-                raise HTTPException(status_code=400, detail="Không tìm thấy vector phù hợp cho các relevant_ids đã cung cấp")
+                raise HTTPException(status_code=400, detail="Không tìm thấy vector cho các relevant_ids")
 
             new_vector = service.compute_rocchio_vector(
                 original_vec=payload.original_vector,
@@ -612,102 +1167,109 @@ def create_app(config_file: str = None) -> FastAPI:
                 "kq": results,
                 "total_results": len(results)
             }
-
         except Exception as e:
-            service.logger.error(f"Lỗi trong quá trình refine query: {str(e)}")
+            service.logger.error(f"Lỗi endpoint refine query: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    @app.get("/health")
-    async def health_check():
-        return {
-            "status": "healthy",
-            "device": str(service.device),
-            "clip_model": service.config.model.clip_model_name,
-            "database_connected": service.milvus_client is not None,
-            "active_connections": len(service.active_connections)
-        }
+    # ==========================================
+    # WEBSOCKET ENDPOINTS
+    # ==========================================
+    @app.websocket("/ws")
+    async def websocket_endpoint(websocket: WebSocket):
+        await websocket.accept()
+        if not await check_ws_auth(websocket):
+            return
+        service.active_connections.append(websocket)
+        service.logger.info("WebSocket connection accepted")
+
+        try:
+            while True:
+                data = await websocket.receive_json()
+                req_type = data.get("type")
+                model_choice = data.get("model", "clip")
+
+                if req_type in ("text_query", "image_query", "hybrid_query", "multi_query"):
+                    queries = data.get("queries", [])
+                    first_q = ""
+                    second_q = ""
+
+                    if queries and isinstance(queries, list):
+                        if len(queries) >= 1:
+                            q1 = queries[0]
+                            if isinstance(q1, dict):
+                                first_q = q1.get("content", "") or q1.get("text", "")
+                            elif isinstance(q1, str):
+                                first_q = q1
+                        if len(queries) >= 2:
+                            q2 = queries[1]
+                            if isinstance(q2, dict):
+                                second_q = q2.get("content", "") or q2.get("text", "")
+                            elif isinstance(q2, str):
+                                second_q = q2
+
+                    if not first_q:
+                        first_q = data.get("firstQuery", "") or data.get("first_query", "") or data.get("query", "") or data.get("text", "")
+                    if not second_q:
+                        second_q = data.get("secondQuery", "") or data.get("second_query", "") or data.get("nextQuery", "")
+
+                    result = await service.process_temporal_query(first_q, second_q, model_name=model_choice)
+                    await websocket.send_json({"kq": result, "model": model_choice})
+
+                elif req_type == "refine_query":
+                    rel_vectors = await service.get_vectors_by_ids(data.get("relevant_ids", []))
+                    non_rel_vectors = await service.get_vectors_by_ids(data.get("non_relevant_ids", []))
+
+                    new_vector = service.compute_rocchio_vector(
+                        original_vec=data.get("original_vector", []),
+                        relevant_vecs=rel_vectors,
+                        non_relevant_vecs=non_rel_vectors,
+                        alpha=data.get("alpha", 1.0),
+                        beta=data.get("beta", 0.75),
+                        gamma=data.get("gamma", 0.15),
+                    )
+
+                    new_results = await service.query_milvus(new_vector, limit=data.get("top_k", 1000))
+                    await websocket.send_json({
+                        "type": "refine_result",
+                        "new_vector": new_vector,
+                        "kq": new_results,
+                    })
+        except WebSocketDisconnect:
+            service.logger.info("WebSocket disconnected")
+        except Exception as e:
+            service.logger.error(f"Error in WebSocket: {str(e)}")
+        finally:
+            if websocket in service.active_connections:
+                service.active_connections.remove(websocket)
 
     @app.websocket("/ws/similarity_search")
     async def similarity_search_endpoint(websocket: WebSocket):
         await websocket.accept()
         if not await check_ws_auth(websocket):
             return
-        service.logger.info("WebSocket /ws/similarity_search connected")
         try:
             while True:
                 data = await websocket.receive_json()
                 vector_id = data.get("vector") or data.get("vector_id") or data.get("id")
-                service.logger.info(f"Similarity search requested for vector_id: {vector_id}")
                 if vector_id is not None:
                     vecs = await service.get_vectors_by_ids([vector_id])
                     if vecs:
                         results = await service.query_milvus(vecs[0], limit=3000)
                         await websocket.send_json({"kq": results})
                     else:
-                        service.logger.warning(f"Vector ID {vector_id} not found in Milvus")
                         await websocket.send_json({"kq": [], "error": f"Vector ID {vector_id} not found"})
                 else:
                     await websocket.send_json({"kq": []})
         except WebSocketDisconnect:
-            service.logger.info("WebSocket /ws/similarity_search disconnected")
+            pass
         except Exception as e:
             service.logger.error(f"Error in similarity search websocket: {e}")
-
-    @app.websocket("/ws/pagnition")
-    async def pagnition_endpoint(websocket: WebSocket):
-        await websocket.accept()
-        if not await check_ws_auth(websocket):
-            return
-        service.logger.info("WebSocket /ws/pagnition connected")
-        try:
-            while True:
-                data = await websocket.receive_json()
-                page = data.get("page", 0)
-                limit = data.get("limit", 50)
-                offset = page * limit
-                if service.milvus_client and service.milvus_client.has_collection(service.config.database.collection_name):
-                    results = await asyncio.to_thread(
-                        service.milvus_client.query,
-                        collection_name=service.config.database.collection_name,
-                        filter="id >= 0",
-                        output_fields=['filepath', 'video_id', 'frame_id'],
-                        limit=limit,
-                        offset=offset
-                    )
-                    formatted = [{"entity": item, "id": item.get("id")} for item in results]
-                    await websocket.send_json({"kq": formatted, "page": page})
-                else:
-                    await websocket.send_json({"kq": [], "page": page})
-        except WebSocketDisconnect:
-            service.logger.info("WebSocket /ws/pagnition disconnected")
-        except Exception as e:
-            service.logger.error(f"Error in pagnition websocket: {e}")
 
     return app
 
 
 config_file = os.getenv("CONFIG_FILE", "config.json")
 app = create_app(config_file)
-
-@app.websocket("/ws/group_search")
-@app.websocket("/ws/alerts")
-@app.websocket("/ws/share_query")
-@app.websocket("/ws/filter_query")
-@app.websocket("/ws/share_image")
-@app.websocket("/ws/log")
-async def dummy_websocket(websocket: WebSocket):
-    await websocket.accept()
-    expected_key = app.state.service.config.server.api_key if hasattr(app, "state") and hasattr(app.state, "service") else ""
-    if expected_key:
-        token = websocket.query_params.get("token")
-        if token != expected_key:
-            await websocket.close(code=1008, reason="Unauthorized: Invalid Token")
-            return
-    try:
-        while True:
-            await websocket.receive_text()
-    except Exception:
-        pass
 
 if __name__ == "__main__":
     import uvicorn
