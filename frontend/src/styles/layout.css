@@ -40,7 +40,8 @@ body, html {
     color: var(--text-color);
     margin: 0;
     padding: 0;
-    min-height: 100vh;
+    height: 100vh;
+    width: 100vw;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -53,23 +54,25 @@ body, html {
     background-color: rgba(255, 248, 237, 0.96);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    padding: 0.55rem 1.5rem;
+    padding: 0.45rem 1.2rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
     border-bottom: 1.5px solid var(--border-color);
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 10;
+    position: relative;
+    flex: 0 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+    z-index: 100;
     box-shadow: 0 3px 16px rgba(230, 126, 34, 0.1);
+    gap: 12px;
 }
 
 .header-left {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-shrink: 0;
 }
 
 /* Logo thương hiệu UIT-TT */
@@ -107,11 +110,12 @@ body, html {
 }
 
 .dice-logo {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    z-index: 100;
+    z-index: 10;
+    margin: 0 6px;
 }
 
 .random-dice-btn {
@@ -269,7 +273,7 @@ body, html {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    color: #white;
+    color: white;
 }
 
 #export-button {
@@ -301,15 +305,18 @@ body, html {
 .container {
     display: flex;
     flex: 1;
-    margin-top: 48px;
-    height: calc(100vh - 48px);
+    height: 0;
+    min-height: 0;
+    width: 100%;
+    margin-top: 0;
+    overflow: hidden;
 }
 
 .left-panel {
-    flex: 0 0 auto;
-    width: 18%;
-    min-width: 250px;
-    max-width: 350px;
+    flex: 0 0 300px;
+    width: 300px;
+    min-width: 240px;
+    max-width: 380px;
     background-color: var(--card-background);
     border-right: 1px solid var(--border-color);
     display: flex;
@@ -317,15 +324,18 @@ body, html {
     height: 100%;
     overflow-y: auto;
     scrollbar-width: none; 
+    box-sizing: border-box;
 }
 .left-panel::-webkit-scrollbar {
     display: none;
 }
 
 .right-panel {
+    flex: 1;
     display: flex;
-    width: 100%;
+    flex-direction: column;
     height: 100%;
+    min-width: 0;
     overflow: hidden;
     position: relative;
     background-color: var(--background-color);
@@ -335,8 +345,42 @@ body, html {
     flex: 1;
     transition: width 0.3s ease;
     height: 100%;
+    min-height: 0;
     display: flex;
     flex-direction: column;
+}
+
+/*--------------------------------------------------------------------------*/
+/* Responsive Adaptation Media Queries */
+
+@media (max-width: 1024px) {
+    .left-panel {
+        flex: 0 0 260px;
+        width: 260px;
+    }
+    .logo-uit-tt .logo-title {
+        font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+    }
+    .left-panel {
+        flex: 0 0 auto;
+        width: 100%;
+        max-width: 100%;
+        max-height: 38vh;
+        border-right: none;
+        border-bottom: 1.5px solid var(--border-color);
+    }
+    .header {
+        padding: 0.35rem 0.6rem;
+    }
+    .random-dice-badge {
+        display: none;
+    }
 }
 
 .show-image-section {

@@ -36,9 +36,9 @@ async function showVideoFrames(imgDiv) {
   // Show the video frames
   divVideoFrames.style.display = 'flex';
 
-  // Adjust panel heights
-  leftPanel.style.height = 'calc(100vh - 50px - 15vh)';
-  rightPanel.style.height = 'calc(100vh - 60px - 15vh)';
+  // Let flexbox manage heights dynamically
+  leftPanel.style.height = '';
+  rightPanel.style.height = '';
 
   // Add necessary child elements
   divVideoFrames.innerHTML = `
@@ -439,8 +439,8 @@ function closeVideoFrames() {
   const rightPanel = document.querySelector('.right-panel');
   
   divVideoFrames.style.display = 'none';
-  leftPanel.style.height = 'calc(100vh - 44px)';
-  rightPanel.style.height = 'calc(100vh - 44px)';
+  leftPanel.style.height = '';
+  rightPanel.style.height = '';
   
   // Remove the event listener for keyboard navigation
   document.removeEventListener('keydown', handleKeyPress);

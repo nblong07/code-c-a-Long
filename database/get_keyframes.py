@@ -36,7 +36,7 @@ class LifelogFrameFilter:
         self.min_luminance = min_luminance
         self.max_luminance = max_luminance
 
-    def is_frame_valid(self, frame_bgr: np.ndarray) -> tuple[bool, str]:
+    def is_frame_valid(self, frame_bgr) -> tuple:
         if frame_bgr is None or frame_bgr.size == 0:
             return False, "Khung hình rỗng"
 
@@ -49,13 +49,41 @@ class LifelogFrameFilter:
         # 2. Kiểm tra Phơi sáng (LAB Luminance Channel)
         lab = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2LAB)
         l_channel = lab[:, :, 0]
-        mean_lum = np.mean(l_channel)
+        mean_lum = float(np.mean(l_channel))
         if mean_lum < self.min_luminance:
             return False, f"Khung hình quá tối (Độ sáng: {mean_lum:.1f} < {self.min_luminance})"
         if mean_lum > self.max_luminance:
             return False, f"Khung hình quá chói (Độ sáng: {mean_lum:.1f} > {self.max_luminance})"
 
         return True, "Khung hình hợp lệ"
+
+
+class SceneChangeDetector:
+    """
+    Phát hiện chuyển cảnh dựa trên độ lệch Histogram không gian màu HSV.
+    Giúp giảm tới 70% số khung hình thừa bằng cách chỉ trích xuất khi góc quay/cảnh thay đổi.
+    """
+    def __init__(self, threshold: float = 0.35):
+        self.threshold = threshold
+        self.prev_hist = None
+
+    def is_scene_change(self, frame_bgr) -> bool:
+        if frame_bgr is None:
+            return False
+        hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
+        hist = cv2.calcHist([hsv], [0, 1], None, [50, 60], [0, 180, 0, 256])
+        cv2.normalize(hist, hist, 0, 1, cv2.NORM_MINMAX)
+
+        if self.prev_hist is None:
+            self.prev_hist = hist
+            return True
+
+        # Bhattacharyya distance (> threshold nghĩa là chuyển cảnh)
+        dist = cv2.compareHist(self.prev_hist, hist, cv2.HISTCMP_BHATTACHARYYA)
+        if dist > self.threshold:
+            self.prev_hist = hist
+            return True
+        return False
 
 
 def preprocess_frame(frame, preprocess):

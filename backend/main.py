@@ -929,6 +929,66 @@ class VectorSearchService:
             self.logger.error(f"Lỗi tính toán chuỗi thời gian GPU PyTorch: {e}")
             return first_results[:1000]
 
+    def rerank_candidates(self, query_text: str, candidates: List[Dict[str, Any]], top_k: int = 10) -> List[Dict[str, Any]]:
+        """
+        Vòng 2 Re-ranking chuyên sâu: Đánh giá điểm tương đồng ngữ cảnh & từ khóa trên Top candidates thô.
+        kết hợp Cosine Vector Distance + Keyword Match Score + Reciprocal Rank Penalty.
+        """
+        if not candidates or not query_text:
+            return candidates[:top_k]
+
+        keywords = [w.lower() for w in re.findall(r'\w+', query_text) if len(w) > 2]
+
+        reranked = []
+        for rank, item in enumerate(candidates):
+            score = float(item.get("distance", 0.0))
+            entity = item.get("entity", {})
+            v_id = str(entity.get("video_id", "")).lower()
+            f_id = str(entity.get("frame_id", "")).lower()
+
+            # Bonus score từ khóa xuất hiện trong metadata
+            text_match_bonus = sum(0.05 for kw in keywords if kw in v_id or kw in f_id)
+
+            # RRF Base penalty từ vị trí xếp hạng vòng 1
+            rrf_base = 1.0 / (60 + rank + 1)
+            final_score = score + rrf_base + text_match_bonus
+
+            item_copy = dict(item)
+            item_copy["rerank_score"] = final_score
+            reranked.append(item_copy)
+
+        reranked.sort(key=lambda x: x["rerank_score"], reverse=True)
+        return reranked[:top_k]
+
+    def reciprocal_rank_fusion(self, dense_results: List[Dict[str, Any]], sparse_results: List[Dict[str, Any]], k: int = 60, top_n: int = 100) -> List[Dict[str, Any]]:
+        """
+        Hợp nhất điểm thứ hạng (Reciprocal Rank Fusion) từ Dense Vector Search và Sparse BM25 Text Search.
+        """
+        scores = {}
+        item_map = {}
+
+        for rank, item in enumerate(dense_results):
+            entity = item.get("entity", {})
+            doc_id = f"{entity.get('video_id', '')}_{entity.get('frame_id', '')}"
+            scores[doc_id] = scores.get(doc_id, 0.0) + (1.0 / (k + rank + 1))
+            item_map[doc_id] = item
+
+        for rank, item in enumerate(sparse_results):
+            entity = item.get("entity", {})
+            doc_id = f"{entity.get('video_id', '')}_{entity.get('frame_id', '')}"
+            scores[doc_id] = scores.get(doc_id, 0.0) + (1.0 / (k + rank + 1))
+            if doc_id not in item_map:
+                item_map[doc_id] = item
+
+        sorted_docs = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        fused = []
+        for doc_id, rrf_score in sorted_docs[:top_n]:
+            res = dict(item_map[doc_id])
+            res["rrf_score"] = rrf_score
+            fused.append(res)
+
+        return fused
+
 
 # ==========================================
 # 9. FASTAPI APPLICATION SETUP
@@ -1052,8 +1112,8 @@ def create_app(config_file: str = None) -> FastAPI:
         vec = await asyncio.to_thread(service.encode_clip_text, payload.query_text, chosen_model)
         coarse_results = await service.query_milvus(vec, limit=payload.coarse_limit)
 
-        # Giai đoạn 2: Tinh chỉnh xếp hạng Top K
-        final_results = coarse_results[:payload.top_k]
+        # Giai đoạn 2: Tinh chỉnh xếp hạng Top K với Reranker Engine
+        final_results = service.rerank_candidates(payload.query_text, coarse_results, top_k=payload.top_k)
 
         return {
             "status": "success",
