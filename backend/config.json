@@ -19,11 +19,11 @@
   "milvus_port": 19530,
   "milvus_database": "default",
   "collection_name": "AIC25_fullbatch1",
-  "search_limit": 5000,
+  "search_limit": 1000,
   "replica_number": 1,
   "hnsw_m": 32,
   "hnsw_ef_construction": 250,
-  "hnsw_ef_search": 128,
+  "hnsw_ef_search": 64,
 
   "// Cấu hình Máy chủ Backend FastAPI": "Cấu hình Server & Static File Mounts",
   "cors_origins": "*",

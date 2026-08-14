@@ -647,6 +647,19 @@ class VectorSearchService:
             self.milvus_client = None
             self._load_local_fallback()
 
+        # Nạp dữ liệu OCR Metadata để hỗ trợ tìm kiếm chính xác
+        self.ocr_data = {}
+        ocr_path = os.path.abspath("ocr_asr_metadata.json")
+        if os.path.exists(ocr_path):
+            try:
+                import json
+                with open(ocr_path, 'r', encoding='utf-8') as f:
+                    meta = json.load(f)
+                    self.ocr_data = meta.get("ocr", {})
+                self.logger.info(f"✅ Đã nạp {len(self.ocr_data)} bản ghi OCR để tìm kiếm văn bản (Biển số xe, bảng hiệu...).")
+            except Exception as e:
+                self.logger.error(f"Lỗi nạp ocr_asr_metadata.json: {e}")
+
     def _load_local_fallback(self):
         feats_path = os.path.abspath("features.npy")
         paths_path = os.path.abspath("image_paths.npy")
@@ -717,28 +730,27 @@ class VectorSearchService:
             return ""
         q_str = query.strip()
 
-        try:
-            from deep_translator import GoogleTranslator
-            translated = GoogleTranslator(source='auto', target='en').translate(q_str)
-            if translated and translated.strip():
-                self.logger.info(f"🌐 Dịch tự động (deep_translator): '{q_str}' -> '{translated}'")
-                return translated.strip()
-        except Exception as e:
-            self.logger.debug(f"deep_translator error: {e}")
+        # Kiểm tra nhanh: Nếu không có ký tự tiếng Việt, bỏ qua bước dịch để tăng tốc độ phản hồi
+        import re
+        if not re.search(r'[àáãạảăắằẳẵặâấầẩẫậèéẹẻẽêềếểễệđìíĩỉịòóõọỏôốồổỗộơớờởỡợùúũụủưứừửữựỳýỹỷỵ]', q_str.lower()):
+            return q_str
 
+        # Sử dụng urllib để gọi trực tiếp Google Translate API ẩn danh với timeout ngắn (3 giây)
         try:
             import urllib.request
             import urllib.parse
+            import json
             url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=" + urllib.parse.quote(q_str)
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=5) as response:
+            # Đặt timeout = 3.0s để không bao giờ bị treo ứng dụng
+            with urllib.request.urlopen(req, timeout=3.0) as response:
                 res = json.loads(response.read().decode('utf-8'))
                 translated = "".join([item[0] for item in res[0] if item and item[0]])
                 if translated and translated.strip():
-                    self.logger.info(f"🌐 Dịch tự động (gtx_fallback): '{q_str}' -> '{translated}'")
+                    self.logger.info(f"🌐 Dịch tự động (Timeout 3s): '{q_str}' -> '{translated}'")
                     return translated.strip()
         except Exception as e:
-            self.logger.warning(f"Translation fallback error: {e}")
+            self.logger.warning(f"Translation timeout hoặc mất mạng: {e}")
 
         return q_str
 
@@ -880,28 +892,68 @@ class VectorSearchService:
 
         # Offline Local Fallback Vector Search (PyTorch CUDA)
         if self.local_features is not None and len(self.local_metadata) > 0:
-            q_tensor = torch.tensor(vec_list, device=self.device, dtype=torch.float32)
-            q_tensor = F.normalize(q_tensor, p=2, dim=-1)
+            try:
+                q_tensor = torch.tensor(vec_list, device=self.device, dtype=torch.float32)
+                q_tensor = F.normalize(q_tensor, p=2, dim=-1)
 
-            with torch.inference_mode():
-                sims = torch.matmul(self.local_features, q_tensor.unsqueeze(-1)).squeeze(-1)
-                top_k = min(limit, len(self.local_metadata))
-                top_scores, top_indices = torch.topk(sims, k=top_k)
+                with torch.inference_mode():
+                    sims = torch.matmul(self.local_features, q_tensor.unsqueeze(-1)).squeeze(-1)
+                    top_k = min(limit, len(self.local_metadata))
+                    top_scores, top_indices = torch.topk(sims, k=top_k)
 
-                top_scores = top_scores.cpu().numpy()
-                top_indices = top_indices.cpu().numpy()
+                    top_scores = top_scores.cpu().numpy()
+                    top_indices = top_indices.cpu().numpy()
 
-            results = []
-            for score, idx in zip(top_scores, top_indices):
-                meta = self.local_metadata[idx]
-                results.append({
-                    "id": str(meta["frame_id"]),
-                    "distance": float(score),
-                    "entity": meta
-                })
-            return results
+                results = []
+                for score, idx in zip(top_scores, top_indices):
+                    meta = self.local_metadata[idx]
+                    results.append({
+                        "id": str(meta["frame_id"]),
+                        "distance": float(score),
+                        "entity": meta
+                    })
+                return results
+            except Exception as e:
+                self.logger.error(f"Lỗi tìm kiếm offline (Có thể do sai lệch số chiều Vector khi fallback model): {e}")
+                return []
 
         return []
+
+    async def search_ocr(self, query_text: str, limit: int = 1000) -> List[Dict[str, Any]]:
+        """Tìm kiếm chuỗi ký tự chính xác (như biển số xe, bảng hiệu) trong dữ liệu OCR"""
+        if not query_text or not self.ocr_data:
+            return []
+            
+        q_lower = query_text.lower().strip()
+        matched_results = []
+        
+        for rel_path, ocr_text in self.ocr_data.items():
+            if q_lower in ocr_text.lower():
+                try:
+                    parts = rel_path.replace("\\", "/").split("/")
+                    if len(parts) >= 1:
+                        # Thường path: "L21_V001/keyframes/keyframe_0123.webp"
+                        video_id = parts[0]
+                        filename = parts[-1]
+                        import re
+                        match = re.search(r'(\d+)', filename)
+                        frame_id = int(match.group(1)) if match else 0
+                        matched_results.append({
+                            "id": f"{video_id}_{frame_id}",
+                            "distance": 1.0, # Score tuyệt đối
+                            "entity": {
+                                "filepath": rel_path,
+                                "video_id": video_id,
+                                "frame_id": frame_id,
+                                "ocr_text": ocr_text
+                            }
+                        })
+                except Exception:
+                    continue
+                    
+        # Sort by distance (all are 1.0, but just in case)
+        matched_results.sort(key=lambda x: x["distance"], reverse=True)
+        return matched_results[:limit]
 
     async def get_vectors_by_ids(self, ids: List[str]) -> List[List[float]]:
         if not ids:
@@ -958,9 +1010,12 @@ class VectorSearchService:
         self,
         first_query: str,
         second_query: str = "",
-        model_name: str = "clip"
+        model_name: str = "clip",
+        limit: int = 1000
     ) -> List[Dict[str, Any]]:
+        import time
         start_time = time.time()
+        self.logger.info(f"Bắt đầu xử lý truy vấn: '{first_query}'")
         try:
             if second_query and second_query.strip():
                 first_encoded, second_encoded = await asyncio.gather(
@@ -969,19 +1024,32 @@ class VectorSearchService:
                 )
 
                 fkq, nkq = await asyncio.gather(
-                    self.query_milvus(first_encoded),
-                    self.query_milvus(second_encoded)
+                    self.query_milvus(first_encoded, limit=limit*3),
+                    self.query_milvus(second_encoded, limit=limit*3)
                 )
 
                 result = self._process_temporal_relationships(fkq, nkq)
             else:
                 first_encoded = await asyncio.to_thread(self.encode_clip_text, first_query, model_name)
-                fkq = await self.query_milvus(first_encoded)
-                result = fkq[:1000]
+                t1 = time.time()
+                self.logger.info(f"Encode text mất: {t1 - start_time:.2f}s")
+                fkq = await self.query_milvus(first_encoded, limit=limit)
+                t2 = time.time()
+                self.logger.info(f"Vector search mất: {t2 - t1:.2f}s")
+                result = fkq
 
             # Lưu vết tương tác vào bộ nhớ HippoRAG Context Memory
             retrieved_vids = [item.get('entity', {}).get('video_id', '') for item in result[:5] if item.get('entity')]
             self.hippo_memory.add_interaction(first_query, retrieved_vids)
+
+            total_time = time.time() - start_time
+            self.logger.info(f"Tổng thời gian xử lý truy vấn hoàn tất: {total_time:.2f}s")
+            
+            # Gắn thêm thông số thời gian vào kết quả đầu tiên (chỉ để debug cho user)
+            if result and len(result) > 0:
+                if 'entity' not in result[0]:
+                    result[0]['entity'] = {}
+                result[0]['entity']['debug_time'] = f"Total: {total_time:.2f}s"
 
             return result
         except Exception as e:
@@ -1499,11 +1567,13 @@ def create_app(config_file: str = None) -> FastAPI:
                             second_q = q2
 
                 # 2. Parse OCR & ASR texts if textQueries is empty
-                if not first_q:
-                    for o_text in ocr_texts:
-                        if isinstance(o_text, str) and o_text.strip():
-                            first_q = o_text.strip()
-                            break
+                ocr_query_str = ""
+                for o_text in ocr_texts:
+                    if isinstance(o_text, str) and o_text.strip():
+                        ocr_query_str = o_text.strip()
+                        if not first_q: first_q = ocr_query_str
+                        break
+                        
                 if not first_q:
                     for a_text in asm_texts:
                         if isinstance(a_text, str) and a_text.strip():
@@ -1529,10 +1599,28 @@ def create_app(config_file: str = None) -> FastAPI:
                     else:
                         result = await service.process_temporal_query(first_q or "a photo of scene", second_q, model_name=model_choice)
                 else:
-                    if not first_q and not second_q:
-                        first_q = "scene video overview"
+                    result = []
+                    
+                    # Tự động nhận diện OCR thông minh: Nếu người dùng để từ khóa trong ngoặc kép "..." 
+                    # ở ô tìm kiếm chính, trích xuất nó làm OCR query.
+                    if first_q:
+                        import re
+                        auto_ocr = re.search(r'["\'](.*?)["\']', first_q)
+                        if auto_ocr and auto_ocr.group(1).strip():
+                            ocr_query_str = auto_ocr.group(1).strip()
+                            
+                    # Nếu có nhập OCR text (qua Ctrl+I hoặc nhận diện tự động), thực hiện tìm kiếm OCR trước
+                    if ocr_query_str:
+                        ocr_results = await service.search_ocr(ocr_query_str, limit=1000)
+                        if ocr_results:
+                            result = ocr_results
+                    
+                    # Nếu không có kết quả OCR hoặc không có nhập OCR, chuyển sang tìm kiếm ngữ nghĩa
+                    if not result:
+                        if not first_q and not second_q:
+                            first_q = "scene video overview"
 
-                    result = await service.process_temporal_query(first_q, second_q, model_name=model_choice)
+                        result = await service.process_temporal_query(first_q, second_q, model_name=model_choice)
 
                 await websocket.send_json({"kq": result, "model": model_choice, "status": "success"})
         except WebSocketDisconnect:

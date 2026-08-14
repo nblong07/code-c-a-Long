@@ -7,7 +7,7 @@ Dự án cung cấp một giải pháp end-to-end hiệu năng cao: từ khâu t
 > [!NOTE]
 > **Tối ưu hóa cao cấp cho phần cứng:**
 > - **Hệ điều hành:** Windows 11 (Pathlib an toàn, xử lý bất đồng bộ & đa tiến trình)
-> - **Cấu hình phần cứng tối ưu:** Cấu hình từ **16 GB RAM**, GPU NVIDIA **6 GB VRAM** trở lên (hỗ trợ CUDA PyTorch, FP16 Autocast). Hoạt động hoàn hảo từ máy tính cá nhân đến máy chủ hiệu năng cao.
+> - **Cấu hình phần cứng tối ưu:** Cấu hình từ **64 GB RAM**, GPU NVIDIA **32 GB VRAM** trở lên (hỗ trợ CUDA PyTorch, FP16 Autocast). Hoạt động hoàn hảo từ máy tính cá nhân đến máy chủ hiệu năng cao.
 > - **Bộ điều hướng tự động:** Dynamic Adaptive Query Router + Heuristics Frame Filter + Tree of Thoughts Agent + HippoRAG Memory System
 > - **Môi trường chạy:** Python 3.11 / PyTorch 2.x CUDA
 
@@ -84,10 +84,10 @@ Hệ thống được thiết kế đồng bộ từ các thư viện AI tiên t
 - **Kỹ thuật tối ưu VRAM:**
   - Sử dụng chế độ chạy inference ẩn danh tính toán `torch.inference_mode()` loại bỏ lưu trữ đồ thị đạo hàm (gradient).
   - Tích hợp **FP16 Autocast** (`torch.cuda.amp.autocast()`) giúp xử lý số thực dấu phẩy động nửa chính xác.
-  - Nhờ đó, mô hình vận hành cực kỳ mượt mà trên GPU NVIDIA từ 6GB VRAM, mang lại tốc độ truy vấn cao và độ chính xác vượt trội.
+  - Nhờ đó, mô hình vận hành cực kỳ mượt mà trên GPU NVIDIA từ 32GB VRAM, mang lại tốc độ truy vấn cao và độ chính xác vượt trội.
 
 ### 2. Chỉ mục Vector HNSW (Hierarchical Navigable Small World)
-Để tìm kiếm siêu tốc trên cơ sở dữ liệu Milvus, chúng tôi cấu hình chỉ mục đồ thị HNSW với các tham số tối ưu bộ nhớ RAM 16GB:
+Để tìm kiếm siêu tốc trên cơ sở dữ liệu Milvus, chúng tôi cấu hình chỉ mục đồ thị HNSW với các tham số tối ưu bộ nhớ RAM 64GB:
 - **Metric Type:** `COSINE` (Khoảng cách Cosine tương đồng).
 - **M (Max Connection):** `16` (Số liên kết tối đa của mỗi node đồ thị, giúp đồ thị gọn nhẹ).
 - **efConstruction:** `200` (Độ sâu tìm kiếm khi xây dựng chỉ mục, cân bằng giữa thời gian build và độ chính xác).
@@ -162,29 +162,27 @@ Dữ liệu của hệ thống được quản lý thông qua hai giai đoạn c
 ```
 Thư mục Video (.mp4)
       │
-      ▼  [Chạy offline] database/get_keyframes.py
+      ▼  [Chạy offline] data_pipeline/get_keyframes.py
 Trích xuất Khung hình WebP + Tệp tin CSV Ánh xạ (Frame ID -> Giây)
       │
-      ▼  [Chạy offline] database/upload_database.py
+      ▼  [Chạy offline] data_pipeline/upload_database.py
 Mã hóa CLIP & Tải lên Milvus DB (HNSW Index Cosine)
 ```
 
-### 1. Trích xuất Khung hình đại diện ([get_keyframes.py](file:///D:/code-c-a-Long/database/get_keyframes.py))
+### 1. Trích xuất Khung hình đại diện ([get_keyframes.py](file:///D:/code-c-a-Long/data_pipeline/get_keyframes.py))
 - Đọc video tuần tự bằng OpenCV. Để tăng tốc độ xử lý, script sử dụng tham số `--skip-frames` (mặc định bỏ qua 5 frame, chỉ đọc frame thứ 6).
-- Sử dụng hàm [encode_batch](file:///D:/code-c-a-Long/database/get_keyframes.py#L29) thực hiện xử lý song song đa luồng (`ThreadPoolExecutor`) trên CPU để tiền xử lý ảnh (Resize, Normalize) và gom batch đưa lên GPU để OpenCLIP mã hóa.
-- Đo khoảng cách Cosine giữa các frame liên tiếp. Nếu độ tương đồng **< 0.93** (tức cảnh thay đổi rõ rệt), khung hình đó được xác định là Keyframe đại diện và lưu xuống đĩa cứng dưới dạng ảnh WebP nén (Resize 0.5x, chất lượng 80% để tiết kiệm bộ nhớ) thông qua hàm [save_image_webp](file:///D:/code-c-a-Long/database/get_keyframes.py#L47).
+- Sử dụng hàm [encode_batch](file:///D:/code-c-a-Long/data_pipeline/get_keyframes.py#L29) thực hiện xử lý song song đa luồng (`ThreadPoolExecutor`) trên CPU để tiền xử lý ảnh (Resize, Normalize) và gom batch đưa lên GPU để OpenCLIP mã hóa.
+- Đo khoảng cách Cosine giữa các frame liên tiếp. Nếu độ tương đồng **< 0.93** (tức cảnh thay đổi rõ rệt), khung hình đó được xác định là Keyframe đại diện và lưu xuống đĩa cứng dưới dạng ảnh WebP nén (Resize 0.5x, chất lượng 80% để tiết kiệm bộ nhớ) thông qua hàm [save_image_webp](file:///D:/code-c-a-Long/data_pipeline/get_keyframes.py#L47).
 - Xuất ra file ánh xạ CSV lưu thông tin Frame ID và mốc thời gian tương ứng.
 
-### 2. Tải dữ liệu lên Vector Database ([upload_database.py](file:///D:/code-c-a-Long/database/upload_database.py))
-- Kết nối tới Milvus Database qua hàm [ensure_collection](file:///D:/code-c-a-Long/database/upload_database.py#L27) để khởi tạo Collection với lược đồ (Schema) gồm: `id` (Primary Key), `filepath` (Đường dẫn ảnh), `embedding` (Vector tự động số chiều), `video_id` (Tên video) và `frame_id` (Số thứ tự khung hình).
+### 2. Tải dữ liệu lên Vector Database ([upload_database.py](file:///D:/code-c-a-Long/data_pipeline/upload_database.py))
+- Kết nối tới Milvus Database qua hàm [ensure_collection](file:///D:/code-c-a-Long/data_pipeline/upload_database.py#L27) để khởi tạo Collection với lược đồ (Schema) gồm: `id` (Primary Key), `filepath` (Đường dẫn ảnh), `embedding` (Vector tự động số chiều), `video_id` (Tên video) và `frame_id` (Số thứ tự khung hình).
 - Đọc các ảnh WebP, sinh vector đặc trưng từ OpenCLIP (tự động nhận diện dimension).
 - **Quan trọng:** Tiến hành chuẩn hóa L2 (`F.normalize`) đưa vector về độ dài đơn vị trước khi insert. Việc chuẩn hóa này đảm bảo khoảng cách IP (Inner Product) trên Milvus tương đương chính xác 100% với tính toán khoảng cách Cosine Similarity.
-- Gọi hàm [process_and_upload](file:///D:/code-c-a-Long/database/upload_database.py#L86) thực hiện tải dữ liệu theo Batch lên Milvus và tự động xây dựng chỉ mục HNSW để sẵn sàng tìm kiếm.
+- Gọi hàm [process_and_upload](file:///D:/code-c-a-Long/data_pipeline/upload_database.py#L86) thực hiện tải dữ liệu theo Batch lên Milvus và tự động xây dựng chỉ mục HNSW để sẵn sàng tìm kiếm.
 
 ### 3. Các Công cụ Hỗ trợ Khác
-- [extract.py](file:///D:/code-c-a-Long/extract.py): Trích xuất vector đặc trưng ngoại tuyến và lưu thành file nhị phân `.npy` độc lập.
-- [build_index.py](file:///D:/code-c-a-Long/build_index.py): Tạo chỉ mục FAISS offline từ tệp `.npy` phục vụ tìm kiếm cứu hộ khi không có Milvus Docker.
-- [dres_submit_demo.py](file:///D:/code-c-a-Long/dres_submit_demo.py): Script mẫu mô phỏng gửi gói tin nộp bài tới hệ thống chấm thi DRES.
+- [extract_features.py](file:///D:/code-c-a-Long/data_pipeline/extract_features.py): Trích xuất vector đặc trưng OCR, ASR, CLIP.
 
 ---
 
@@ -203,7 +201,7 @@ bash setup.sh
 ### 2. Khởi động Milvus Database (Docker)
 Yêu cầu đã cài đặt và đang chạy **Docker Desktop** trên máy:
 ```cmd
-cd database
+cd data_pipeline
 docker compose up -d
 ```
 Kiểm tra trạng thái container bằng lệnh `docker compose ps`.
@@ -211,11 +209,11 @@ Kiểm tra trạng thái container bằng lệnh `docker compose ps`.
 ### 3. Pipeline Xử lý Dữ liệu
 Trích xuất khung hình từ thư mục video:
 ```cmd
-python database/get_keyframes.py --input-folder "D:/path/to/videos" --output-base "./data-keyframes"
+python data_pipeline/get_keyframes.py --input-folder "D:/path/to/videos" --output-base "./data-keyframes"
 ```
 Mã hóa và tải lên Milvus DB:
 ```cmd
-python database/upload_database.py --root "./data-keyframes" --build-index
+python data_pipeline/upload_database.py --root "./data-keyframes" --build-index
 ```
 
 ### 4. Chạy dịch vụ Backend FastAPI

@@ -18,31 +18,47 @@ env/
 .env
 .venv/
 ENV/
-
-# Miniconda / Anaconda environments (thư mục env tạo trong project)
 conda-env/
 .conda/
 
-Keyframes_L21
 # ===========================
-# Frontend config (quan trọng!)
-# Mỗi người tự tạo config.js riêng từ config.example.js
-# KHÔNG commit file này — chứa đường dẫn riêng của từng máy
+# Dữ liệu trích xuất (Không commit)
 # ===========================
-frontend/src/scripts/config.js
+*.npy
+*.npz
+*.csv
+*.json
+!backend/config.json
+!package.json
+ocr_asr_metadata.json
+features.npy
+image_paths.npy
 
 # ===========================
-# Dữ liệu lớn — không commit lên GitHub
+# Thư mục chứa Keyframes & Video (Rất nặng)
 # ===========================
+Keyframes_L21/
+data-keyframes/
 output-keyframes/
 *.webp
 *.mp4
 *.m3u8
 *.ts
+
+# ===========================
+# CSDL Vector Milvus & Cấu hình Docker
+# ===========================
+data_pipeline/volumes/
 database/volumes/
 
 # ===========================
-# IDE / Editor
+# Frontend config (Quan trọng!)
+# ===========================
+# Mỗi người tự tạo config.js riêng từ config.example.js
+frontend/src/scripts/config.js
+
+# ===========================
+# IDE / Editor & Hệ điều hành
 # ===========================
 .vscode/
 .idea/
@@ -61,7 +77,6 @@ fail_load.txt
 # ===========================
 # Environment variables
 # ===========================
-.env
 .env.local
 .env.production
 backend/.env
