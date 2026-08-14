@@ -1,7 +1,7 @@
 {
   "// Cấu hình Cụm Mô hình AI (64GB RAM + 32GB VRAM GPU)": "Tối ưu hóa mô hình VLM, Object Grounding & Adaptive Router",
-  "clip_model_name": "ViT-L-14",
-  "clip_pretrained": "laion2b_s32b_b82k",
+  "clip_model_name": "ViT-SO400M-14-SigLIP-384",
+  "clip_pretrained": "webli",
   "device": "cuda",
   "supported_models": {
     "clip": "OpenCLIP ViT-L-14 (laion2b_s32b_b82k) - Semantic Retrieval 768d",
@@ -30,7 +30,7 @@
   "max_workers": 8,
   "log_level": "INFO",
   "gzip_minimum_size": 1000,
-  "keyframes_dir": "./data-keyframes",
+  "keyframes_dir": "./Keyframes_L21",
   "api_key": "aic_challenge_secure_token_2026",
 
   "// Cấu hình Bộ Điều Hướng Adaptive Router & Heuristic Filters": "Tính năng tự chọn mô hình theo dữ liệu",

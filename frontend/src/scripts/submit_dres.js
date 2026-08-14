@@ -26,6 +26,7 @@ function showTemporaryAlert(message) {
 // Call this function when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     connectWebSocket();
+    connectFilterWebSocket();
     connectWebSocketcrossing();
     connectAlertWebSocket();
 });

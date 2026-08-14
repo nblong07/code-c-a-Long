@@ -23,6 +23,7 @@ ENV/
 conda-env/
 .conda/
 
+Keyframes_L21
 # ===========================
 # Frontend config (quan trọng!)
 # Mỗi người tự tạo config.js riêng từ config.example.js

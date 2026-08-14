@@ -99,14 +99,26 @@
   flex-direction: column;
   gap: 12px;
   padding: 10px;
+  scroll-behavior: smooth;
+  box-sizing: border-box;
 }
 
 #export-images::-webkit-scrollbar {
-  width: 4px;
+  width: 8px;
 }
+
+#export-images::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 4px;
+}
+
 #export-images::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.1);
-  border-radius: 2px;
+  background: rgba(217, 4, 41, 0.55);
+  border-radius: 4px;
+}
+
+#export-images::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color, #D90429);
 }
 
 .export-image {

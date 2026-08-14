@@ -82,26 +82,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Helper function to trigger combined search
     async function triggerSearchExecution() {
-        toggleLoadingIndicator(true);
-        collectTextQueries();
-
-        const searchScenes = document.querySelectorAll('.Search_Scene');
-        let filledQueriesCount = 0;
-
-        for (const scene of searchScenes) {
-            const query = await getQueryContent(scene);
-            if (query && query.content) {
-                filledQueriesCount++;
-            }
-        }
-
-        if (typeof isQuickSearch !== 'undefined' && isQuickSearch) {
-            if (filledQueriesCount === 1) {
-                await performPagnitionCombinedSearch();
-            } else {
-                await performCombinedSearch();
-            }
-        } else {
+        if (typeof handleFilterAction === 'function') {
+            handleFilterAction();
+        } else if (typeof performCombinedSearch === 'function') {
             await performCombinedSearch();
         }
     }

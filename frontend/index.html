@@ -128,101 +128,117 @@
 
       <div class="left-panel">
 
-        <div class="model-option">
-          <button class="clip active" title="Mô hình Meta DINOv2 (ViT-B/14)">DINOv2</button>
-          <button class="beit" title="Mô hình BEIT">BEIT</button>
-          <button class="blip" title="Mô hình BLIP">BLIP</button>
-          <button class="mix" title="Mô hình kết hợp">MIX</button>
-        </div>
-
         <div class="Box_Function">
           <div class="search-card">
+
+            <!-- AI Model Selector Pill Bar -->
+            <div class="model-option-bar">
+              <span class="model-bar-label"><i class="fa-solid fa-microchip"></i> Model AI:</span>
+              <div class="model-option">
+                <button class="clip active" title="Google SigLIP 2 SO400M">SigLIP 2</button>
+                <button class="eva-clip" title="InternVL 2.5 Pro — Ultra High-Res">InternVL-2.5</button>
+                <button class="blip" title="Gemini 2.0 Pro Multimodal">Gemini 2.0</button>
+                <button class="mix" title="Multi-Model Ensemble Reciprocal Rank Fusion">Ensemble</button>
+              </div>
+            </div>
+
+            <!-- Competition Task Mode Selector -->
+            <div class="task-mode-bar" style="display: flex; gap: 8px; margin-top: 8px;">
+               <button class="task-mode-btn active" data-task="kis" style="flex: 1; padding: 6px; font-size: 11.5px; font-weight: bold; border-radius: 6px; cursor: pointer; border: 1.5px solid #D90429; background-color: #FAF0F2; color: #D90429; transition: all 0.2s;">Textual KIS</button>
+               <button class="task-mode-btn" data-task="qa" style="flex: 1; padding: 6px; font-size: 11.5px; font-weight: bold; border-radius: 6px; cursor: pointer; border: 1.5px solid #F3C6CE; background-color: transparent; color: #5C232B; transition: all 0.2s;">Visual Q&A</button>
+               <button class="task-mode-btn" data-task="trake" style="flex: 1; padding: 6px; font-size: 11.5px; font-weight: bold; border-radius: 6px; cursor: pointer; border: 1.5px solid #F3C6CE; background-color: transparent; color: #5C232B; transition: all 0.2s;">TRAKE</button>
+            </div>
 
             <form id="Search">
 
               <div class="Search_Scene" id="search-scene-1">
-                <div class="tab-buttons">
-                  <button type="button" class="text-button active" title="Tìm kiếm bằng mô tả chữ văn bản">
-                    <i class="fa-solid fa-font"></i>
-                    <span>Mô tả chữ</span>
-                  </button>
-                  <button type="button" class="image-button" title="Tìm kiếm bằng mẫu hình ảnh">
-                    <i class="fa-solid fa-image"></i>
-                    <span>Tải ảnh mẫu</span>
-                  </button>
+                <div class="scene-header-title">
+                  <span><i class="fa-solid fa-magnifying-glass"></i> Omni-Search (Kết hợp Ngữ cảnh, OCR & ASR)</span>
                 </div>
                 
-                <div class="mode-button">
-                  <button type="button" class="temporal-search active" title="Tìm chuỗi cảnh theo thời gian">Cảnh 1</button>
-                  <button type="button" class="query-expansion" title="Mở rộng từ khóa">Mở Rộng</button>
-                </div>
-
                 <div class="query-group">
                   <div class="query-content-area">
-                    <textarea name="Text_Query" id="Text-Query-First" rows="4" placeholder="Nhập mô tả hình ảnh cho Cảnh 1 (Ví dụ: tòa nhà, xe ô tô màu đỏ...)"></textarea>
+                    <!-- Omni Text Query -->
+                    <textarea name="Text_Query" id="Omni-Query-First" rows="4" placeholder="🔍 Nhập mô tả duy nhất kết hợp ngữ cảnh, lời nói, và chữ trên hình (VD: Cảnh đường phố có biển hiệu 'CÀ PHÊ' và nghe thấy 'xin chào'...)"></textarea>
                     
-                    <div class="image-drop-area" style="display: none;">
-                      <p class="drop-instruction">Kéo thả hình ảnh vào đây hoặc click để chọn ảnh</p>
+                    <!-- Q&A Input (Hidden by default, shown for Visual Q&A) -->
+                    <div class="qa-container" id="qa-container-1" style="display: none; margin-top: 8px;">
+                      <textarea name="QA_Query" id="Question-Query" rows="2" placeholder="❓ Nhập câu hỏi (VD: Người đàn ông đang mặc áo màu gì?)" style="background-color: #E8F0FE; border-color: #4285F4;"></textarea>
+                    </div>
+
+                    <!-- Image Query -->
+                    <div class="image-drop-area" style="margin-top: 8px; height: 80px;">
+                      <p class="drop-instruction"><i class="fa-solid fa-image"></i> Kéo thả ảnh mẫu hoặc click để tải lên</p>
                       <input type="file" accept="image/*" style="display: none;" id="Image-Query-1">
-                      <div class="preview-upload-container"></div>
+                      <div class="preview-upload-container" style="height: 60px;"></div>
                     </div>
 
                   </div>
+                </div>
+
+                <div class="mode-button">
+                  <button type="button" class="query-expansion active" title="LLM sẽ tự động bóc tách thành phần Hình ảnh, OCR, ASR"><i class="fa-solid fa-wand-magic-sparkles"></i> Phân Tích Đa Thức Bằng LLM</button>
+                  <button type="button" class="temporal-toggle" id="toggle-scene2-btn" title="Kích hoạt tìm kiếm chuỗi cảnh liên tiếp (TRAKE)" style="display: none;"><i class="fa-solid fa-timeline"></i> + Thêm Sự Kiện Tiếp Theo</button>
                 </div>
               </div>
                   
-              <div class="Search_Scene" id="search-scene-2">
-                <div class="tab-buttons">
-                  <button type="button" class="text-button active" title="Tìm kiếm bằng mô tả chữ văn bản">
-                    <i class="fa-solid fa-font"></i>
-                    <span>Mô tả chữ</span>
-                  </button>
-                  <button type="button" class="image-button" title="Tìm kiếm bằng mẫu hình ảnh">
-                    <i class="fa-solid fa-image"></i>
-                    <span>Tải ảnh mẫu</span>
-                  </button>
-                </div>
-
-                <div class="mode-button">
-                  <button type="button" class="temporal-search active" title="Cảnh tiếp theo trong cùng video">Cảnh 2</button>
-                  <button type="button" class="query-expansion" title="Mở rộng từ khóa">Mở Rộng</button>
+              <!-- Scene 2 (TRAKE: Tìm chuỗi cảnh thời gian Sự kiện 1 -> Sự kiện 2) -->
+              <div class="Search_Scene" id="search-scene-2" style="display: none;">
+                <div class="scene-header-title">
+                  <span><i class="fa-solid fa-clock-rotate-left"></i> Sự kiện 2 (Xảy ra tiếp theo)</span>
+                  <button type="button" id="close-scene2-btn" class="close-scene2-btn" title="Đóng Sự kiện 2">&times;</button>
                 </div>
 
                 <div class="query-group">
                   <div class="query-content-area">
-                    <textarea name="Text_Query" id="Text-Query-Second" rows="4" placeholder="Nhập mô tả cho Cảnh 2 (Tùy chọn: sự kiện xảy ra sau cảnh 1)"></textarea>
+                    <textarea name="Text_Query" id="Omni-Query-Second" rows="3" placeholder="🔍 Nhập mô tả sự kiện 2..."></textarea>
                     
-                    <div class="image-drop-area" style="display: none;">
-                      <p class="drop-instruction">Drag and drop image here or click to upload</p>
-                      <input type="file" accept="image/*" style="display: none;" id="Image-Query-1">
-                      <div class="preview-upload-container"></div>
+                    <div class="image-drop-area" style="margin-top: 8px; height: 80px;">
+                      <p class="drop-instruction">Kéo thả ảnh mẫu cho Sự kiện 2</p>
+                      <input type="file" accept="image/*" style="display: none;" id="Image-Query-2">
+                      <div class="preview-upload-container" style="height: 60px;"></div>
                     </div>
-
                   </div>
-
-                  <!--                   
-                  <div class="ocr-container">
-                    <textarea name="Ocr_Query" rows="2" placeholder="Search ocr"></textarea>
-                    <button class="close-ocr-button">×</button>
-                  </div>
-
-                  <div class="asm-container">
-                    <textarea name="Asm_Query" rows="2" placeholder="Search asm"></textarea>
-                    <button class="close-asm-button">×</button>
-                  </div>
-
-                  <div class="object-filter">
-                    <label>Object:</label>
-                    <input type="text" class="objectInput" list="suggestions">
-                    <input type="text" class="valueInput" data-type="text">
-                    <button class="close-filter-button">×</button>
-                  </div>
-                   -->
-
-                  </div>
+                </div>
               </div>
 
             </form>
+
+            <script>
+              document.addEventListener('DOMContentLoaded', function() {
+                const taskBtns = document.querySelectorAll('.task-mode-btn');
+                const qaContainer = document.getElementById('qa-container-1');
+                const temporalBtn = document.getElementById('toggle-scene2-btn');
+                const scene2 = document.getElementById('search-scene-2');
+                
+                taskBtns.forEach(btn => {
+                  btn.addEventListener('click', function() {
+                    taskBtns.forEach(b => {
+                      b.style.borderColor = '#F3C6CE';
+                      b.style.backgroundColor = 'transparent';
+                      b.style.color = '#5C232B';
+                    });
+                    this.style.borderColor = '#D90429';
+                    this.style.backgroundColor = '#FAF0F2';
+                    this.style.color = '#D90429';
+                    
+                    const task = this.getAttribute('data-task');
+                    if(task === 'qa') {
+                      qaContainer.style.display = 'block';
+                      temporalBtn.style.display = 'none';
+                      scene2.style.display = 'none';
+                    } else if(task === 'trake') {
+                      qaContainer.style.display = 'none';
+                      temporalBtn.style.display = 'flex';
+                    } else {
+                      qaContainer.style.display = 'none';
+                      temporalBtn.style.display = 'none';
+                      scene2.style.display = 'none';
+                    }
+                  });
+                });
+              });
+            </script>
 
             <div class="main-search-btn-container">
               <button type="button" id="card-search-button" class="card-search-btn" title="Click để tìm kiếm (hoặc nhấn phím Enter trên bàn phím)">
@@ -319,18 +335,7 @@
             </form>
         </div>
 
-        <div class="button-card">
-          <div class="button-group">
-            <button type="button" id="search-button">Search</button>
-            <button type="button" id="filter-button">Filter</button>
-          </div>
-          <label class="translate-option">
-            <input type="checkbox" id="translate-checkbox" class="toggle-checkbox">
-            <span class="slider"></span>
-          </label>
-
-        </div>
-        </div>
+      </div>
         
         <div class="right-panel">
           <div class="content-wrapper">

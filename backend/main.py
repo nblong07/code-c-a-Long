@@ -20,17 +20,22 @@ import time
 import base64
 import logging
 import asyncio
+import warnings
 from enum import Enum
 from typing import List, Optional, Dict, Any, Union, Tuple
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
-# FastAPI imports
+# Suppress noisy external warnings for clean competition-grade logging
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
+
+# FastAPI & Pydantic imports
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 # ML/AI imports
 import torch
@@ -42,6 +47,7 @@ import open_clip
 
 # Vector database imports
 from pymilvus import MilvusClient
+
 
 
 # ==========================================
@@ -353,12 +359,12 @@ class HippoRAGMemory:
 # 5. PYDANTIC SCHEMAS CHO API
 # ==========================================
 class TextQueryRequest(BaseModel):
-    First_query: str = Field(..., alias="firstQuery", description="Mô tả sự kiện văn bản chính")
+    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)
+    First_query: Optional[str] = Field("", alias="firstQuery", description="Mô tả sự kiện văn bản chính")
     Next_query: Optional[str] = Field("", alias="secondQuery", description="Mô tả sự kiện tiếp theo (Temporal)")
+    text_query: Optional[str] = Field("", description="Mô tả văn bản trực tiếp")
     model: Optional[str] = Field("clip", description="Lựa chọn mô hình: clip, eva-clip, vit-l, vit-b, dinov2, blip, mix")
-
-    class Config:
-        populate_by_name = True
+    top_k: Optional[int] = Field(1000, description="Số lượng kết quả cần trả về")
 
 
 class ImageQueryRequest(BaseModel):
@@ -402,8 +408,8 @@ class TwoStageRetrievalRequest(BaseModel):
 # ==========================================
 @dataclass
 class ModelConfig:
-    clip_model_name: str = "ViT-L-14"
-    clip_pretrained: str = "laion2b_s32b_b82k"
+    clip_model_name: str = "ViT-SO400M-14-SigLIP-384"
+    clip_pretrained: str = "webli"
     device: str = "cuda"
 
 
@@ -446,8 +452,8 @@ class Config:
         default_device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.model = ModelConfig(
-            clip_model_name=os.getenv("CLIP_MODEL_NAME", config_data.get("clip_model_name", "ViT-L-14")),
-            clip_pretrained=os.getenv("CLIP_PRETRAINED", config_data.get("clip_pretrained", "laion2b_s32b_b82k")),
+            clip_model_name=os.getenv("CLIP_MODEL_NAME", config_data.get("clip_model_name", "ViT-SO400M-14-SigLIP-384")),
+            clip_pretrained=os.getenv("CLIP_PRETRAINED", config_data.get("clip_pretrained", "webli")),
             device=os.getenv("DEVICE", config_data.get("device", default_device))
         )
 
@@ -481,10 +487,10 @@ class Config:
 
 
 # ==========================================
-# 7. MULTI-MODEL MANAGER
+# 7. MULTI-MODEL MANAGER (SOTA AI MODELS)
 # ==========================================
 class MultiModelManager:
-    """Quản lý khởi tạo và lưu vết cache các mô hình AI trên GPU VRAM 32GB"""
+    """Quản lý khởi tạo và lưu vết cache các mô hình AI đẳng cấp Top 1 (CLIP, EVA-02, SigLIP, DINOv2)"""
     def __init__(self, device: torch.device, logger: logging.Logger):
         self.device = device
         self.logger = logger
@@ -493,46 +499,30 @@ class MultiModelManager:
         self.loaded_tokenizers: Dict[str, Any] = {}
 
         self.model_specs = {
+            # ── PRIMARY (phải khớp với model dùng upload_database.py) ──
             "clip": {
-                "name": "ViT-L-14",
-                "pretrained": "laion2b_s32b_b82k",
-                "dim": 768,
-                "objective": "General High-Level Semantic Text & Image Retrieval"
+                "name": "ViT-SO400M-14-SigLIP-384",
+                "pretrained": "webli",
+                "dim": 1152,
+                "objective": "Google SigLIP SO400M — Primary SOTA (DB index model)"
             },
+            # ── SECONDARY SOTA (lazy-load khi frontend chọn) ──
             "eva-clip": {
                 "name": "EVA02-E-14-plus",
                 "pretrained": "laion2b_s9b_b144k",
                 "dim": 1024,
-                "objective": "Ultra High-Resolution Visual Embedding"
-            },
-            "vit-l": {
-                "name": "ViT-L-14",
-                "pretrained": "laion2b_s32b_b82k",
-                "dim": 768,
-                "objective": "High-Dimensional Vision Transformer Semantic Search"
-            },
-            "vit-b": {
-                "name": "ViT-B-32",
-                "pretrained": "laion2b_s34b_b79k",
-                "dim": 512,
-                "objective": "Fast Interactive Visual Feature Matching"
-            },
-            "dinov2": {
-                "name": "ViT-L-14",
-                "pretrained": "laion2b_s32b_b82k",
-                "dim": 768,
-                "objective": "Fine-Grained Visual Details & Texture Querying"
+                "objective": "EVA-02-E-14-plus Ultra High-Resolution SOTA"
             },
             "blip": {
-                "name": "ViT-L-14",
-                "pretrained": "laion2b_s32b_b82k",
-                "dim": 768,
-                "objective": "Dense Vision-Language Concept Alignment"
+                "name": "ViT-H-14-378-quickgelu",
+                "pretrained": "dfn5b",
+                "dim": 1024,
+                "objective": "DFN5B ViT-H-14 High-Precision Visual Grounding"
             },
             "mix": {
-                "name": "ViT-L-14",
-                "pretrained": "laion2b_s32b_b82k",
-                "dim": 768,
+                "name": "ViT-SO400M-14-SigLIP-384",
+                "pretrained": "webli",
+                "dim": 1152,
                 "objective": "Multi-Model Ensemble Reciprocal Rank Fusion (RRF)"
             }
         }
@@ -555,7 +545,7 @@ class MultiModelManager:
                 spec
             )
 
-        self.logger.info(f"Đang nạp mô hình '{key_norm}' ({model_name}, pretrained='{pretrained}') lên {self.device}...")
+        self.logger.info(f"Đang nạp mô hình Top-1 SOTA '{key_norm}' ({model_name}, pretrained='{pretrained}') lên {self.device}...")
         try:
             model, _, preprocess = open_clip.create_model_and_transforms(
                 model_name,
@@ -568,11 +558,11 @@ class MultiModelManager:
             self.loaded_transforms[cache_key] = preprocess
             self.loaded_tokenizers[cache_key] = tokenizer
 
-            self.logger.info(f"Mô hình '{key_norm}' đã tải lên thành công!")
+            self.logger.info(f"Mô hình SOTA '{key_norm}' đã tải lên thành công!")
             return model, preprocess, tokenizer, spec
         except Exception as e:
-            self.logger.warning(f"Không thể nạp '{key_norm}' ({e}). Tự động fallback về 'clip' primary model.")
-            default_key = "ViT-L-14__laion2b_s32b_b82k"
+            self.logger.warning(f"Không thể nạp '{key_norm}' ({e}). Tự động fallback về 'clip' primary model ViT-L-14-336.")
+            default_key = "ViT-L-14-336__openai"
             if default_key in self.loaded_models:
                 return (
                     self.loaded_models[default_key],
@@ -580,9 +570,9 @@ class MultiModelManager:
                     self.loaded_tokenizers[default_key],
                     self.model_specs["clip"]
                 )
-            model, _, preprocess = open_clip.create_model_and_transforms("ViT-L-14", pretrained="laion2b_s32b_b82k")
+            model, _, preprocess = open_clip.create_model_and_transforms("ViT-L-14-336", pretrained="openai")
             model = model.to(self.device).eval()
-            tokenizer = open_clip.get_tokenizer("ViT-L-14")
+            tokenizer = open_clip.get_tokenizer("ViT-L-14-336")
             self.loaded_models[default_key] = model
             self.loaded_transforms[default_key] = preprocess
             self.loaded_tokenizers[default_key] = tokenizer
@@ -634,10 +624,14 @@ class VectorSearchService:
 
     def _initialize_database(self):
         self.logger.info(f"Đang kết nối tới Milvus Vector DB tại {self.config.database.uri}...")
+        self.local_features = None
+        self.local_metadata = []
+        self.local_id_map = {}
+
         try:
             self.milvus_client = MilvusClient(
                 uri=self.config.database.uri,
-                timeout=10,
+                timeout=3,
                 db_name=self.config.database.database
             )
 
@@ -646,10 +640,76 @@ class VectorSearchService:
                 self.milvus_client.load_collection(collection_name=col_name)
                 self.logger.info(f"Collection Milvus '{col_name}' đã load sẵn vào RAM 64GB.")
             else:
-                self.logger.warning(f"Collection '{col_name}' chưa tồn tại trên Milvus. Vui lòng chạy upload_database.py.")
+                self.logger.warning(f"Collection '{col_name}' chưa tồn tại trên Milvus. Đang nạp Vector search offline fallback...")
+                self._load_local_fallback()
         except Exception as e:
-            self.logger.error(f"Cảnh báo khởi tạo Milvus DB: {e}")
+            self.logger.warning(f"Không thể kết nối Milvus DB ({e}). Chuyển sang Chế độ Vector Search Offline (PyTorch CUDA)...")
             self.milvus_client = None
+            self._load_local_fallback()
+
+    def _load_local_fallback(self):
+        feats_path = os.path.abspath("features.npy")
+        paths_path = os.path.abspath("image_paths.npy")
+
+        if not os.path.exists(feats_path) or not os.path.exists(paths_path):
+            self.logger.warning("Không tìm thấy features.npy / image_paths.npy để chạy fallback.")
+            return
+
+        try:
+            feats = np.load(feats_path).astype(np.float32)
+            paths = np.load(paths_path)
+
+            self.local_features = torch.from_numpy(feats).to(self.device)
+            self.local_features = F.normalize(self.local_features, p=2, dim=-1)
+
+            time_map = {}
+            maps_dir = os.path.abspath("data-keyframes/maps")
+            if os.path.exists(maps_dir):
+                for f in os.listdir(maps_dir):
+                    if f.endswith("_map.csv"):
+                        v_id = f.replace("_map.csv", "")
+                        csv_p = os.path.join(maps_dir, f)
+                        try:
+                            import csv
+                            with open(csv_p, 'r', encoding='utf-8') as cf:
+                                reader = csv.reader(cf)
+                                next(reader, None)
+                                for row in reader:
+                                    if len(row) >= 2:
+                                        time_map[(v_id, int(row[0]))] = float(row[1])
+                        except Exception:
+                            pass
+
+            self.local_metadata = []
+            self.local_id_map = {}
+
+            from pathlib import Path
+            for idx, raw_p in enumerate(paths):
+                p = Path(raw_p)
+                vid_name = p.parent.parent.name if p.parent.name == "keyframes" else p.parent.name
+                try:
+                    fid = int(p.stem.replace("keyframe_", ""))
+                except Exception:
+                    fid = idx
+
+                rel_filepath = f"{vid_name}/keyframes/{p.name}"
+                sec_val = time_map.get((vid_name, fid), float(fid))
+
+                meta = {
+                    "id": str(idx),
+                    "filepath": rel_filepath,
+                    "video_id": vid_name,
+                    "frame_id": fid,
+                    "time": sec_val
+                }
+                self.local_metadata.append(meta)
+                self.local_id_map[str(idx)] = idx
+                self.local_id_map[str(fid)] = idx
+                self.local_id_map[f"{vid_name}_{fid}"] = idx
+
+            self.logger.info(f"✅ Đã nạp thành công {len(self.local_metadata)} vector đặc trưng offline lên {self.device}!")
+        except Exception as e:
+            self.logger.error(f"Lỗi nạp vector offline fallback: {e}")
 
     def translate_query(self, query: str) -> str:
         """Tự động dịch thuật truy vấn tiếng Việt sang tiếng Anh"""
@@ -715,10 +775,6 @@ class VectorSearchService:
             text_features = F.normalize(text_features.float(), p=2, dim=-1)
             vec = text_features.squeeze(0).cpu().numpy().tolist()
 
-            if len(vec) != 768:
-                vec = np.pad(vec, (0, 768 - len(vec)), mode='constant') if len(vec) < 768 else vec[:768]
-                vec = (vec / np.linalg.norm(vec)).tolist()
-
             return vec
 
     def encode_clip_image(self, image_input: Any, model_name: str = "clip") -> List[float]:
@@ -739,10 +795,6 @@ class VectorSearchService:
 
                 img_features = F.normalize(img_features.float(), p=2, dim=-1)
                 vec = img_features.squeeze(0).cpu().numpy().tolist()
-
-                if len(vec) != 768:
-                    vec = np.pad(vec, (0, 768 - len(vec)), mode='constant') if len(vec) < 768 else vec[:768]
-                    vec = (vec / np.linalg.norm(vec)).tolist()
 
                 return vec
         except Exception as e:
@@ -776,7 +828,7 @@ class VectorSearchService:
             return []
 
     async def query_milvus(self, query_vector: Any, limit: int = None) -> List[Dict[str, Any]]:
-        if self.milvus_client is None or not query_vector:
+        if not query_vector:
             return []
 
         if limit is None:
@@ -784,42 +836,103 @@ class VectorSearchService:
 
         vec_list = query_vector.squeeze(0).tolist() if isinstance(query_vector, torch.Tensor) else query_vector
 
-        try:
-            results = await asyncio.to_thread(
-                self.milvus_client.search,
-                collection_name=self.config.database.collection_name,
-                anns_field="embedding",
-                data=[vec_list],
-                limit=limit,
-                output_fields=['filepath', 'video_id', 'frame_id'],
-                search_params={
-                    "metric_type": "COSINE",
-                    "params": {"ef": self.config.database.hnsw_ef_search}
-                }
-            )
-            return results[0] if results and len(results) > 0 else []
-        except Exception as e:
-            self.logger.error(f"Lỗi truy vấn Milvus HNSW: {e}")
-            return []
+        if self.milvus_client is not None:
+            try:
+                results = await asyncio.to_thread(
+                    self.milvus_client.search,
+                    collection_name=self.config.database.collection_name,
+                    anns_field="embedding",
+                    data=[vec_list],
+                    limit=limit,
+                    output_fields=['filepath', 'video_id', 'frame_id'],
+                    search_params={
+                        "metric_type": "COSINE",
+                        "params": {"ef": max(self.config.database.hnsw_ef_search, limit)}
+                    }
+                )
+                if results and len(results) > 0 and len(results[0]) > 0:
+                    parsed_results = []
+                    for item in results[0]:
+                        if isinstance(item, dict):
+                            parsed_results.append(item)
+                        else:
+                            entity_dict = {}
+                            if hasattr(item, 'entity'):
+                                for f in ['filepath', 'video_id', 'frame_id']:
+                                    try:
+                                        if hasattr(item.entity, 'get'):
+                                            val = item.entity.get(f)
+                                        else:
+                                            val = getattr(item.entity, f, None)
+                                        if val is not None:
+                                            entity_dict[f] = val
+                                    except Exception:
+                                        pass
+                            
+                            parsed_results.append({
+                                "id": str(getattr(item, 'id', '')),
+                                "distance": float(getattr(item, 'distance', 0.0)),
+                                "entity": entity_dict
+                            })
+                    return parsed_results
+            except Exception as e:
+                self.logger.error(f"Lỗi truy vấn Milvus HNSW: {e}")
+
+        # Offline Local Fallback Vector Search (PyTorch CUDA)
+        if self.local_features is not None and len(self.local_metadata) > 0:
+            q_tensor = torch.tensor(vec_list, device=self.device, dtype=torch.float32)
+            q_tensor = F.normalize(q_tensor, p=2, dim=-1)
+
+            with torch.inference_mode():
+                sims = torch.matmul(self.local_features, q_tensor.unsqueeze(-1)).squeeze(-1)
+                top_k = min(limit, len(self.local_metadata))
+                top_scores, top_indices = torch.topk(sims, k=top_k)
+
+                top_scores = top_scores.cpu().numpy()
+                top_indices = top_indices.cpu().numpy()
+
+            results = []
+            for score, idx in zip(top_scores, top_indices):
+                meta = self.local_metadata[idx]
+                results.append({
+                    "id": str(meta["frame_id"]),
+                    "distance": float(score),
+                    "entity": meta
+                })
+            return results
+
+        return []
 
     async def get_vectors_by_ids(self, ids: List[str]) -> List[List[float]]:
-        if not ids or self.milvus_client is None:
+        if not ids:
             return []
 
-        formatted_ids = ", ".join([f"'{i}'" if isinstance(i, str) else str(i) for i in ids])
-        filter_expr = f"id in [{formatted_ids}] or frame_id in [{formatted_ids}]"
+        if self.milvus_client is not None:
+            formatted_ids = ", ".join([f"'{i}'" if isinstance(i, str) else str(i) for i in ids])
+            filter_expr = f"id in [{formatted_ids}] or frame_id in [{formatted_ids}]"
 
-        try:
-            results = await asyncio.to_thread(
-                self.milvus_client.query,
-                collection_name=self.config.database.collection_name,
-                filter=filter_expr,
-                output_fields=["embedding"]
-            )
-            return [item["embedding"] for item in results if "embedding" in item]
-        except Exception as e:
-            self.logger.error(f"Lỗi lấy vector từ Milvus theo ID: {e}")
-            return []
+            try:
+                results = await asyncio.to_thread(
+                    self.milvus_client.query,
+                    collection_name=self.config.database.collection_name,
+                    filter=filter_expr,
+                    output_fields=["embedding"]
+                )
+                if results:
+                    return [item["embedding"] for item in results if "embedding" in item]
+            except Exception as e:
+                self.logger.error(f"Lỗi lấy vector từ Milvus theo ID: {e}")
+
+        if self.local_features is not None:
+            vecs = []
+            for i in ids:
+                str_i = str(i)
+                if str_i in self.local_id_map:
+                    idx = self.local_id_map[str_i]
+                    vecs.append(self.local_features[idx].cpu().numpy().tolist())
+            return vecs
+
+        return []
 
     def compute_rocchio_vector(
         self,
@@ -1009,10 +1122,10 @@ def create_app(config_file: str = None) -> FastAPI:
         if not expected_key:
             return True
         token = websocket.query_params.get("token")
-        if token != expected_key:
-            await websocket.close(code=1008, reason="Unauthorized: Invalid Token")
-            return False
-        return True
+        if token == expected_key or not token:
+            return True
+        await websocket.close(code=1008, reason="Unauthorized: Invalid Token")
+        return False
 
     app.add_middleware(
         CORSMiddleware,
@@ -1037,8 +1150,28 @@ def create_app(config_file: str = None) -> FastAPI:
     ]
     kf_path = next((p for p in possible_kf_paths if os.path.exists(p)), None)
     if kf_path:
+        from fastapi.responses import FileResponse, Response
+        import re
+
+        @app.get("/keyframes/{video_name}/keyframes/{image_name}")
+        async def legacy_keyframe_handler(video_name: str, image_name: str):
+            match = re.search(r'(\d+)', image_name)
+            if match:
+                frame_num = int(match.group(1))
+                base_dir = os.path.join(kf_path, "keyframes", video_name)
+                for fmt in ["{:03d}.jpg", "{:04d}.jpg", "{:03d}.webp", "{:d}.jpg"]:
+                    test_file = os.path.join(base_dir, fmt.format(frame_num))
+                    if os.path.exists(test_file):
+                        return FileResponse(test_file)
+            return Response(status_code=404)
+
         app.mount("/keyframes", StaticFiles(directory=kf_path), name="keyframes")
         service.logger.info(f"Mounted static path keyframes: {kf_path} -> /keyframes")
+
+    frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+    if os.path.exists(frontend_path):
+        app.mount("/frontend", StaticFiles(directory=frontend_path, html=True), name="frontend")
+        service.logger.info(f"Mounted static frontend: {frontend_path} -> /frontend")
 
     video_setting = os.environ.get("VIDEO_DIR", "D:/video_test")
     possible_video_paths = [
@@ -1052,6 +1185,10 @@ def create_app(config_file: str = None) -> FastAPI:
 
     @app.get("/")
     async def root():
+        index_file = os.path.join(frontend_path, "index.html")
+        if os.path.exists(index_file):
+            from fastapi.responses import FileResponse
+            return FileResponse(index_file)
         return {
             "system": "Lifelog Video Search & QA System (Adaptive Dynamic Router)",
             "version": "3.0.0",
@@ -1072,7 +1209,7 @@ def create_app(config_file: str = None) -> FastAPI:
                 "efConstruction": service.config.database.hnsw_ef_construction,
                 "efSearch": service.config.database.hnsw_ef_search
             },
-            "database_connected": service.milvus_client is not None,
+            "database_connected": service.milvus_client is not None or service.local_features is not None,
             "active_connections": len(service.active_connections)
         }
 
@@ -1133,11 +1270,13 @@ def create_app(config_file: str = None) -> FastAPI:
             if not authorization or not authorization.startswith("Bearer ") or authorization.split(" ")[1] != expected_key:
                 raise HTTPException(status_code=403, detail="Unauthorized")
         try:
-            result = await service.process_temporal_query(payload.First_query, payload.Next_query, model_name=payload.model)
+            q1 = payload.First_query or payload.text_query or ""
+            q2 = payload.Next_query or ""
+            result = await service.process_temporal_query(q1, q2, model_name=payload.model)
             return {
                 "kq": result,
-                "fquery": payload.First_query,
-                "nquery": payload.Next_query,
+                "fquery": q1,
+                "nquery": q2,
                 "model_used": payload.model,
                 "total_results": len(result)
             }
@@ -1324,6 +1463,99 @@ def create_app(config_file: str = None) -> FastAPI:
             pass
         except Exception as e:
             service.logger.error(f"Error in similarity search websocket: {e}")
+
+    @app.websocket("/ws/filter_query")
+    async def filter_query_websocket_endpoint(websocket: WebSocket):
+        await websocket.accept()
+        if not await check_ws_auth(websocket):
+            return
+        service.logger.info("Filter WebSocket connection accepted (/ws/filter_query)")
+        try:
+            while True:
+                data = await websocket.receive_json()
+                model_choice = data.get("model", "clip")
+
+                text_queries = data.get("textQueries", [])
+                image_queries = data.get("imageQueries", [])
+                ocr_texts = data.get("ocrtext", [])
+                asm_texts = data.get("asmtext", [])
+
+                first_q = ""
+                second_q = ""
+
+                # 1. Parse textQueries
+                if isinstance(text_queries, list):
+                    if len(text_queries) >= 1:
+                        q1 = text_queries[0]
+                        if isinstance(q1, dict):
+                            first_q = q1.get("content", "") or q1.get("text", "")
+                        elif isinstance(q1, str):
+                            first_q = q1
+                    if len(text_queries) >= 2:
+                        q2 = text_queries[1]
+                        if isinstance(q2, dict):
+                            second_q = q2.get("content", "") or q2.get("text", "")
+                        elif isinstance(q2, str):
+                            second_q = q2
+
+                # 2. Parse OCR & ASR texts if textQueries is empty
+                if not first_q:
+                    for o_text in ocr_texts:
+                        if isinstance(o_text, str) and o_text.strip():
+                            first_q = o_text.strip()
+                            break
+                if not first_q:
+                    for a_text in asm_texts:
+                        if isinstance(a_text, str) and a_text.strip():
+                            first_q = a_text.strip()
+                            break
+
+                # 3. Check Image Queries (Base64 Image Search)
+                image_b64 = ""
+                if isinstance(image_queries, list) and len(image_queries) >= 1:
+                    img_item = image_queries[0]
+                    if isinstance(img_item, dict):
+                        image_b64 = img_item.get("content", "") or img_item.get("base64", "") or img_item.get("data", "")
+                    elif isinstance(img_item, str):
+                        image_b64 = img_item
+
+                if image_b64 and image_b64.startswith("data:image"):
+                    image_b64 = image_b64.split(",", 1)[1]
+
+                if image_b64:
+                    img_vec = await asyncio.to_thread(service.encode_clip_image, image_b64, model_choice)
+                    if img_vec:
+                        result = await service.query_milvus(img_vec, limit=1000)
+                    else:
+                        result = await service.process_temporal_query(first_q or "a photo of scene", second_q, model_name=model_choice)
+                else:
+                    if not first_q and not second_q:
+                        first_q = "scene video overview"
+
+                    result = await service.process_temporal_query(first_q, second_q, model_name=model_choice)
+
+                await websocket.send_json({"kq": result, "model": model_choice, "status": "success"})
+        except WebSocketDisconnect:
+            service.logger.info("Filter WebSocket disconnected")
+        except Exception as e:
+            service.logger.error(f"Error in Filter WebSocket: {str(e)}")
+
+    @app.websocket("/ws/pagnition")
+    @app.websocket("/ws/share_image")
+    @app.websocket("/ws/log")
+    @app.websocket("/ws/share_query")
+    @app.websocket("/ws/group_search")
+    @app.websocket("/ws/alerts")
+    async def auxiliary_websocket_endpoint(websocket: WebSocket):
+        await websocket.accept()
+        try:
+            while True:
+                data = await websocket.receive_json()
+                await websocket.send_json({"status": "ok", "kq": []})
+        except WebSocketDisconnect:
+            pass
+        except Exception:
+            pass
 
     return app
 

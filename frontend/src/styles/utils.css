@@ -199,7 +199,7 @@ input:checked + .slider:before {
 .card-search-btn {
     width: 100%;
     padding: 12px 20px;
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    background: linear-gradient(135deg, #FF2E63 0%, #D90429 50%, #800020 100%);
     color: #ffffff;
     font-size: 15px;
     font-weight: 700;
@@ -207,7 +207,7 @@ input:checked + .slider:before {
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    box-shadow: 0 4px 12px rgba(217, 4, 41, 0.35);
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
@@ -216,14 +216,14 @@ input:checked + .slider:before {
 }
 
 .card-search-btn:hover {
-    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+    background: linear-gradient(135deg, #FF4D79 0%, #E60026 50%, #990026 100%);
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.45);
+    box-shadow: 0 6px 16px rgba(217, 4, 41, 0.45);
 }
 
 .card-search-btn:active {
     transform: translateY(1px);
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 2px 8px rgba(217, 4, 41, 0.3);
 }
 
 /*--------------------------------------------------------------------------*/

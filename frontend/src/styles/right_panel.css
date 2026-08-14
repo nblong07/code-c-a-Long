@@ -5,6 +5,32 @@
   overflow-y: auto;
   height: 100%; 
   width: 100%;
+  box-sizing: border-box;
+  scroll-behavior: smooth;
+}
+
+.show-image-1::-webkit-scrollbar,
+.show-image-2::-webkit-scrollbar {
+  width: 10px;
+}
+
+.show-image-1::-webkit-scrollbar-track,
+.show-image-2::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 5px;
+}
+
+.show-image-1::-webkit-scrollbar-thumb,
+.show-image-2::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #FF2E63 0%, #D90429 100%);
+  border-radius: 5px;
+  border: 2px solid rgba(15, 23, 42, 0.5);
+  box-shadow: 0 0 6px rgba(217, 4, 41, 0.4);
+}
+
+.show-image-1::-webkit-scrollbar-thumb:hover,
+.show-image-2::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #D90429 0%, #800020 100%);
 }
 
 .show-image-section {
@@ -14,10 +40,10 @@
 
 .right-column {
     width: 100%;
-    height: 100%;
+    min-height: 100%;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .list {
@@ -45,7 +71,7 @@
     overflow: hidden;
     background-color: #FFFFFF;
     border: 1.5px solid var(--border-color);
-    box-shadow: 0 4px 15px rgba(230, 126, 34, 0.12);
+    box-shadow: 0 4px 15px rgba(217, 4, 41, 0.12);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -55,15 +81,15 @@
     height: 100%;
     object-fit: contain;
     object-position: center;
-    background-color: #FAF2E4;
+    background-color: #FAF0F2;
     transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Hover effects for grid cards */
 .list .img-dis:hover {
     transform: translateY(-4px);
-    border-color: #E67E22;
-    box-shadow: 0 10px 25px rgba(230, 126, 34, 0.35);
+    border-color: #D90429;
+    box-shadow: 0 10px 25px rgba(217, 4, 41, 0.35);
     z-index: 10;
 }
 
@@ -82,7 +108,7 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%) scale(0.85);
-    background: linear-gradient(135deg, #FF9F43 0%, #E67E22 50%, #D35400 100%);
+    background: linear-gradient(135deg, #FF2E63 0%, #D90429 50%, #800020 100%);
     width: 46px;
     height: 46px;
     border-radius: 50%;
@@ -100,6 +126,82 @@
 .list .img-dis:hover::after {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
+}
+
+/* Rank / Priority Index Badge (Top Left) */
+.rank-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(18, 19, 28, 0.85);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    z-index: 6;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    letter-spacing: 0.5px;
+    pointer-events: none;
+    line-height: 1.2;
+}
+
+.rank-badge.top-1 {
+    background: linear-gradient(135deg, #FFE066 0%, #F59E0B 100%);
+    color: #1a0a00;
+    border: 1px solid #FCD34D;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+}
+
+.rank-badge.top-2 {
+    background: linear-gradient(135deg, #F1F5F9 0%, #94A3B8 100%);
+    color: #0f172a;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 0 8px rgba(148, 163, 184, 0.5);
+}
+
+.rank-badge.top-3 {
+    background: linear-gradient(135deg, #FED7AA 0%, #C2410C 100%);
+    color: #ffffff;
+    border: 1px solid #FFEDD5;
+    box-shadow: 0 0 8px rgba(194, 65, 12, 0.5);
+}
+
+/* Rank / Score / Distance Badge (Top Right) */
+.score-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: #38bdf8;
+    font-size: 10.5px;
+    font-weight: 600;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    padding: 3px 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    z-index: 6;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    line-height: 1.2;
+}
+
+.score-badge i {
+    font-size: 9px;
+}
+
+.list .img-dis:hover .score-badge,
+.rows .img-dis:hover .score-badge {
+    right: 42px;
 }
 
 /* Information labels */

@@ -64,7 +64,8 @@ async function getQueryContent(searchScene) {
 
     if (textArea.style.display !== 'none') { 
         const originalText = textArea.value;
-        if (document.getElementById('translate-checkbox').checked){
+        const translateCheckbox = document.getElementById('translate-checkbox');
+        if (translateCheckbox && translateCheckbox.checked){
             const translatedText = await translateText(originalText);
             const translatedDetailText= await translateText(detailsTextArea.value)
             textArea.value = translatedText;

@@ -1,8 +1,7 @@
 # 📖 HƯỚNG DẪN CHI TIẾT DỰ ÁN VIDEO RETRIEVAL SYSTEM
 ## Code-c-a-Long — Tối Ưu Cho Windows 11 (RAM 16GB + NVIDIA 6GB GPU)
 
-> **Mô tả dự án:** Hệ thống tìm kiếm khoảnh khắc hình ảnh trong hàng nghìn video dựa trên mô tả văn bản tự nhiên (Text-to-Video Retrieval).
-> **Công nghệ sử dụng:** PyTorch (CUDA GPU), OpenCLIP (`ViT-L-14`), Milvus Vector Database (Docker), FastAPI, WebSocket & Frontend HTML/JS.
+> **Công nghệ sử dụng:** PyTorch (CUDA GPU), OpenCLIP (`ViT-SO400M-14-SigLIP-384`), Milvus Vector Database (Docker), FastAPI, WebSocket, PaddleOCR (v4), Faster-Whisper (Large-v3).
 
 ---
 
@@ -28,7 +27,7 @@ Dự án đã được chuyên gia tinh chỉnh lại toàn bộ mã nguồn đ�
 | :--- | :--- | :--- |
 | **OS** | Windows 11 | Đường dẫn an toàn (Pathlib), tránh lỗi Windows Process Spawn. |
 | **RAM** | 16 GB | Batch size & HNSW Index (`M=16, efConstruction=200`) giữ bộ nhớ RAM cực nhẹ. |
-| **GPU** | NVIDIA 6 GB VRAM | Sử dụng mô hình cao cấp **OpenCLIP `ViT-L-14`** kết hợp **PyTorch FP16 Autocast**, đạt độ chính xác ngữ nghĩa cao và **không bị tràn VRAM (OOM)**. |
+| **GPU** | NVIDIA 6 GB VRAM | Sử dụng mô hình State-of-the-Art **OpenCLIP `ViT-SO400M-14-SigLIP-384`** (Google) kết hợp **PyTorch FP16 Autocast**, đạt độ chính xác ngữ nghĩa cao nhất thế giới và **không bị tràn VRAM (OOM)**. |
 | **Python** | 3.11 (Miniconda) | Tương thích hoàn hảo PyTorch CUDA 11.8/12.1 + open_clip_torch + pymilvus. |
 
 ---
@@ -39,7 +38,7 @@ Dự án đã được chuyên gia tinh chỉnh lại toàn bộ mã nguồn đ�
  Video MP4 (.mp4)
        │
        ▼  [BƯỚC 1] get_keyframes.py
-       │  (Đọc video bằng OpenCV + OpenCLIP ViT-L-14 FP16 trên CUDA GPU,
+       │  (Đọc video bằng OpenCV + OpenCLIP SigLIP SO400M FP16 trên CUDA GPU,
        │   lọc khung hình chuyển cảnh khi Cosine Similarity < 0.93)
  Keyframe WebP (.webp) + File CSV Mapping (frame_id → giây)
        │
@@ -75,7 +74,7 @@ python -c "import torch; print('CUDA available:', torch.cuda.is_available()); pr
 > Kết quả cần hiển thị `CUDA available: True` và tên GPU NVIDIA của bạn.
 
 ### 3.3 Cài đặt gói thư viện phụ thuộc
-Chạy script cài đặt tự động [setup.bat](file:///D:/code-c-a-Long/setup.bat) hoặc gõ lệnh:
+Chạy lệnh sau để cài đặt môi trường (thay vì dùng script tự động):
 ```cmd
 cd /d D:\code-c-a-Long
 pip install -r backend/requirements.txt
@@ -115,8 +114,8 @@ python database/get_keyframes.py ^
   --clip-threshold 0.93 ^
   --skip-frames 5 ^
   --batch-size 64 ^
-  --model "ViT-L-14" ^
-  --pretrained "laion2b_s32b_b82k"
+  --model "ViT-SO400M-14-SigLIP-384" ^
+  --pretrained "webli"
 ```
 
 ### Giải thích các tham số tối ưu:
@@ -142,8 +141,8 @@ python database/upload_database.py ^
   --host "localhost" ^
   --port "19530" ^
   --batch-size 32 ^
-  --model "ViT-L-14" ^
-  --pretrained "laion2b_s32b_b82k" ^
+  --model "ViT-SO400M-14-SigLIP-384" ^
+  --pretrained "webli" ^
   --build-index
 ```
 
@@ -184,23 +183,21 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000
 
 ---
 
-## 9. CÔNG CỤ PHỤ TRỢ (FAISS OFFLINE & DRES SUBMIT)
+## 9. CÔNG CỤ PHỤ TRỢ (FAISS OFFLINE & TRÍCH XUẤT ĐẶC TRƯNG)
 
-### 9.1 Trích xuất vector ra file offline (`extract.py`)
-Nếu muốn lưu vector ra file `.npy` độc lập không qua Milvus:
+### 9.1 Trích xuất đặc trưng đa phương thức (`extract_features.py`)
+Sử dụng file đã được gộp chung để trích xuất cả CLIP features, OCR và ASR:
 ```cmd
-python extract.py --keyframes-dir "./data-keyframes" --output-features "features.npy"
+python extract_features.py
 ```
+(Sau đó chọn tuỳ chọn 1, 2, hoặc 3 để trích xuất loại dữ liệu mong muốn)
 
 ### 9.2 Tạo chỉ mục FAISS offline (`build_index.py`)
 ```cmd
 python build_index.py --features "features.npy" --output "faiss_index.bin"
 ```
 
-### 9.3 Gửi kết quả thi DRES (`dres_submit_demo.py`)
-```cmd
-python dres_submit_demo.py --video-id "K01_V001" --frame-id 123 --dres-url "http://<ip-dres-server>:5000"
-```
+*(Lưu ý: Các script gửi kết quả DRES tự động đã được xóa bỏ để giữ source code tập trung vào công cụ tìm kiếm chuẩn. Bạn có thể sử dụng UI hoặc viết script ngoài nếu cần nộp bài).*
 
 ---
 
@@ -208,9 +205,9 @@ python dres_submit_demo.py --video-id "K01_V001" --frame-id 123 --dres-url "http
 
 | Lỗi | Nguyên nhân | Cách khắc phục |
 | :--- | :--- | :--- |
-| **CUDA Out of Memory (OOM)** | Dùng model quá lớn (`ViT-H-14`) hoặc batch_size quá cao. | Code hiện tại đã mặc định `ViT-B-32` với batch_size 32/64, hoạt động mượt mà dưới 3GB VRAM trên GPU 6GB của bạn. |
+| **CUDA Out of Memory (OOM)** | Dùng model quá lớn (`ViT-H-14`) hoặc batch_size quá cao. | Code hiện tại đã mặc định `ViT-SO400M-14-SigLIP-384` với batch_size 32/64, hoạt động mượt mà với FP16 Autocast trên GPU 6GB của bạn. |
 | **Milvus Connection Failed** | Chưa bật Docker Desktop hoặc chưa `docker compose up -d`. | Kiểm tra `docker ps` và bật Docker Desktop trước khi chạy script. |
-| **Dimension Mismatch** | Upload vector bằng model 1024-dim nhưng backend search bằng model 512-dim. | Đã đồng bộ tất cả file dùng model `ViT-B-32` (512 chiều). Nếu làm lại, dùng cờ `--recreate` khi upload. |
+| **Dimension Mismatch** | Upload vector bằng model này nhưng backend search bằng model khác. | Đã đồng bộ tất cả file dùng model mặc định `ViT-SO400M-14-SigLIP-384` (tự động nhận diện số chiều). Nếu làm lại, dùng cờ `--recreate` khi upload. |
 | **Lỗi Windows Process Spawn** | Đa tiến trình `multiprocessing` trên Windows. | Code `upload_database.py` đã được cập nhật luồng xử lý đơn GPU tăng tốc bằng CUDA stream không cần spawn sub-process. |
 
 ---

@@ -6,20 +6,6 @@ const searchCache = new Map();
 // AbortController for cancelling ongoing requests
 let currentAbortController = null;
 
-// Create a single IntersectionObserver instance
-const imageObserver = new IntersectionObserver((entries, observer) => {
-  entries.forEach(entry => {
-      if (entry.isIntersecting) {
-          const img = entry.target;
-          img.src = img.dataset.src;
-          observer.unobserve(img);
-      }
-  });
-}, {
-  rootMargin: '100px'
-});
-
-
 /**
  * Tạo một div chứa hình ảnh kết quả tìm kiếm.
  * @param {Object} result - Đối tượng kết quả từ Milvus (có entity: {video, frame_id, time, ...})
@@ -33,20 +19,48 @@ function getEntityInfo(result) {
   const timeVal = entity.time !== undefined ? parseFloat(Number(entity.time).toFixed(2)) : frameId;
   const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
   const imgSrc = `${keyframeBase}/${video}/keyframes/keyframe_${frameId}.webp`;
-  return { video, frameId, timeVal, imgSrc, frameInfo: `${video}-${timeVal}` };
+
+  let scoreVal = null;
+  if (result && result.rerank_score !== undefined && result.rerank_score !== null) {
+    scoreVal = parseFloat(result.rerank_score);
+  } else if (result && result.distance !== undefined && result.distance !== null) {
+    scoreVal = parseFloat(result.distance);
+  } else if (result && result.score !== undefined && result.score !== null) {
+    scoreVal = parseFloat(result.score);
+  } else if (entity && entity.distance !== undefined && entity.distance !== null) {
+    scoreVal = parseFloat(entity.distance);
+  } else if (entity && entity.score !== undefined && entity.score !== null) {
+    scoreVal = parseFloat(entity.score);
+  }
+
+  return { video, frameId, timeVal, imgSrc, frameInfo: `${video}-${timeVal}`, scoreVal };
 }
 
 function createImageDiv(result, index) {
   const info = getEntityInfo(result);
 
+  let topClass = '';
+  if (index === 1) topClass = 'top-1';
+  else if (index === 2) topClass = 'top-2';
+  else if (index === 3) topClass = 'top-3';
+
+  let scoreHtml = '';
+  if (info.scoreVal !== null && !isNaN(info.scoreVal)) {
+    const formattedScore = Math.abs(info.scoreVal) > 1 ? info.scoreVal.toFixed(1) : info.scoreVal.toFixed(3);
+    scoreHtml = `<span class="score-badge" title="Score / Distance"><i class="fa-solid fa-chart-simple"></i> ${formattedScore}</span>`;
+  }
+
   const div = document.createElement('div');
   div.className = 'img-dis';
+  div.dataset.index = index;
   div.innerHTML = `
-    <img alt="" class="result" loading="lazy" id="${index}"
-      src="${info.imgSrc}">
+    <span class="rank-badge ${topClass}" title="Thứ tự ưu tiên #${index}">#${index}</span>
+    ${scoreHtml}
+    <img alt="${info.frameInfo}" class="result" loading="lazy" id="${index}"
+      src="${info.imgSrc}" data-src="${info.imgSrc}">
     <div class="infor">${info.frameInfo}</div>
-    <div name="similarity_search" class="similarity_search"></div>
-    <div class="export_icon"></div>
+    <div name="similarity_search" class="similarity_search" title="Phóng to hình ảnh"></div>
+    <div class="export_icon" title="Thêm vào danh sách xuất"></div>
   `;
 
   const img = div.querySelector('img');
@@ -54,42 +68,85 @@ function createImageDiv(result, index) {
   img.addEventListener('dragstart', drag);
   
   const exportIcon = div.querySelector('.export_icon');
-  exportIcon.addEventListener('click', () => {
-    const imagePath = img.src || img.dataset.src;
-    addImageToExportArea(info.frameId, imagePath, info.frameInfo);
-  });
+  if (exportIcon) {
+    exportIcon.addEventListener('click', () => {
+      const imagePath = img.src || img.dataset.src;
+      addImageToExportArea(info.frameId, imagePath, info.frameInfo);
+    });
+  }
 
   return div;
 }
 
 
-// Update UI with search results using IntersectionObserver for lazy loading
-// Update the new right panel
+// Update UI with search results
 function updateRightPanel_list(results) {
   const listPhoto = document.getElementById("list-photo");
+  if (!listPhoto) return [];
+
   const fragment = document.createDocumentFragment();
   const existingDivs = Array.from(listPhoto.children);
 
   const updatedDivs = results.map((result, index) => {
+      const rankIndex = index + 1;
+      const info = getEntityInfo(result);
       let div;
+
       if (index < existingDivs.length) {
           div = existingDivs[index];
           div.style.display = 'block';
+          div.dataset.index = rankIndex;
+
+          // Update rank badge
+          let rankBadge = div.querySelector('.rank-badge');
+          if (!rankBadge) {
+              rankBadge = document.createElement('span');
+              div.insertBefore(rankBadge, div.firstChild);
+          }
+          let topClass = 'rank-badge';
+          if (rankIndex === 1) topClass += ' top-1';
+          else if (rankIndex === 2) topClass += ' top-2';
+          else if (rankIndex === 3) topClass += ' top-3';
+          rankBadge.className = topClass;
+          rankBadge.textContent = `#${rankIndex}`;
+          rankBadge.title = `Thứ tự ưu tiên #${rankIndex}`;
+
+          // Update score badge
+          let scoreBadge = div.querySelector('.score-badge');
+          if (info.scoreVal !== null && !isNaN(info.scoreVal)) {
+              const formattedScore = Math.abs(info.scoreVal) > 1 ? info.scoreVal.toFixed(1) : info.scoreVal.toFixed(3);
+              if (!scoreBadge) {
+                  scoreBadge = document.createElement('span');
+                  scoreBadge.className = 'score-badge';
+                  scoreBadge.title = 'Score / Distance';
+                  const firstImg = div.querySelector('img');
+                  if (firstImg) {
+                      div.insertBefore(scoreBadge, firstImg);
+                  } else {
+                      div.appendChild(scoreBadge);
+                  }
+              }
+              scoreBadge.innerHTML = `<i class="fa-solid fa-chart-simple"></i> ${formattedScore}`;
+              scoreBadge.style.display = 'flex';
+          } else if (scoreBadge) {
+              scoreBadge.style.display = 'none';
+          }
+
+          const img = div.querySelector('img');
+          const infor = div.querySelector('.infor');
+          if (img) {
+              img.id = rankIndex;
+              img.dataset.src = info.imgSrc;
+              img.src = info.imgSrc;
+          }
+          if (infor) {
+              infor.textContent = info.frameInfo;
+          }
       } else {
-          div = createImageDiv(result, index + 1);
+          div = createImageDiv(result, rankIndex);
           fragment.appendChild(div);
       }
 
-      const info = getEntityInfo(result);
-      const img = div.querySelector('img');
-      const infor = div.querySelector('.infor');
-      img.id = index + 1;
-
-      img.dataset.src = info.imgSrc;
-      img.src = info.imgSrc;
-      infor.textContent = info.frameInfo;
-
-      imageObserver.observe(img);
       return div;
   });
 
@@ -100,8 +157,6 @@ function updateRightPanel_list(results) {
   if (fragment.children.length > 0) {
       listPhoto.appendChild(fragment);
   }
-
-  listPhoto.scrollTop = 0;
 
   return updatedDivs;
 }
@@ -155,7 +210,8 @@ function updateRightPanel_rows(results) {
 
       const resultFragment = document.createDocumentFragment();
       videoResults.forEach((result) => {
-          const originalIndex = results.findIndex(r => r.id === result.id);
+          let originalIndex = results.findIndex(r => r === result || (r.id && r.id === result.id));
+          if (originalIndex === -1) originalIndex = 0;
           const imgDiv = createImageDiv(result, originalIndex + 1);
           resultFragment.appendChild(imgDiv);
       });
@@ -169,12 +225,12 @@ function updateRightPanel_rows(results) {
   imagesRows.scrollTop = 0;
 }
 
-// Update both panels (hiển thị 25 bức ảnh có xác suất cao nhất)
+// Update both panels (hiển thị 100 kết quả tìm kiếm)
 function updateUIWithSearchResults(results) {
-  const top25Results = Array.isArray(results) ? results.slice(0, 25) : [];
-  updateRightPanel_list(top25Results);
-  updateRightPanel_rows(top25Results);
-  updateObjectList(top25Results);
+  const top100Results = Array.isArray(results) ? results.slice(0, 100) : [];
+  updateRightPanel_list(top100Results);
+  updateRightPanel_rows(top100Results);
+  updateObjectList(top100Results);
   
   // If the object list is visible, update its content
   if (isObjectListVisible) {

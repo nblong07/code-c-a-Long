@@ -232,10 +232,10 @@ def parse_args():
     p.add_argument("--build-index", action="store_true", help="Build HNSW index and load collection after upload.")
 
     # Model params
-    p.add_argument("--model", type=str, default="ViT-L-14",
-                   help="Model architecture (default: ViT-L-14).")
-    p.add_argument("--pretrained", type=str, default="laion2b_s32b_b82k",
-                   help="Pretrained weights dataset (default: laion2b_s32b_b82k).")
+    p.add_argument("--model", type=str, default="ViT-SO400M-14-SigLIP-384",
+                   help="Model architecture (default: ViT-SO400M-14-SigLIP-384).")
+    p.add_argument("--pretrained", type=str, default="webli",
+                   help="Pretrained weights dataset (default: webli).")
     p.add_argument("--dimension", type=int, default=-1, help="-1 to auto-detect dimension.")
 
     # Performance params

@@ -7,7 +7,7 @@ Dự án cung cấp một giải pháp end-to-end hiệu năng cao: từ khâu t
 > [!NOTE]
 > **Tối ưu hóa cao cấp cho phần cứng:**
 > - **Hệ điều hành:** Windows 11 (Pathlib an toàn, xử lý bất đồng bộ & đa tiến trình)
-> - **Cấu hình phần cứng tối ưu:** System RAM **64 GB**, GPU NVIDIA **32 GB VRAM** (hỗ trợ CUDA PyTorch, FlashAttention-2 & FP16/INT4 Autocast)
+> - **Cấu hình phần cứng tối ưu:** Cấu hình từ **16 GB RAM**, GPU NVIDIA **6 GB VRAM** trở lên (hỗ trợ CUDA PyTorch, FP16 Autocast). Hoạt động hoàn hảo từ máy tính cá nhân đến máy chủ hiệu năng cao.
 > - **Bộ điều hướng tự động:** Dynamic Adaptive Query Router + Heuristics Frame Filter + Tree of Thoughts Agent + HippoRAG Memory System
 > - **Môi trường chạy:** Python 3.11 / PyTorch 2.x CUDA
 
@@ -29,11 +29,7 @@ graph TD
         HTTP_Client <-->|REST API| REST[FastAPI Endpoints]
         WS_Client <-->|WebSockets| WS_Server[WebSocket Server]
         REST & WS_Server --> VSS[Vector Search Service]
-    subgraph Backend [FastAPI Backend Service]
-        HTTP_Client <-->|REST API| REST[FastAPI Endpoints]
-        WS_Client <-->|WebSockets| WS_Server[WebSocket Server]
-        REST & WS_Server --> VSS[Vector Search Service]
-        VSS -->|Encode Text Query| CLIP[OpenCLIP ViT-L-14 GPU]
+        VSS -->|Encode Text Query| CLIP[OpenCLIP ViT-SO400M-14 GPU]
         VSS -->|Dịch truy vấn| Trans[Google Translator]
         VSS -->|Xử lý mốc thời gian| Temp[Temporal Query Logic]
         VSS -->|Tối ưu hóa vector| Rocchio[Rocchio Relevance Feedback]
@@ -41,7 +37,7 @@ graph TD
 
     subgraph Database [Milvus Vector Database]
         VSS <-->|PyMilvus SDK| Milvus[Milvus Standalone]
-        Milvus -->|Lưu trữ Vector 768d| HNSW[HNSW Index]
+        Milvus -->|Lưu trữ Vector Đặc Trưng| HNSW[HNSW Index]
     end
 
     subgraph Data_Files [Hệ thống Tệp tin]
@@ -82,9 +78,9 @@ Hệ thống được thiết kế đồng bộ từ các thư viện AI tiên t
 
 ## 🧠 Chi Tiết Mô Hình AI & Tối Ưu Hóa (AI Models & VRAM Tuning)
 
-### 1. Mô hình Embedding Cao Cấp OpenCLIP `ViT-L-14`
-- **Mã nguồn tích hợp:** Sử dụng mô hình cao cấp `ViT-L-14` với trọng số huấn luyện chất lượng cao `laion2b_s32b_b82k`.
-- **Số chiều đặc trưng (Dimension):** **768 chiều** (tăng độ chính xác biểu diễn ngữ nghĩa vượt trội so với các mô hình 512d cũ).
+### 1. Mô hình Embedding SOTA OpenCLIP `ViT-SO400M-14-SigLIP-384`
+- **Mã nguồn tích hợp:** Sử dụng mô hình SOTA `ViT-SO400M-14-SigLIP-384` với trọng số huấn luyện chất lượng cao `webli`.
+- **Số chiều đặc trưng (Dimension):** **Tự động nhận diện (vd: 1152 chiều)** (tăng độ chính xác biểu diễn ngữ nghĩa vượt trội so với các mô hình 512d cũ).
 - **Kỹ thuật tối ưu VRAM:**
   - Sử dụng chế độ chạy inference ẩn danh tính toán `torch.inference_mode()` loại bỏ lưu trữ đồ thị đạo hàm (gradient).
   - Tích hợp **FP16 Autocast** (`torch.cuda.amp.autocast()`) giúp xử lý số thực dấu phẩy động nửa chính xác.
@@ -180,8 +176,8 @@ Mã hóa CLIP & Tải lên Milvus DB (HNSW Index Cosine)
 - Xuất ra file ánh xạ CSV lưu thông tin Frame ID và mốc thời gian tương ứng.
 
 ### 2. Tải dữ liệu lên Vector Database ([upload_database.py](file:///D:/code-c-a-Long/database/upload_database.py))
-- Kết nối tới Milvus Database qua hàm [ensure_collection](file:///D:/code-c-a-Long/database/upload_database.py#L27) để khởi tạo Collection với lược đồ (Schema) gồm: `id` (Primary Key), `filepath` (Đường dẫn ảnh), `embedding` (Vector 512d), `video_id` (Tên video) và `frame_id` (Số thứ tự khung hình).
-- Đọc các ảnh WebP, sinh vector đặc trưng 512 chiều từ OpenCLIP.
+- Kết nối tới Milvus Database qua hàm [ensure_collection](file:///D:/code-c-a-Long/database/upload_database.py#L27) để khởi tạo Collection với lược đồ (Schema) gồm: `id` (Primary Key), `filepath` (Đường dẫn ảnh), `embedding` (Vector tự động số chiều), `video_id` (Tên video) và `frame_id` (Số thứ tự khung hình).
+- Đọc các ảnh WebP, sinh vector đặc trưng từ OpenCLIP (tự động nhận diện dimension).
 - **Quan trọng:** Tiến hành chuẩn hóa L2 (`F.normalize`) đưa vector về độ dài đơn vị trước khi insert. Việc chuẩn hóa này đảm bảo khoảng cách IP (Inner Product) trên Milvus tương đương chính xác 100% với tính toán khoảng cách Cosine Similarity.
 - Gọi hàm [process_and_upload](file:///D:/code-c-a-Long/database/upload_database.py#L86) thực hiện tải dữ liệu theo Batch lên Milvus và tự động xây dựng chỉ mục HNSW để sẵn sàng tìm kiếm.
 

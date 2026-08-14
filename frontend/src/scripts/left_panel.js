@@ -242,32 +242,23 @@ function resetLeftPanel(originalLeftPanel) {
     const scenes = searchForm.querySelectorAll('.Search_Scene');
 
     scenes.forEach(scene => {
-        // Remove all divs with class="ocr-container"
-        const ocrContainers = scene.querySelectorAll('.ocr-container');
-        ocrContainers.forEach(container => container.remove());
-
-        // Remove all divs with class="asm-container"
-        const asmContainers = scene.querySelectorAll('.asm-container');
-        asmContainers.forEach(container => container.remove());
-
-        // Remove all divs with class="QunNhiuChien-container"
-        const QunNhiuChienContainers = scene.querySelectorAll('.QunNhiuChien-container');
-        QunNhiuChienContainers.forEach(container => container.remove());
-        
         // Remove all divs with class="object-filter"
         const objectFilters = scene.querySelectorAll('.object-filter');
         objectFilters.forEach(filter => filter.remove());
+
+        // Clear textareas
+        const textareas = scene.querySelectorAll('textarea');
+        textareas.forEach(ta => ta.value = '');
 
         // Remove image in image-drop-area
         const imageDropAreas = scene.querySelectorAll('.image-drop-area');
         imageDropAreas.forEach(dropArea => {
             const previewContainer = dropArea.querySelector('.preview-upload-container');
             const fileInput = dropArea.querySelector('input[type="file"]');
-            clearImage(previewContainer, dropArea.querySelector('.drop-instruction'), fileInput);
+            if (previewContainer && dropArea.querySelector('.drop-instruction') && fileInput) {
+                clearImage(previewContainer, dropArea.querySelector('.drop-instruction'), fileInput);
+            }
         });
-
-        // Reset tab to text
-        switchTab(scene, 'text');
 
         // Reset mode to temporal
         switchMode(scene, 'temporal-search');
@@ -275,45 +266,22 @@ function resetLeftPanel(originalLeftPanel) {
 }
 
 
-// Function to set up the search scene tabs
+// Function to set up the search scene tabs (DEPRECATED IN OMNI-SEARCH)
 function setupSearchScene(scene) {
-    const textButton = scene.querySelector('.text-button');
-    const imageButton = scene.querySelector('.image-button');
-
-    textButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        switchTab(scene, 'text');
-    });
-    imageButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        switchTab(scene, 'image');
-    });
-    
-    // Set up mode buttons
-    setupModeButtons(scene);
+    // No-op for Omni-Search UI since tabs are removed
 }
 
 
 //------------------------------------------------------------------------//
 // Change tab
 
-// Event listener change tab text and image
+// Event listener change tab text, image, ocr, asr (DEPRECATED IN OMNI-SEARCH, setup images only)
 document.addEventListener('DOMContentLoaded', function() {
     const searchScenes = document.querySelectorAll('.Search_Scene');
 
     searchScenes.forEach(scene => {
-        const buttons = scene.querySelectorAll('.tab-buttons button');
         const queryContentArea = scene.querySelector('.query-content-area');
-        const textQuery = queryContentArea.querySelector('textarea[name="Text_Query"]');
-        const imageDropArea = queryContentArea.querySelector('.image-drop-area');
-
-        buttons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.preventDefault();
-                const tabName = button.className.split('-')[0];
-                switchTab(scene, tabName);
-            });
-        });
+        const imageDropArea = queryContentArea ? queryContentArea.querySelector('.image-drop-area') : null;
 
         if (imageDropArea) {
             const fileInput = imageDropArea.querySelector('input[type="file"]');
@@ -321,46 +289,43 @@ document.addEventListener('DOMContentLoaded', function() {
             setupImageUpload(imageDropArea, fileInput, previewContainer);
         }
     });
+
+    // Toggle Scene 2 logic
+    const toggleScene2Btn = document.getElementById('toggle-scene2-btn');
+    const closeScene2Btn = document.getElementById('close-scene2-btn');
+    const scene2 = document.getElementById('search-scene-2');
+
+    if (toggleScene2Btn && scene2) {
+        toggleScene2Btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (scene2.style.display === 'none' || !scene2.style.display) {
+                scene2.style.display = 'flex';
+                toggleScene2Btn.classList.add('active');
+                toggleScene2Btn.innerHTML = '<i class="fa-solid fa-timeline"></i> Đang bật Cảnh 2';
+            } else {
+                scene2.style.display = 'none';
+                toggleScene2Btn.classList.remove('active');
+                toggleScene2Btn.innerHTML = '<i class="fa-solid fa-timeline"></i> + Thêm Cảnh 2';
+            }
+        });
+    }
+
+    if (closeScene2Btn && scene2) {
+        closeScene2Btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            scene2.style.display = 'none';
+            if (toggleScene2Btn) {
+                toggleScene2Btn.classList.remove('active');
+                toggleScene2Btn.innerHTML = '<i class="fa-solid fa-timeline"></i> + Thêm Cảnh 2';
+            }
+        });
+    }
 });
 
 
-// Switch between tabs
+// Switch between tabs (Text, Image, OCR, ASR) (DEPRECATED IN OMNI-SEARCH)
 function switchTab(scene, tabName) {
-    const buttons = scene.querySelectorAll('.tab-buttons button');
-    const queryContentArea = scene.querySelector('.query-content-area');
-    const textQuery = queryContentArea.querySelector('textarea[name="Text_Query"]');
-    const imageDropArea = queryContentArea.querySelector('.image-drop-area');
-    const ocrTextarea = scene.querySelector('textarea[name="Ocr_Query"]');
-    const objectFilters = scene.querySelectorAll('.object-filter');
-
-    buttons.forEach(button => button.classList.remove('active'));
-    
-    // Hide all content areas
-    [textQuery, imageDropArea].forEach(el => {
-        if (el) el.style.display = 'none';
-    });
-
-    // Hide OCR textarea and object filters
-    if (ocrTextarea) ocrTextarea.style.display = 'none';
-    objectFilters.forEach(filter => {
-        if (filter) filter.style.display = 'none';
-    });
-
-    switch (tabName) {
-        case 'text':
-            scene.querySelector('.text-button').classList.add('active');
-            if (textQuery) textQuery.style.display = 'block';
-            // Show OCR textarea and object filters only for text tab
-            if (ocrTextarea) ocrTextarea.style.display = 'block';
-            objectFilters.forEach(filter => {
-                if (filter) filter.style.display = 'block';
-            });
-            break;
-        case 'image':
-            scene.querySelector('.image-button').classList.add('active');
-            if (imageDropArea) imageDropArea.style.display = 'flex';
-            break;
-    }
+    // No-op for Omni-Search
 }
 
 

@@ -22,26 +22,28 @@ document.addEventListener('DOMContentLoaded', function() {
   const translateCheckbox = document.getElementById('translate-checkbox');
   const toggleLabel = document.querySelector('.translate-option');
   
-  // Disable transition initially
-  toggleLabel.style.transition = 'none';
+  if (translateCheckbox && toggleLabel) {
+    // Disable transition initially
+    toggleLabel.style.transition = 'none';
 
-  // Load saved state
-  translateCheckbox.checked = localStorage.getItem('translate-checkbox') === 'true';
-  
-  // Re-enable transition after a short delay
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      toggleLabel.style.transition = '';
-    });
-  });
-  
-  // Save state on change and add animation
-  translateCheckbox.addEventListener('change', () => {
-    localStorage.setItem('translate-checkbox', translateCheckbox.checked);
+    // Load saved state
+    translateCheckbox.checked = localStorage.getItem('translate-checkbox') === 'true';
     
-    // Add animation
-    toggleLabel.style.transition = 'all 0.3s ease';
-  });
+    // Re-enable transition after a short delay
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        toggleLabel.style.transition = '';
+      });
+    });
+    
+    // Save state on change and add animation
+    translateCheckbox.addEventListener('change', () => {
+      localStorage.setItem('translate-checkbox', translateCheckbox.checked);
+      
+      // Add animation
+      toggleLabel.style.transition = 'all 0.3s ease';
+    });
+  }
 });
 
 
@@ -106,12 +108,10 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (event.target.closest('.similarity_search')) {
       event.stopPropagation();
       const imgElement = event.target.closest('.img-dis').querySelector('img');
-      if (imgElement && typeof imgElement.id !== 'undefined') {
-        console.log(imgElement.id);
-        console.log(data.kq[imgElement.id - 1].id);
-        performSimilaritySearch(data.kq[imgElement.id - 1].id);
-      } else {
-        console.error("Invalid image for similarity search in new-right-panel");
+      if (imgElement && imgElement.src) {
+        if (typeof showFullscreenImage === 'function') {
+          showFullscreenImage(imgElement.src);
+        }
       }
     }
   });
@@ -155,19 +155,20 @@ document.getElementById("list-photo").addEventListener('click', (event) => {
       event.stopPropagation(); // Prevent the preview frame from being hidden
     }
   } else if (event.target.classList.contains('similarity_search')) {
-    // Handle similarity search click
+    // Handle similarity search click - Changed to Fullscreen Zoom
     event.stopPropagation();
     const imgElement = event.target.closest('.img-dis').querySelector('img');
-    if (imgElement && data.kq) {
-      const imageId = data.kq[parseInt(imgElement.id) - 1]?.id;
-      if (imageId) {
-        performSimilaritySearch(imageId);
-      } else {
-        console.error("Invalid image ID for similarity search");
+    if (imgElement && imgElement.src) {
+      if (typeof showFullscreenImage === 'function') {
+        showFullscreenImage(imgElement.src);
       }
-    } else {
-      console.error("No image found for similarity search");
     }
+    // const imageId = data.kq[parseInt(imgElement.id) - 1]?.id;
+    // if (imageId) {
+    //   performSimilaritySearch(imageId);
+    // } else {
+    //   console.error("Invalid image ID for similarity search");
+    // }
   }
 });
 

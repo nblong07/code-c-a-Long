@@ -128,21 +128,49 @@ function getPagnitionEntityInfo(result) {
     const timeVal = entity.time !== undefined ? parseFloat(Number(entity.time).toFixed(2)) : frameId;
     const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
     const imgSrc = `${keyframeBase}/${video}/keyframes/keyframe_${frameId}.webp`;
-    return { video, frameId, timeVal, imgSrc, frameInfo: `${video}-${timeVal}` };
+
+    let scoreVal = null;
+    if (result && result.rerank_score !== undefined && result.rerank_score !== null) {
+        scoreVal = parseFloat(result.rerank_score);
+    } else if (result && result.distance !== undefined && result.distance !== null) {
+        scoreVal = parseFloat(result.distance);
+    } else if (result && result.score !== undefined && result.score !== null) {
+        scoreVal = parseFloat(result.score);
+    } else if (entity && entity.distance !== undefined && entity.distance !== null) {
+        scoreVal = parseFloat(entity.distance);
+    } else if (entity && entity.score !== undefined && entity.score !== null) {
+        scoreVal = parseFloat(entity.score);
+    }
+
+    return { video, frameId, timeVal, imgSrc, frameInfo: `${video}-${timeVal}`, scoreVal };
 }
 
 function createPagnitionImageDiv(result, index) {
     const info = getPagnitionEntityInfo(result);
-    
+
+    let topClass = '';
+    if (index === 1) topClass = 'top-1';
+    else if (index === 2) topClass = 'top-2';
+    else if (index === 3) topClass = 'top-3';
+
+    let scoreHtml = '';
+    if (info.scoreVal !== null && !isNaN(info.scoreVal)) {
+        const formattedScore = Math.abs(info.scoreVal) > 1 ? info.scoreVal.toFixed(1) : info.scoreVal.toFixed(3);
+        scoreHtml = `<span class="score-badge" title="Score / Distance"><i class="fa-solid fa-chart-simple"></i> ${formattedScore}</span>`;
+    }
+
     const div = document.createElement('div');
     div.className = 'img-dis';
+    div.dataset.index = index;
     div.innerHTML = `
+        <span class="rank-badge ${topClass}" title="Thứ tự ưu tiên #${index}">#${index}</span>
+        ${scoreHtml}
         <img alt="" class="result" loading="lazy" id="${index}"
           data-src="${info.imgSrc}"
           src="${info.imgSrc}">
         <div class="infor">${info.frameInfo}</div>
-        <div name="similarity_search" class="similarity_search"></div>
-        <div class="export_icon"></div>
+        <div name="similarity_search" class="similarity_search" title="Phóng to hình ảnh"></div>
+        <div class="export_icon" title="Thêm vào danh sách xuất"></div>
     `;
 
     const img = div.querySelector('img');
@@ -159,9 +187,11 @@ function createPagnitionImageDiv(result, index) {
 
     // Using unified event listeners
     const exportIcon = div.querySelector('.export_icon');
-    exportIcon.addEventListener('click', () => {
-        addImageToExportArea(info.frameId, info.imgSrc, info.frameInfo);
-    });
+    if (exportIcon) {
+        exportIcon.addEventListener('click', () => {
+            addImageToExportArea(info.frameId, info.imgSrc, info.frameInfo);
+        });
+    }
 
     return div;
 }

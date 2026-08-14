@@ -90,7 +90,7 @@
 }
 
 .queries-header {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #1d4ed8 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, #800020 100%);
     color: white;
     padding: 10px 14px;
     border-radius: 12px 12px 0 0;
@@ -147,7 +147,7 @@
 
 #share-button {
     padding: 8px 14px;
-    background: linear-gradient(135deg, var(--primary-color) 0%, #1d4ed8 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, #800020 100%);
     color: white;
     border: none;
     border-radius: 0 6px 6px 0;

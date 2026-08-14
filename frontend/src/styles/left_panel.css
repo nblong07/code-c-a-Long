@@ -22,44 +22,59 @@
 }
 
 /*--------------------------------------------------------------------------*/
-/* Model options */
+/* Model options bar */
+
+.model-option-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background-color: #FFFFFF;
+    border: 1.5px solid var(--border-color);
+    border-radius: 10px;
+    padding: 8px 10px;
+    box-shadow: 0 2px 8px rgba(217, 4, 41, 0.05);
+}
+
+.model-bar-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
 
 .model-option {
     display: flex;
-    justify-content: space-between;
-    background-color: #FAF2E4;
-    border-bottom: 1.5px solid var(--border-color);
-    padding: 8px 12px;
+    gap: 4px;
+    background-color: #FAF0F2;
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid #F3C6CE;
 }
 
 .model-option button {
     flex: 1;
-    padding: 7px 5px;
-    border: 1px solid var(--border-color);
-    background-color: #FFFFFF;
+    padding: 6px 4px;
+    border: none;
+    background-color: transparent;
     cursor: pointer;
-    color: #4A3B2C;
+    color: #5C232B;
     font-size: 11.5px;
     font-weight: 700;
     transition: all 0.2s ease;
     border-radius: 6px;
-    margin: 0 2px;
 }
 
 .model-option button.active {
-    background: linear-gradient(135deg, #FF9F43 0%, #E67E22 100%);
+    background: linear-gradient(135deg, #FF2E63 0%, #D90429 100%);
     color: #FFFFFF;
-    border-color: #D35400;
-    box-shadow: 0 3px 10px rgba(230, 126, 34, 0.35);
+    box-shadow: 0 2px 8px rgba(217, 4, 41, 0.3);
 }
 
-.model-option button:hover {
-    background-color: #F4E7D3;
-    color: #1A120B;
-}
-
-.model-option button.active:hover {
-    background: linear-gradient(135deg, #E67E22 0%, #D35400 100%);
+.model-option button:hover:not(.active) {
+    background-color: #F8E2E6;
+    color: #1F080C;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -68,71 +83,89 @@
 .Search_Scene {
     padding: 12px;
     border: 1.5px solid var(--border-color);
-    border-radius: 10px;
+    border-radius: 12px;
     background-color: #FFFFFF;
-    box-shadow: 0 3px 12px rgba(230, 126, 34, 0.08);
+    box-shadow: 0 4px 15px rgba(217, 4, 41, 0.08);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .Search_Scene:focus-within {
-    border-color: #E67E22;
-    box-shadow: 0 0 14px rgba(230, 126, 34, 0.28);
+    border-color: #D90429;
+    box-shadow: 0 0 16px rgba(217, 4, 41, 0.28);
+}
+
+.scene-header-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #FF2E63 0%, #D90429 100%);
+    color: #FFFFFF;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.close-scene2-btn {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    line-height: 1;
 }
 
 /*--------------------------------------------------------------------------*/
-/* Tab buttons */
+/* Tab buttons (4-Mode Grid Panel) */
 
-.tab-buttons {
-    display: flex;
-    gap: 4px;
+.tab-buttons.mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
 }
 
-.text-button, .image-button {
-    flex: 1;
-    padding: 8px 12px;
-    border: 1.5px solid #E2D3BE;
+.text-button, .image-button, .ocr-button, .asr-button {
+    padding: 8px 10px;
+    border: 1.5px solid #F3C6CE;
     background-color: #FFFFFF;
     cursor: pointer;
-    color: #2C1E10;
-    font-size: 13px;
+    color: #381219;
+    font-size: 12.5px;
     font-weight: 700;
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 6px rgba(230, 126, 34, 0.05);
+    box-shadow: 0 2px 6px rgba(217, 4, 41, 0.05);
 }
 
-.text-button i, .image-button i,
-.text-button img, .image-button img {
-    font-size: 14px;
-    color: #2C1E10;
+.text-button i, .image-button i, .ocr-button i, .asr-button i {
+    font-size: 13px;
+    color: #D90429;
     transition: all 0.2s ease;
 }
 
-.text-button:hover, .image-button:hover {
-    background-color: #FAF2E4;
-    border-color: #E67E22;
-    color: #1A120B;
+.text-button:hover, .image-button:hover, .ocr-button:hover, .asr-button:hover {
+    background-color: #FAF0F2;
+    border-color: #D90429;
+    color: #1F080C;
 }
 
-.text-button.active, .image-button.active {
-    background: linear-gradient(135deg, #FF9F43 0%, #E67E22 50%, #D35400 100%);
-    border-color: #D35400;
+.text-button.active, .image-button.active, .ocr-button.active, .asr-button.active {
+    background: linear-gradient(135deg, #FF2E63 0%, #D90429 50%, #800020 100%);
+    border-color: #9B001C;
     color: #FFFFFF !important;
     font-weight: 800;
-    box-shadow: 0 4px 12px rgba(230, 126, 34, 0.35);
+    box-shadow: 0 4px 12px rgba(217, 4, 41, 0.35);
 }
 
-.text-button.active i, .image-button.active i,
-.text-button.active img, .image-button.active img {
+.text-button.active i, .image-button.active i, .ocr-button.active i, .asr-button.active i {
     color: #FFFFFF !important;
-    filter: brightness(0) invert(1);
 }
 
 /*--------------------------------------------------------------------------*/
@@ -260,14 +293,14 @@
     position: relative;
 }
 
-textarea[name="Text_Query"] {
-    background-color: #FAF2E4;
+textarea[name="Text_Query"], textarea[name="Ocr_Query"], textarea[name="Asm_Query"] {
+    background-color: #FAF0F2;
     border: 1.5px solid var(--border-color);
     border-radius: 8px;
-    color: #1A120B;
+    color: #1F080C;
     font-weight: 600;
     width: 100%;
-    height: 110px;
+    height: 100px;
     padding: 10px;
     font-size: 13px;
     line-height: 1.45;
@@ -277,135 +310,45 @@ textarea[name="Text_Query"] {
     transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
-textarea[name="Text_Query"]:focus {
-    border-color: #E67E22;
+textarea[name="Text_Query"]:focus, textarea[name="Ocr_Query"]:focus, textarea[name="Asm_Query"]:focus {
+    border-color: #D90429;
     outline: none;
     background-color: #FFFFFF;
-    box-shadow: 0 0 10px rgba(230, 126, 34, 0.25);
+    box-shadow: 0 0 12px rgba(217, 4, 41, 0.25);
 }
 
-textarea[name="Text_Query"]::placeholder {
-    color: #7A6552;
+textarea[name="Text_Query"]::placeholder, textarea[name="Ocr_Query"]::placeholder, textarea[name="Asm_Query"]::placeholder {
+    color: #8C404D;
     font-weight: 500;
-    opacity: 0.8;
+    opacity: 0.85;
 }
 
-/*--------------------------------------------------------------------------*/
-/* object filter & inputs */
-
-.object-filter {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background-color: rgba(255, 255, 255, 0.01);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 6px 12px;
-    gap: 8px;
+.main-search-btn-container {
+    margin-top: 4px;
 }
 
-.object_label {
-    font-size: 11px;
-    color: var(--text-muted);
-    font-weight: bold;
-}
-
-.objectInput, .valueInput {
-    background-color: rgba(0, 0, 0, 0.2);
-    border: 1px solid var(--border-color);
-    color: var(--text-color);
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-}
-
-.objectInput {
-    width: 55%;
-}
-
-.valueInput {
-    width: 25%;
-}
-
-.objectInput:focus, .valueInput:focus {
-    border-color: var(--primary-color);
-    outline: none;
-}
-
-/*--------------------------------------------------------------------------*/
-/* close buttons */
-
-.close-ocr-button,
-.close-asm-button,
-.close-filter-button {
-    position: absolute;
-    top: -4px;
-    right: -4px;
-    width: 16px;
-    height: 16px;
-    background-color: rgba(255, 255, 255, 0.08);
-    border: 1px solid var(--border-color);
-    border-radius: 50%;
-    font-size: 10px;
-    color: var(--text-muted);
+.card-search-btn, #search-button {
+    width: 100%;
+    padding: 11px;
+    background: linear-gradient(135deg, #FF2E63 0%, #D90429 50%, #800020 100%);
+    border: none;
+    border-radius: 8px;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 800;
     cursor: pointer;
+    box-shadow: 0 4px 14px rgba(217, 4, 41, 0.35);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.close-ocr-button:hover,
-.close-asm-button:hover,
-.close-filter-button:hover {
-    background-color: var(--accent-red);
-    color: white;
-    border-color: var(--accent-red);
-}
-
-/*--------------------------------------------------------------------------*/
-/* Bottom Control Card */
-
-.button-card {
-    position: sticky;
-    bottom: 0;
-    background-color: var(--card-background);
-    border-top: 1px solid var(--border-color);
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
     gap: 8px;
-    box-sizing: border-box;
 }
 
-.button-group {
-    display: flex;
-    gap: 6px;
-    width: 100%;
-}
-
-.button-group button {
-    flex: 1;
-    padding: 8px 12px;
-    border: none;
-    border-radius: 6px;
-    font-weight: bold;
-    font-size: 12.5px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-#search-button {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #1d4ed8 100%);
-    color: white;
-    box-shadow: 0 4px 12px var(--primary-glow);
-}
-
-#search-button:hover {
-    box-shadow: 0 6px 16px var(--primary-glow);
-    filter: brightness(1.1);
-    transform: translateY(-1px);
+.card-search-btn:hover, #search-button:hover {
+    box-shadow: 0 6px 20px rgba(217, 4, 41, 0.5);
+    transform: translateY(-2px);
+    background: linear-gradient(135deg, #FF4D79 0%, #E60026 50%, #990026 100%);
 }
 
 #filter-button {

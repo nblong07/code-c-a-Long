@@ -1,42 +1,43 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
 :root {
-    --primary-color: #E67E22;                /* Cam Hoàng Hôn Nhiếp Ảnh Rực Rỡ */
-    --primary-glow: rgba(230, 126, 34, 0.35);  /* Ánh Cam Ấm Áp */
-    --background-color: #FAF2E4;            /* Nền Vàng Kem Hoàng Hôn Mịn Màng (Warm Sunset Amber Cream) */
+    --primary-color: #D90429;                /* Đỏ Cherry Thượng Hạng */
+    --primary-glow: rgba(217, 4, 41, 0.38);  /* Ánh Đỏ Cherry Rực Rỡ */
+    --background-color: #FAF0F2;            /* Nền Hồng Kem Cherry Mịn Màng (Warm Cherry Blossom Cream) */
     --card-background: #FFFFFF;              /* Khung Thẻ Trắng Mịn Sắc Nét */
-    --card-hover: #FFFBF3;                  /* Nền Thẻ Khi Di Chuột Nền Hổ Phách */
-    --text-color: #1A120B;                  /* Chữ Nâu Đen Espresso Sẫm Tương Phản Rõ Nét 100% */
-    --text-muted: #5C4A38;                  /* Chữ Phụ Nâu Đất Đậm Sắc Cạnh */
-    --border-color: #E2D3BE;                /* Viền Cam Đất Hổ Phách Tinh Tế */
-    --accent-color: #D35400;                /* Đỏ Cam Đậm Sắc Nét */
+    --card-hover: #FFF5F7;                  /* Nền Thẻ Khi Di Chuột Nền Hồng Anh Đào */
+    --text-color: #1F080C;                  /* Chữ Nâu Đỏ Thẫm Tương Phản Rõ Nét 100% */
+    --text-muted: #662B34;                  /* Chữ Phụ Nâu Rượu Cherry Sắc Cạnh */
+    --border-color: #F3C6CE;                /* Viền Hồng Đỏ Cherry Tinh Tế */
+    --accent-color: #9B001C;                /* Đỏ Mận Rượu Thẫm (Burgundy Red) */
     --accent-green: #27AE60;                /* Xanh Lục Bảo Tương Phản */
-    --accent-red: #C0392B;                  /* Đỏ Huyết Tương Phản */
-    --sunset-gradient: linear-gradient(135deg, #FF9F43 0%, #E67E22 50%, #D35400 100%);
+    --accent-red: #D90429;                  /* Đỏ Cherry Tương Phản */
+    --sunset-gradient: linear-gradient(135deg, #FF2E63 0%, #D90429 50%, #800020 100%);
+    --cherry-gradient: linear-gradient(135deg, #FF2E63 0%, #D90429 50%, #800020 100%);
 }
 
-/* Thanh cuộn dữ liệu tùy chỉnh màu Cam Hoàng Hôn sang trọng */
+/* Thanh cuộn dữ liệu tùy chỉnh màu Đỏ Cherry sang trọng */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 ::-webkit-scrollbar-track {
-    background: #F4E7D3;
+    background: #F8E2E6;
     border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #FF9F43 0%, #E67E22 100%);
+    background: linear-gradient(135deg, #FF2E63 0%, #D90429 100%);
     border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: #D35400;
+    background: #800020;
 }
 
 body, html {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background-color: var(--background-color);
-    background-image: radial-gradient(circle at 10% 20%, rgba(255, 159, 67, 0.08) 0%, transparent 40%),
-                      radial-gradient(circle at 90% 80%, rgba(230, 126, 34, 0.08) 0%, transparent 40%);
+    background-image: radial-gradient(circle at 10% 20%, rgba(217, 4, 41, 0.07) 0%, transparent 40%),
+                      radial-gradient(circle at 90% 80%, rgba(155, 0, 28, 0.07) 0%, transparent 40%);
     color: var(--text-color);
     margin: 0;
     padding: 0;
@@ -51,7 +52,7 @@ body, html {
 /* header */
 
 .header {
-    background-color: rgba(255, 248, 237, 0.96);
+    background-color: rgba(255, 245, 247, 0.97);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     padding: 0.45rem 1.2rem;
@@ -64,7 +65,7 @@ body, html {
     width: 100%;
     box-sizing: border-box;
     z-index: 100;
-    box-shadow: 0 3px 16px rgba(230, 126, 34, 0.1);
+    box-shadow: 0 4px 16px rgba(217, 4, 41, 0.12);
     gap: 12px;
 }
 
@@ -90,18 +91,18 @@ body, html {
 }
 
 .logo-uit-tt .uit-badge {
-    background: linear-gradient(135deg, #FF9F43 0%, #E67E22 50%, #D35400 100%);
+    background: linear-gradient(135deg, #FF2E63 0%, #D90429 50%, #800020 100%);
     color: #FFFFFF;
     padding: 5px 12px;
     border-radius: 8px;
     font-size: 1.05rem;
     font-weight: 800;
-    box-shadow: 0 3px 10px rgba(230, 126, 34, 0.35);
+    box-shadow: 0 3px 12px rgba(217, 4, 41, 0.4);
     letter-spacing: 0.8px;
 }
 
 .logo-uit-tt .logo-title {
-    background: linear-gradient(135deg, #D35400 0%, #E67E22 50%, #FF9F43 100%);
+    background: linear-gradient(135deg, #D90429 0%, #FF2E63 50%, #800020 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     font-size: 1.35rem;
@@ -123,33 +124,33 @@ body, html {
     align-items: center;
     gap: 7px;
     padding: 6px 14px;
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%);
-    border: 1px solid rgba(99, 102, 241, 0.4);
+    background: linear-gradient(135deg, rgba(35, 10, 16, 0.9) 0%, rgba(15, 4, 7, 0.95) 100%);
+    border: 1px solid rgba(217, 4, 41, 0.4);
     border-radius: 20px;
-    color: #e2e8f0;
+    color: #fecdd3;
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 14px rgba(217, 4, 41, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(8px);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .random-dice-btn:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(168, 85, 247, 0.3) 100%);
-    border-color: rgba(168, 85, 247, 0.7);
+    background: linear-gradient(135deg, rgba(217, 4, 41, 0.3) 0%, rgba(128, 0, 32, 0.4) 100%);
+    border-color: rgba(255, 46, 99, 0.8);
     color: #ffffff;
-    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+    box-shadow: 0 0 20px rgba(217, 4, 41, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.25);
     transform: scale(1.06);
 }
 
 .random-dice-btn:hover .dice-svg {
     transform: rotate(45deg);
-    color: #a855f7;
+    color: #ff758f;
 }
 
 .dice-svg {
     width: 18px;
     height: 18px;
-    color: #818cf8;
+    color: #ff2e63;
     transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.3s ease;
 }
 
@@ -157,10 +158,10 @@ body, html {
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.5px;
-    background: linear-gradient(90deg, #818cf8, #c084fc);
+    background: linear-gradient(90deg, #ff2e63, #ff758f);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    text-shadow: 0 0 12px rgba(168, 85, 247, 0.3);
+    text-shadow: 0 0 12px rgba(217, 4, 41, 0.3);
 }
 
 @keyframes shake {
@@ -187,30 +188,31 @@ body, html {
 
 .object-list-button {
     padding: 6px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    background-color: #FFFFFF;
     border-radius: 6px;
     cursor: pointer;
     color: var(--text-color);
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
     display: flex;
     align-items: center;
     gap: 6px;
     transition: all 0.2s ease;
     user-select: none;
+    box-shadow: 0 2px 6px rgba(217, 4, 41, 0.06);
 }
 
 .object-list-button:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
+    background-color: #FAF0F2;
+    border-color: #D90429;
     transform: translateY(-1px);
 }
 
 .object-list-button img {
     width: 16px;
     height: 16px;
-    filter: invert(1); /* make dark icon white */
+    filter: brightness(0); /* Make icon dark cherry accent */
 }
 
 .selected-objects {
@@ -238,8 +240,8 @@ body, html {
 /* --------------------------- */
 
 .quick-search-button {
-    background-color: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: #FFFFFF;
+    border: 1px solid var(--border-color);
     border-radius: 6px;
     cursor: pointer;
     padding: 6px;
@@ -252,11 +254,11 @@ body, html {
 .quick-search-button img {
     width: 16px;
     height: 16px;
-    filter: invert(1);
 }
 
 .quick-search-button:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: #FAF0F2;
+    border-color: #D90429;
     transform: translateY(-1px);
 }
 
@@ -270,33 +272,34 @@ body, html {
     padding: 6px 14px;
     border: none;
     border-radius: 6px;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.2s ease;
     color: white;
 }
 
 #export-button {
-    background: rgba(255, 255, 255, 0.07);
+    background: #FFFFFF;
     color: var(--text-color);
-    border: 1px solid var(--border-color);
+    border: 1.5px solid var(--border-color);
 }
 
 #export-button:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: #FAF0F2;
+    border-color: #D90429;
     transform: translateY(-1px);
 }
 
 #submit-button {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #1d4ed8 100%);
+    background: linear-gradient(135deg, #FF2E63 0%, #D90429 50%, #800020 100%);
     color: white;
-    box-shadow: 0 4px 12px var(--primary-glow);
+    box-shadow: 0 4px 12px rgba(217, 4, 41, 0.35);
 }
 
 #submit-button:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px var(--primary-glow);
-    filter: brightness(1.1);
+    box-shadow: 0 6px 16px rgba(217, 4, 41, 0.5);
+    filter: brightness(1.08);
 }
 
 /*--------------------------------------------------------------------------*/
@@ -386,8 +389,10 @@ body, html {
 .show-image-section {
     flex: 1;
     width: 100%;
-    overflow-y: auto;
+    height: 100%;
+    overflow: hidden;
     padding: 0;
+    position: relative;
 }
 
 /*--------------------------------------------------------------------------*/

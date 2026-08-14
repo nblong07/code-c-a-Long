@@ -38,24 +38,24 @@ class LifelogFrameFilter:
 
     def is_frame_valid(self, frame_bgr) -> tuple:
         if frame_bgr is None or frame_bgr.size == 0:
-            return False, "Khung hình rỗng"
+            return False, "Khung hình rỗng", 0.0
 
         # 1. Kiểm tra Mờ nhòe (Laplacian Variance Score)
         gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
-        blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
+        blur_score = float(cv2.Laplacian(gray, cv2.CV_64F).var())
         if blur_score < self.blur_threshold:
-            return False, f"Khung hình mờ nhòe (Điểm mờ: {blur_score:.1f} < {self.blur_threshold})"
+            return False, f"Khung hình mờ nhòe (Điểm mờ: {blur_score:.1f} < {self.blur_threshold})", blur_score
 
         # 2. Kiểm tra Phơi sáng (LAB Luminance Channel)
         lab = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2LAB)
         l_channel = lab[:, :, 0]
         mean_lum = float(np.mean(l_channel))
         if mean_lum < self.min_luminance:
-            return False, f"Khung hình quá tối (Độ sáng: {mean_lum:.1f} < {self.min_luminance})"
+            return False, f"Khung hình quá tối (Độ sáng: {mean_lum:.1f} < {self.min_luminance})", blur_score
         if mean_lum > self.max_luminance:
-            return False, f"Khung hình quá chói (Độ sáng: {mean_lum:.1f} > {self.max_luminance})"
+            return False, f"Khung hình quá chói (Độ sáng: {mean_lum:.1f} > {self.max_luminance})", blur_score
 
-        return True, "Khung hình hợp lệ"
+        return True, "Khung hình hợp lệ", blur_score
 
 
 class SceneChangeDetector:
@@ -158,32 +158,37 @@ def process_video(
         return len(os.listdir(kf_dir))
 
     frames: List = []
-    indices: List[int] = []
+    indices: List[Tuple[int, float]] = []
     keyframe_count = 0
     prev_feat = None
 
     def evaluate_batch(frames_buf, indices_buf, prev_f, count, csv_writer):
         feats = encode_batch(frames_buf, model, preprocess, device)
-        for img, fid, feat in zip(frames_buf, indices_buf, feats):
-            if prev_f is None:
+        for img, (fid, msec), feat in zip(frames_buf, indices_buf, feats):
+            # Fallback to fid/fps if msec is not available or 0 at the very start
+            sec_val = (msec / 1000.0) if msec else (fid / fps)
+            
+            def write_keyframe_data():
                 kf_path = os.path.join(kf_dir, f"keyframe_{fid}.webp")
                 save_image_webp(img, kf_path, quality=webp_quality, resize_factor=resize_factor)
-                csv_writer.writerow([fid, f"{fid / fps:.2f}"])
+                # Format: FrameID, Seconds, VideoID, Timestamp_ms, FPS
+                csv_writer.writerow([fid, f"{sec_val:.3f}", video_name, f"{msec if msec else 0:.3f}", f"{fps:.2f}"])
+            
+            if prev_f is None:
+                write_keyframe_data()
                 prev_f = feat
                 count += 1
             else:
                 sim = torch.dot(prev_f, feat).item()
                 if sim < clip_threshold:
-                    kf_path = os.path.join(kf_dir, f"keyframe_{fid}.webp")
-                    save_image_webp(img, kf_path, quality=webp_quality, resize_factor=resize_factor)
-                    csv_writer.writerow([fid, f"{fid / fps:.2f}"])
+                    write_keyframe_data()
                     prev_f = feat
                     count += 1
         return prev_f, count
 
     with open(map_csv, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["FrameID", "Seconds"])
+        writer.writerow(["FrameID", "Seconds", "VideoID", "Timestamp_ms", "FPS"])
 
         frame_id = 0
         step = max(1, skip_frames + 1)
@@ -192,10 +197,12 @@ def process_video(
             ok, frame = cap.read()
             if not ok:
                 break
+            
+            msec = cap.get(cv2.CAP_PROP_POS_MSEC)
 
             if frame_id % step == 0:
                 frames.append(frame)
-                indices.append(frame_id)
+                indices.append((frame_id, msec))
 
                 if len(frames) >= batch_size:
                     prev_feat, keyframe_count = evaluate_batch(frames, indices, prev_feat, keyframe_count, writer)
@@ -313,10 +320,10 @@ def parse_args():
                    help="Scale factor for output WebP image size (0.5 saves storage).")
     p.add_argument("--webp-quality", type=int, default=80,
                    help="WebP image quality (0-100).")
-    p.add_argument("--model", type=str, default="ViT-L-14",
-                   help="Visual backbone model architecture (default: ViT-L-14).")
-    p.add_argument("--pretrained", type=str, default="laion2b_s32b_b82k",
-                   help="Pretrained weights dataset (default: laion2b_s32b_b82k).")
+    p.add_argument("--model", type=str, default="ViT-SO400M-14-SigLIP-384",
+                   help="Visual backbone model architecture (default: ViT-SO400M-14-SigLIP-384).")
+    p.add_argument("--pretrained", type=str, default="webli",
+                   help="Pretrained weights dataset (default: webli).")
     p.add_argument("--num-workers", type=int, default=4,
                    help="Number of parallel decoding workers.")
     p.add_argument("--cpu", action="store_true",
