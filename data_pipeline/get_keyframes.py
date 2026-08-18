@@ -123,6 +123,26 @@ def save_image_webp(img_bgr, path: str, quality: int = 80, resize_factor: float 
     img_pil.save(path, format="WEBP", quality=quality)
 
 
+def is_csv_complete(map_csv: str, total_frames: int) -> bool:
+    """Check if existing map CSV was completely written to the end of the video."""
+    if not os.path.exists(map_csv) or os.path.getsize(map_csv) < 50:
+        return False
+    try:
+        with open(map_csv, "r", encoding="utf-8", errors="ignore") as f:
+            lines = [line.strip() for line in f if line.strip()]
+        if len(lines) <= 1:
+            return False
+        if total_frames > 0:
+            last_line = lines[-1].split(",")
+            last_fid = int(last_line[0])
+            # Đảm bảo video đã trích xuất ít nhất 98% tổng số frame mới tính là hoàn thành
+            if last_fid < int(total_frames * 0.98):
+                return False
+        return True
+    except Exception:
+        return False
+
+
 def process_video(
     video_path: str,
     out_dir: str,
@@ -151,16 +171,44 @@ def process_video(
 
     video_name = os.path.splitext(os.path.basename(video_path))[0]
     map_csv = os.path.join(maps_dir, f"{video_name}_map.csv")
+    tmp_map_csv = os.path.join(maps_dir, f"{video_name}_map.csv.tmp")
 
-    # Fast skip check if map_csv already exists
-    if os.path.exists(map_csv) and os.path.exists(kf_dir) and len(os.listdir(kf_dir)) > 0:
+    # Fast skip check ONLY if map_csv is verified to be complete!
+    if is_csv_complete(map_csv, total_frames) and os.path.exists(kf_dir) and len(os.listdir(kf_dir)) > 0:
         cap.release()
         return len(os.listdir(kf_dir))
+
+    # If map_csv exists but is incomplete, remove corrupted map_csv
+    if os.path.exists(map_csv):
+        print(f"\n🔄 Phát hiện '{video_name}_map.csv' chưa hoàn thành (< 98%). Đang xóa để trích xuất lại...")
+        try:
+            os.remove(map_csv)
+        except OSError:
+            pass
+
+    # Clean up incomplete files from previous interrupted run
+    if os.path.exists(tmp_map_csv):
+        try:
+            os.remove(tmp_map_csv)
+        except OSError:
+            pass
+
+    if os.path.exists(kf_dir) and len(os.listdir(kf_dir)) > 0:
+        print(f"🧹 Đang tự động dọn dẹp các ảnh keyframe dở dang của '{video_name}'...")
+        for fname in os.listdir(kf_dir):
+            fpath = os.path.join(kf_dir, fname)
+            if os.path.isfile(fpath):
+                try:
+                    os.remove(fpath)
+                except OSError:
+                    pass
 
     frames: List = []
     indices: List[Tuple[int, float]] = []
     keyframe_count = 0
     prev_feat = None
+
+    save_pool = ThreadPoolExecutor(max_workers=4)
 
     def evaluate_batch(frames_buf, indices_buf, prev_f, count, csv_writer):
         feats = encode_batch(frames_buf, model, preprocess, device)
@@ -170,7 +218,7 @@ def process_video(
             
             def write_keyframe_data():
                 kf_path = os.path.join(kf_dir, f"keyframe_{fid}.webp")
-                save_image_webp(img, kf_path, quality=webp_quality, resize_factor=resize_factor)
+                save_pool.submit(save_image_webp, img, kf_path, webp_quality, resize_factor)
                 # Format: FrameID, Seconds, VideoID, Timestamp_ms, FPS
                 csv_writer.writerow([fid, f"{sec_val:.3f}", video_name, f"{msec if msec else 0:.3f}", f"{fps:.2f}"])
             
@@ -186,21 +234,19 @@ def process_video(
                     count += 1
         return prev_f, count
 
-    with open(map_csv, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["FrameID", "Seconds", "VideoID", "Timestamp_ms", "FPS"])
+    try:
+        with open(tmp_map_csv, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["FrameID", "Seconds", "VideoID", "Timestamp_ms", "FPS"])
 
-        frame_id = 0
-        step = max(1, skip_frames + 1)
+            frame_id = 0
 
-        while True:
-            ok, frame = cap.read()
-            if not ok:
-                break
-            
-            msec = cap.get(cv2.CAP_PROP_POS_MSEC)
-
-            if frame_id % step == 0:
+            while True:
+                msec = cap.get(cv2.CAP_PROP_POS_MSEC)
+                ok, frame = cap.read()
+                if not ok:
+                    break
+                
                 frames.append(frame)
                 indices.append((frame_id, msec))
 
@@ -209,14 +255,35 @@ def process_video(
                     frames.clear()
                     indices.clear()
 
-            frame_id += 1
+                if skip_frames > 0:
+                    for _ in range(skip_frames):
+                        if not cap.grab():
+                            break
+                        frame_id += 1
 
-        if frames:
-            prev_feat, keyframe_count = evaluate_batch(frames, indices, prev_feat, keyframe_count, writer)
-            frames.clear()
-            indices.clear()
+                frame_id += 1
 
-    cap.release()
+            if frames:
+                prev_feat, keyframe_count = evaluate_batch(frames, indices, prev_feat, keyframe_count, writer)
+                frames.clear()
+                indices.clear()
+
+        # Wait for all background WebP image saves to complete
+        save_pool.shutdown(wait=True)
+
+        # Atomic rename after full successful processing
+        os.replace(tmp_map_csv, map_csv)
+    except Exception as e:
+        save_pool.shutdown(wait=False)
+        if os.path.exists(tmp_map_csv):
+            try:
+                os.remove(tmp_map_csv)
+            except OSError:
+                pass
+        raise e
+    finally:
+        cap.release()
+
     return keyframe_count
 
 

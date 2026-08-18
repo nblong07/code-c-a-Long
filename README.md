@@ -7,7 +7,7 @@ Dự án cung cấp một giải pháp end-to-end hiệu năng cao: từ khâu t
 > [!NOTE]
 > **Tối ưu hóa cao cấp cho phần cứng:**
 > - **Hệ điều hành:** Windows 11 (Pathlib an toàn, xử lý bất đồng bộ & đa tiến trình)
-> - **Cấu hình phần cứng tối ưu:** Cấu hình từ **64 GB RAM**, GPU NVIDIA **32 GB VRAM** trở lên (hỗ trợ CUDA PyTorch, FP16 Autocast). Hoạt động hoàn hảo từ máy tính cá nhân đến máy chủ hiệu năng cao.
+> - **Cấu hình phần cứng tối ưu:** Tối ưu hóa cho cấu hình **16 GB RAM**, GPU NVIDIA **6 GB VRAM** (hỗ trợ CUDA PyTorch, FP16 Autocast). Hoạt động mượt mà trên máy tính cá nhân.
 > - **Bộ điều hướng tự động:** Dynamic Adaptive Query Router + Heuristics Frame Filter + Tree of Thoughts Agent + HippoRAG Memory System
 > - **Môi trường chạy:** Python 3.11 / PyTorch 2.x CUDA
 
@@ -76,22 +76,29 @@ Hệ thống được thiết kế đồng bộ từ các thư viện AI tiên t
 
 ---
 
-## 🧠 Chi Tiết Mô Hình AI & Tối Ưu Hóa (AI Models & VRAM Tuning)
+## 🧠 Chi Tiết Mô Hình AI & Đáp Ứng Yêu Cầu Cuộc Thi (AI Models & Competition Alignment)
 
-### 1. Mô hình Embedding SOTA OpenCLIP `ViT-SO400M-14-SigLIP-384`
-- **Mã nguồn tích hợp:** Sử dụng mô hình SOTA `ViT-SO400M-14-SigLIP-384` với trọng số huấn luyện chất lượng cao `webli`.
-- **Số chiều đặc trưng (Dimension):** **Tự động nhận diện (vd: 1152 chiều)** (tăng độ chính xác biểu diễn ngữ nghĩa vượt trội so với các mô hình 512d cũ).
-- **Kỹ thuật tối ưu VRAM:**
-  - Sử dụng chế độ chạy inference ẩn danh tính toán `torch.inference_mode()` loại bỏ lưu trữ đồ thị đạo hàm (gradient).
-  - Tích hợp **FP16 Autocast** (`torch.cuda.amp.autocast()`) giúp xử lý số thực dấu phẩy động nửa chính xác.
-  - Nhờ đó, mô hình vận hành cực kỳ mượt mà trên GPU NVIDIA từ 32GB VRAM, mang lại tốc độ truy vấn cao và độ chính xác vượt trội.
+Hệ thống được thiết kế để giải quyết triệt để 3 dạng truy vấn của vòng sơ tuyển AIC 2026:
 
-### 2. Chỉ mục Vector HNSW (Hierarchical Navigable Small World)
-Để tìm kiếm siêu tốc trên cơ sở dữ liệu Milvus, chúng tôi cấu hình chỉ mục đồ thị HNSW với các tham số tối ưu bộ nhớ RAM 64GB:
+### 1. Truy vấn dạng 1: Textual KIS (Tìm kiếm chính xác theo văn bản)
+- **Mô hình cốt lõi:** OpenCLIP `ViT-SO400M-14-SigLIP-384` (Google)
+- **Đặc điểm:** Tự động nhận diện dimension (1152d), chạy với `torch.inference_mode()` và **FP16 Autocast** trên GPU 6GB VRAM.
+- **Ý nghĩa:** Ánh xạ mô tả văn bản tự nhiên (ví dụ: "người đàn ông mặc áo đỏ") sang không gian vector để tìm chính xác khung hình ngữ nghĩa tương ứng với tốc độ cực nhanh.
+
+### 2. Truy vấn dạng 2: Q&A (Hỏi-Đáp Visual & Audio)
+- **Mô hình hỗ trợ:** `PaddleOCR` (nhận diện chữ viết trong video) & `Faster-Whisper` (nhận diện giọng nói) kết hợp **Tree of Thoughts (ToT) Agent**.
+- **Ý nghĩa:** Khi giám khảo hỏi chi tiết cụ thể (vd: "Biển số xe là gì?", "Trên sân khấu có mấy người?"), hệ thống kết hợp thông tin trích xuất từ OCR/ASR (metadata) và sử dụng ToT Agent phân tích câu hỏi để đưa ra ngữ cảnh trả lời chính xác nhất, có thể dùng khay tìm kiếm chuyên biệt để truy vấn chữ.
+
+### 3. Truy vấn dạng 3: TRAKE (Truy xuất và căn chỉnh sự kiện theo thời gian)
+- **Thuật toán cốt lõi:** **Dynamic Adaptive Pipeline Router** và **Temporal Query Logic** (Tính toán `frame_diff` và Score Boosting).
+- **Ý nghĩa:** Giải quyết bài toán tìm chuỗi sự kiện. Hệ thống cho phép nhập đa sự kiện (First Query, Next Query), sau đó tính toán khoảng cách thời gian giữa các khung hình (ví dụ < 1500 frame) để tăng điểm tương đồng, giúp căn chỉnh và tìm ra chính xác chuỗi hành động theo đúng trật tự thời gian.
+
+### 4. Tối ưu Chỉ mục Vector HNSW (Hierarchical Navigable Small World)
+Để tìm kiếm siêu tốc trên cơ sở dữ liệu Milvus, chúng tôi cấu hình chỉ mục đồ thị HNSW với các tham số tối ưu bộ nhớ RAM 16GB:
 - **Metric Type:** `COSINE` (Khoảng cách Cosine tương đồng).
-- **M (Max Connection):** `16` (Số liên kết tối đa của mỗi node đồ thị, giúp đồ thị gọn nhẹ).
-- **efConstruction:** `200` (Độ sâu tìm kiếm khi xây dựng chỉ mục, cân bằng giữa thời gian build và độ chính xác).
-- **nprobe (Search Parameter):** `16` (Số lượng cluster kiểm tra khi truy vấn, đảm bảo thời gian truy vấn dưới **50ms**).
+- **M (Max Connection):** `32` (Số liên kết tối đa của mỗi node đồ thị).
+- **efConstruction:** `250` (Độ sâu tìm kiếm khi xây dựng chỉ mục).
+- **nprobe:** `16` (Đảm bảo thời gian truy vấn dưới **50ms**).
 
 ---
 
@@ -207,10 +214,16 @@ docker compose up -d
 Kiểm tra trạng thái container bằng lệnh `docker compose ps`.
 
 ### 3. Pipeline Xử lý Dữ liệu
-Trích xuất khung hình từ thư mục video:
-```cmd
-python data_pipeline/get_keyframes.py --input-folder "D:/path/to/videos" --output-base "./data-keyframes"
-```
+3. **Trích xuất thông tin (Tuỳ chọn nâng cao cho OCR & ASR):**
+   ```cmd
+   python run_advanced_ocr.py
+   python run_advanced_asr.py
+   python data_pipeline/extract_features.py 2
+   ```
+   Trích xuất khung hình từ thư mục video:
+   ```cmd
+   python data_pipeline/get_keyframes.py --input-folder "D:/path/to/videos" --output-base "./data-keyframes"
+   ```
 Mã hóa và tải lên Milvus DB:
 ```cmd
 python data_pipeline/upload_database.py --root "./data-keyframes" --build-index

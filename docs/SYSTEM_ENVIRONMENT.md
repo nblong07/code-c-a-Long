@@ -4,9 +4,9 @@ File này lưu trữ thông tin về môi trường phần cứng, phần mềm 
 
 ## 1. Thông tin Phần cứng (Hardware)
 - **Hệ điều hành:** Windows
-- **CPU/RAM:** 64GB System RAM
-- **GPU:** NVIDIA với 32GB VRAM
-- **Khả năng:** Chạy thoải mái các model AI lớn như SigLIP SO400M (3.5GB), Milvus Database trên Docker.
+- **CPU/RAM:** 16GB System RAM
+- **GPU:** NVIDIA với 6GB VRAM
+- **Khả năng:** Chạy thoải mái các model AI, tối ưu hóa để không OOM với GPU 6GB.
 
 ## 2. Thông tin Phần mềm (Software & Environment)
 - **Quản lý môi trường:** Miniconda

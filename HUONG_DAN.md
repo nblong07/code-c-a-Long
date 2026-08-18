@@ -1,5 +1,5 @@
 # 📖 HƯỚNG DẪN CHI TIẾT DỰ ÁN VIDEO RETRIEVAL SYSTEM
-## Code-c-a-Long — Tối Ưu Cho Windows 11 (RAM 64GB + NVIDIA 32GB GPU)
+## Code-c-a-Long — Tối Ưu Cho Windows 11 (RAM 16GB + NVIDIA 6GB GPU)
 
 > **Công nghệ sử dụng:** PyTorch (CUDA GPU), OpenCLIP (`ViT-SO400M-14-SigLIP-384`), Milvus Vector Database (Docker), FastAPI, WebSocket, PaddleOCR (v4), Faster-Whisper (Large-v3).
 
@@ -26,8 +26,8 @@ Dự án đã được chuyên gia tinh chỉnh lại toàn bộ mã nguồn đ�
 | Thành phần | Cấu hình máy của bạn | Tối ưu hóa được áp dụng trong mã nguồn |
 | :--- | :--- | :--- |
 | **OS** | Windows 11 | Đường dẫn an toàn (Pathlib), tránh lỗi Windows Process Spawn. |
-| **RAM** | 16 GB | Batch size & HNSW Index (`M=16, efConstruction=200`) giữ bộ nhớ RAM cực nhẹ. |
-| **GPU** | NVIDIA 6 GB VRAM | Sử dụng mô hình State-of-the-Art **OpenCLIP `ViT-SO400M-14-SigLIP-384`** (Google) kết hợp **PyTorch FP16 Autocast**, đạt độ chính xác ngữ nghĩa cao nhất thế giới và **không bị tràn VRAM (OOM)**. |
+| **RAM** | 16 GB | Tối ưu hóa với HNSW Index (`M=16, efConstruction=128`) phù hợp bộ nhớ 16GB RAM. |
+| **GPU** | NVIDIA 6 GB VRAM | Sử dụng mô hình State-of-the-Art **OpenCLIP `ViT-SO400M-14-SigLIP-384`** (Google) kết hợp **PyTorch FP16 Autocast**, điều chỉnh batch_size=16 để tránh OOM. |
 | **Python** | 3.11 (Miniconda) | Tương thích hoàn hảo PyTorch CUDA 11.8/12.1 + open_clip_torch + pymilvus. |
 
 ---
@@ -132,7 +132,7 @@ python data_pipeline/get_keyframes.py ^
 
 ### Các điểm cải tiến quan trọng:
 1. **Chuẩn hóa Vector (`F.normalize`):** Đảm bảo các vector đặc trưng có độ dài đơn vị (unit-length), giúp thuật toán tính khoảng cách Cosine trên Milvus chính xác 100%.
-2. **Tự động đóng Index (`--build-index`):** Tạo chỉ mục HNSW tối ưu cho bộ nhớ RAM 64GB và nạp dữ liệu sẵn sàng phục vụ tìm kiếm.
+2. **Tự động đóng Index (`--build-index`):** Tạo chỉ mục HNSW tối ưu cho bộ nhớ RAM 16GB và nạp dữ liệu sẵn sàng phục vụ tìm kiếm.
 ---
 
 ## 7. BƯỚC 3: CHẠY BACKEND SERVICE (`backend/main.py`)
@@ -169,10 +169,20 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ## 9. CÔNG CỤ PHỤ TRỢ (TRÍCH XUẤT ĐẶC TRƯNG)
 
 ### 9.1 Trích xuất đặc trưng đa phương thức (`extract_features.py`)
-Sử dụng file đã được gộp chung để trích xuất cả CLIP features, OCR và ASR (được đặt trong thư mục `data_pipeline`):
+### Bước 2.2: Trích xuất OCR & ASR (Tuỳ chọn Nâng cao - Khuyên dùng)
+Hệ thống tích hợp hai mô hình trích xuất siêu mạnh (PaddleOCR V4 có CLAHE và Faster-Whisper/Sherpa có Silero VAD).
+Đầu tiên, chạy hai file sau để trích xuất dữ liệu đa phương thức chất lượng cao:
 ```cmd
-python data_pipeline/extract_features.py
+python run_advanced_ocr.py
+python run_advanced_asr.py
 ```
+
+### Bước 2.3: Tổng hợp siêu dữ liệu OCR & ASR
+Sau khi chạy xong các script nâng cao (hoặc nếu muốn dùng bản cơ bản), hãy chạy lệnh:
+```cmd
+python data_pipeline/extract_features.py 2
+```
+Hệ thống sẽ tự động gộp các file `ocr_results.jsonl` và `asr_results.jsonl` vào tệp siêu dữ liệu `ocr_asr_metadata.json` chuẩn hóa.
 (Sau đó chọn tuỳ chọn 1, 2, hoặc 3 để trích xuất loại dữ liệu mong muốn).
 > **Trích xuất dữ liệu OCR:** Khi được hỏi, nhập lựa chọn **`2`** (extract OCR/ASR) hoặc **`3`** (extract cả CLIP và OCR/ASR). Hệ thống sẽ tự động sử dụng **PaddleOCR** quét chữ và lưu vào file `ocr_asr_metadata.json`.
 2. **Khởi động lại Backend:** Chạy lại `python backend/main.py` để hệ thống tải file metadata OCR vừa tạo. (Log sẽ báo `✅ Đã nạp ... bản ghi OCR`).
@@ -190,7 +200,7 @@ python data_pipeline/extract_features.py
 
 | Lỗi | Nguyên nhân | Cách khắc phục |
 | :--- | :--- | :--- |
-| **CUDA Out of Memory (OOM)** | Dùng model quá lớn (`ViT-H-14`) hoặc batch_size quá cao. | Code hiện tại đã mặc định `ViT-SO400M-14-SigLIP-384` với batch_size 32/64, hoạt động mượt mà với FP16 Autocast trên phần cứng GPU 32GB của bạn. |
+| **CUDA Out of Memory (OOM)** | Dùng model quá lớn (`ViT-H-14`) hoặc batch_size quá cao. | Code hiện tại đã mặc định `ViT-SO400M-14-SigLIP-384` với batch_size 16, hoạt động an toàn với FP16 Autocast trên phần cứng GPU 6GB của bạn. |
 | **Milvus Connection Failed** | Chưa bật Docker Desktop hoặc chưa `docker compose up -d`. | Kiểm tra `docker ps` và bật Docker Desktop trước khi chạy script. |
 | **Dimension Mismatch** | Upload vector bằng model này nhưng backend search bằng model khác. | Đã đồng bộ tất cả file dùng model mặc định `ViT-SO400M-14-SigLIP-384` (tự động nhận diện số chiều). Nếu làm lại, dùng cờ `--recreate` khi upload. |
 | **Lỗi Windows Process Spawn** | Đa tiến trình `multiprocessing` trên Windows. | Code `upload_database.py` đã được cập nhật luồng xử lý đơn GPU tăng tốc bằng CUDA stream không cần spawn sub-process. |

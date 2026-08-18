@@ -25,7 +25,7 @@ def parse_args():
                    help="Model architecture name (default: ViT-SO400M-14-SigLIP-384).")
     p.add_argument("--pretrained", type=str, default="webli",
                    help="Pretrained weights dataset (default: webli).")
-    p.add_argument("--batch-size", type=int, default=32,
+    p.add_argument("--batch-size", type=int, default=16,
                    help="Batch size for feature extraction.")
     return p.parse_args()
 
@@ -44,7 +44,7 @@ def extract_clip_main():
 
     # Find all image paths
     image_paths = []
-    for root, _, files in os.walk(keyframes_dir):
+    for root, _, files in os.walk(keyframes_dir, followlinks=True):
         if "maps" in root:
             continue
         for file in files:
@@ -145,17 +145,38 @@ import argparse
 from tqdm import tqdm
 
 def extract_ocr_from_keyframes(keyframes_dir: str):
-    """Trích xuất chữ viết xuất hiện trong khung hình keyframe (OCR) - Đã nâng cấp lên SOTA PaddleOCR"""
+    """Trích xuất chữ viết xuất hiện trong khung hình keyframe (OCR)"""
     ocr_results = {}
     
+    # [TÍCH HỢP CHỌN LỌC] Đọc kết quả từ script test_ocr.py nâng cao nếu có
+    advanced_ocr_file = "ocr_results.jsonl"
+    if os.path.exists(advanced_ocr_file):
+        print(f"🌟 Đang tích hợp dữ liệu OCR từ mô hình nâng cao ({advanced_ocr_file})...")
+        try:
+            with open(advanced_ocr_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip(): continue
+                    data = json.loads(line)
+                    # File jsonl của test_ocr lưu các segment có trường 'text'
+                    if "video_path" in data and "text" in data and data["text"]:
+                        # Giả định video_path có thể chứa đường dẫn file ảnh keyframe
+                        path = data["video_path"]
+                        rel_path = os.path.relpath(path, keyframes_dir) if os.path.isabs(path) else path
+                        ocr_results[rel_path] = data["text"]
+            if ocr_results:
+                print(f"✅ Đã nạp {len(ocr_results)} kết quả OCR nâng cao (có fix lỗi chính tả & CLAHE).")
+                return ocr_results
+        except Exception as e:
+            print(f"⚠️ Lỗi đọc {advanced_ocr_file}: {e}. Rớt xuống (fallback) OCR cơ bản.")
+
+    # Fallback OCR cơ bản
     try:
         from paddleocr import PaddleOCR
-        # Sử dụng mô hình PaddleOCR v4 mới nhất, siêu mạnh cho tiếng Việt
         reader = PaddleOCR(use_angle_cls=True, lang='vi', use_gpu=True, show_log=False)
         use_paddle = True
     except Exception:
         use_paddle = False
-        print("⚠️ PaddleOCR chưa sẵn sàng (cài đặt: pip install paddlepaddle-gpu paddleocr). Chạy chế độ fallback.")
+        print("⚠️ PaddleOCR chưa sẵn sàng. Chạy chế độ fallback trống.")
 
     image_paths = []
     for root, _, files in os.walk(keyframes_dir):
@@ -163,7 +184,7 @@ def extract_ocr_from_keyframes(keyframes_dir: str):
             if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png')):
                 image_paths.append(os.path.join(root, f))
                 
-    print(f"🔍 Đang chạy SOTA OCR trên {len(image_paths)} keyframes...")
+    print(f"🔍 Đang chạy OCR cơ bản trên {len(image_paths)} keyframes...")
     for img_path in tqdm(image_paths):
         rel_path = os.path.relpath(img_path, keyframes_dir)
         if use_paddle:
@@ -184,10 +205,31 @@ def extract_ocr_from_keyframes(keyframes_dir: str):
     return ocr_results
 
 def extract_asr_from_videos(videos_dir: str):
-    """Trích xuất lời nói từ file audio trong video (ASR Speech-to-Text) - Đã nâng cấp lên Faster-Whisper Large-v3"""
+    """Trích xuất lời nói từ file audio trong video (ASR Speech-to-Text)"""
     asr_results = {}
     
-    # Thử khởi tạo Sherpa-ONNX Zipformer (chế độ nhẹ)
+    # [TÍCH HỢP CHỌN LỌC] Đọc kết quả từ script test_asr.py nâng cao nếu có
+    advanced_asr_file = "asr_results.jsonl"
+    if os.path.exists(advanced_asr_file):
+        print(f"🌟 Đang tích hợp dữ liệu ASR từ mô hình nâng cao ({advanced_asr_file})...")
+        try:
+            with open(advanced_asr_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip(): continue
+                    data = json.loads(line)
+                    # File jsonl của test_asr lưu các segment có text hoặc status
+                    if "video_path" in data and "text" in data and data["text"]:
+                        v_name = os.path.splitext(os.path.basename(data["video_path"]))[0]
+                        # Gộp text của các segment trong cùng 1 video
+                        existing = asr_results.get(v_name, "")
+                        asr_results[v_name] = (existing + " " + data["text"]).strip()
+            if asr_results:
+                print(f"✅ Đã nạp kết quả ASR nâng cao cho {len(asr_results)} video (có Silero VAD & RingBuffer).")
+                return asr_results
+        except Exception as e:
+            print(f"⚠️ Lỗi đọc {advanced_asr_file}: {e}. Rớt xuống (fallback) ASR cơ bản.")
+
+    # Fallback ASR cơ bản
     try:
         from backend.asr_sherpa import SherpaZipformerASR
         sherpa_engine = SherpaZipformerASR()
@@ -199,15 +241,14 @@ def extract_asr_from_videos(videos_dir: str):
     if not use_sherpa:
         try:
             from faster_whisper import WhisperModel
-            # Nâng cấp cấp độ: Sử dụng mô hình large-v3 cực mạnh thay vì base
             model = WhisperModel("large-v3", device="cuda", compute_type="float16")
             use_whisper = True
-            print("🎙️ Sử dụng mô hình ASR SOTA Faster-Whisper Large-v3 (Chính xác cao nhất)...")
+            print("🎙️ Sử dụng mô hình ASR SOTA Faster-Whisper Large-v3...")
         except Exception:
             use_whisper = False
-            print("⚠️ Cả Sherpa-ONNX và Faster-Whisper chưa sẵn sàng (cài đặt: pip install faster-whisper). Chạy chế độ fallback.")
+            print("⚠️ Cả Sherpa-ONNX và Faster-Whisper chưa sẵn sàng. Chạy chế độ fallback trống.")
     else:
-        print("⚡ Sử dụng mô hình ASR siêu nhẹ Sherpa-ONNX Zipformer...")
+        print("⚡ Sử dụng mô hình ASR cơ bản Sherpa-ONNX Zipformer...")
 
     video_paths = glob.glob(os.path.join(videos_dir, "*.mp4")) + glob.glob(os.path.join(videos_dir, "*.mkv"))
     print(f"🎙️ Đang chạy ASR Speech-to-Text trên {len(video_paths)} video...")
@@ -235,20 +276,20 @@ def extract_ocr_asr_main():
     args = parser.parse_args()
 
     print("==================================================")
-    print("ðŸš€ Báº®T Äáº¦U TRÃCH XUáº¤T OCR & ASR ÄA PHÆ¯Æ NG THá»¨C")
+    print("🚀 BẮT ĐẦU TRÍCH XUẤT OCR & ASR ĐA PHƯƠNG THỨC")
     print("==================================================")
 
     ocr_data = {}
-    if os.path.exists(args.keyframes_dir):
+    if os.path.exists(args.keyframes_dir) or os.path.exists("ocr_results.jsonl"):
         ocr_data = extract_ocr_from_keyframes(args.keyframes_dir)
     else:
-        print(f"âš ï¸ KhÃ´ng tÃ¬m tháº¥y thÆ° má»¥c keyframe: {args.keyframes_dir}")
+        print(f"⚠️ Không tìm thấy thư mục keyframe: {args.keyframes_dir}")
 
     asr_data = {}
-    if os.path.exists(args.videos_dir):
+    if os.path.exists(args.videos_dir) or os.path.exists("asr_results.jsonl"):
         asr_data = extract_asr_from_videos(args.videos_dir)
     else:
-        print(f"âš ï¸ KhÃ´ng tÃ¬m tháº¥y thÆ° má»¥c video: {args.videos_dir}")
+        print(f"⚠️ Không tìm thấy thư mục video: {args.videos_dir}")
 
     metadata = {
         "ocr": ocr_data,
@@ -258,7 +299,7 @@ def extract_ocr_asr_main():
     with open(args.output, "w", encoding="utf-8") as f:
         json.dump(metadata, f, ensure_ascii=False, indent=2)
 
-    print(f"âœ… HoÃ n táº¥t! ÄÃ£ lÆ°u káº¿t quáº£ vÃ o file: {args.output}")
+    print(f"✅ Hoàn tất! Đã lưu kết quả vào file: {args.output}")
 
 
 
