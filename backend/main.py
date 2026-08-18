@@ -1013,9 +1013,7 @@ class VectorSearchService:
         model_name: str = "clip",
         limit: int = 1000
     ) -> List[Dict[str, Any]]:
-        import time
         start_time = time.time()
-        self.logger.info(f"Bắt đầu xử lý truy vấn: '{first_query}'")
         try:
             if second_query and second_query.strip():
                 first_encoded, second_encoded = await asyncio.gather(
@@ -1031,25 +1029,12 @@ class VectorSearchService:
                 result = self._process_temporal_relationships(fkq, nkq)
             else:
                 first_encoded = await asyncio.to_thread(self.encode_clip_text, first_query, model_name)
-                t1 = time.time()
-                self.logger.info(f"Encode text mất: {t1 - start_time:.2f}s")
                 fkq = await self.query_milvus(first_encoded, limit=limit)
-                t2 = time.time()
-                self.logger.info(f"Vector search mất: {t2 - t1:.2f}s")
                 result = fkq
 
             # Lưu vết tương tác vào bộ nhớ HippoRAG Context Memory
             retrieved_vids = [item.get('entity', {}).get('video_id', '') for item in result[:5] if item.get('entity')]
             self.hippo_memory.add_interaction(first_query, retrieved_vids)
-
-            total_time = time.time() - start_time
-            self.logger.info(f"Tổng thời gian xử lý truy vấn hoàn tất: {total_time:.2f}s")
-            
-            # Gắn thêm thông số thời gian vào kết quả đầu tiên (chỉ để debug cho user)
-            if result and len(result) > 0:
-                if 'entity' not in result[0]:
-                    result[0]['entity'] = {}
-                result[0]['entity']['debug_time'] = f"Total: {total_time:.2f}s"
 
             return result
         except Exception as e:
@@ -1654,3 +1639,4 @@ app = create_app(config_file)
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info", reload=False)
+    
