@@ -22,8 +22,30 @@ os.environ["FLAGS_enable_pir_in_executor"] = "0"
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 import cv2
+from PIL import Image
+import sys
+import importlib.metadata
+
+# Monkey-patch pkg_resources to fix gdown 4.4.0 bug with setuptools>=70
+class _DummyPkgResources:
+    @staticmethod
+    def get_distribution(name):
+        class _DummyDist:
+            version = importlib.metadata.version(name)
+        return _DummyDist()
+
+if 'pkg_resources' not in sys.modules:
+    try:
+        import pkg_resources  # type: ignore # noqa
+    except ImportError:
+        sys.modules['pkg_resources'] = _DummyPkgResources()
+
+from vietocr.tool.predictor import Predictor
+from vietocr.tool.config import Cfg
+import numpy as np
 import numpy as np
 
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -46,9 +68,11 @@ if not _logger.handlers:
     _logger.propagate = False
 
 # ================= CẤU HÌNH =================
-KEYFRAME_ROOT = os.environ.get("KEYFRAME_ROOT", "/app/data-keyframes")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+KEYFRAME_ROOT = os.environ.get("KEYFRAME_ROOT", os.path.join(BASE_DIR, "data-keyframes"))
 KEYFRAME_MAP_ROOT = os.environ.get("KEYFRAME_MAP_ROOT", os.path.join(KEYFRAME_ROOT, "maps"))
-OUTPUT_FILE = os.environ.get("OCR_OUTPUT_FILE", "/app/ocr_results.jsonl")
+OUTPUT_FILE = os.environ.get("OCR_OUTPUT_FILE", os.path.join(BASE_DIR, "ocr_results.jsonl"))
+DONE_FILE = os.environ.get("OCR_DONE_FILE", os.path.join(BASE_DIR, "ocr_done.txt"))
 PIPELINE_VERSION = "v5.10-hardened"
 
 CROP_BOTTOM_RATIO = float(os.environ.get("OCR_CROP_BOTTOM_RATIO", "0.45"))
@@ -77,7 +101,7 @@ MIN_AUTO_BATCH_SIZE = max(1, int(os.environ.get("OCR_MIN_BATCH_SIZE", "2")))
 FLUSH_EVERY_RECORDS = max(20, int(os.environ.get("OCR_FLUSH_EVERY", "200")))  # compatibility; temp file is fsynced per OCR batch
 CPU_COUNT = os.cpu_count() or 2
 DEFAULT_WORKERS = max(1, min(4, CPU_COUNT // 2 or 1))
-NUM_WORKERS = max(1, int(os.environ.get("OCR_NUM_WORKERS", DEFAULT_WORKERS)))
+NUM_WORKERS = max(1, int(os.environ.get("OCR_NUM_WORKERS", "1")))
 # Keep total Paddle CPU parallelism bounded: workers x Paddle threads should
 # not accidentally oversubscribe a small container. Explicit env still wins.
 _CPU_THREADS_ENV = os.environ.get("OCR_CPU_THREADS")
@@ -104,7 +128,7 @@ KEYFRAME_FPS = float(os.environ.get("KEYFRAME_FPS", "0"))
 USE_INTERVAL_MIDPOINT = os.environ.get("OCR_USE_INTERVAL_MIDPOINT", "1").lower() in {"1", "true", "yes"}
 TIMESTAMP_DECIMALS = max(0, int(os.environ.get("OCR_TIMESTAMP_DECIMALS", "3")))
 
-ENABLE_EASYOCR_FALLBACK = os.environ.get("OCR_ENABLE_EASYOCR_FALLBACK", "1").lower() in {"1", "true", "yes"}
+ENABLE_EASYOCR_FALLBACK = False
 ENABLE_HARD_PREPROCESS = os.environ.get("OCR_ENABLE_HARD_PREPROCESS", "1").lower() in {"1", "true", "yes"}
 ENABLE_SPELL_FIX = os.environ.get("OCR_ENABLE_SPELL_FIX", "0").lower() in {"1", "true", "yes"}
 CONSENSUS_WINDOW = max(2, int(os.environ.get("OCR_CONSENSUS_WINDOW", "5")))
@@ -125,6 +149,7 @@ _SPELL_FIX_RE = re.compile(
 
 _worker_ocr = None
 _worker_easyocr = None
+_worker_vietocr = None
 _worker_lock = None
 _worker_gpu = False
 _worker_provider = "unknown"
@@ -366,9 +391,13 @@ def parse_timestamp_from_filename(path):
 
 
 def find_map_csv(video_id):
+    # video_id may be 'l30/L30_V001'
+    batch_dir = os.path.dirname(video_id)
+    vid_name = os.path.basename(video_id)
     candidates = (
-        os.path.join(KEYFRAME_MAP_ROOT, f"{video_id}_map.csv"),
-        os.path.join(os.path.dirname(KEYFRAME_ROOT), "maps", f"{video_id}_map.csv"),
+        os.path.join(KEYFRAME_ROOT, batch_dir, "maps", f"{vid_name}_map.csv"),
+        os.path.join(KEYFRAME_MAP_ROOT, f"{vid_name}_map.csv"),
+        os.path.join(KEYFRAME_ROOT, "maps", f"{vid_name}_map.csv"),
     )
     for path in candidates:
         if os.path.isfile(path):
@@ -743,37 +772,31 @@ def _configure_batch_size():
 
 
 def init_worker(lock, use_gpu):
-    global _worker_ocr, _worker_easyocr, _worker_lock, _worker_gpu, _worker_provider
+    global _worker_ocr, _worker_vietocr, _worker_lock, _worker_gpu, _worker_provider
     _worker_lock = lock
-    _worker_easyocr = None
     _worker_gpu = use_gpu
     _worker_provider = "unknown"
 
     cv2.setNumThreads(1)
-    if not use_gpu:
-        try:
-            import torch
-            torch.set_num_threads(1)
-        except Exception:
-            pass
-
     try:
-        _worker_ocr = _paddle_init(use_gpu)
-        _worker_provider = "paddle-cuda" if use_gpu else "paddle-cpu"
-    except Exception:
-        _logger.exception("PaddleOCR init lỗi")
-        if not ENABLE_EASYOCR_FALLBACK:
-            raise
-        reader = _ensure_easyocr_fallback()
-        if reader is None:
-            raise RuntimeError("PaddleOCR khởi tạo thất bại và EasyOCR fallback không khả dụng.")
-        _worker_provider = "easyocr-cpu-fallback"
-        _worker_gpu = False
+        from paddleocr import PaddleOCR
+        # PaddleOCR for text detection only (fast & lightweight)
+        _worker_ocr = PaddleOCR(use_angle_cls=True, lang="vi", use_gpu=use_gpu, show_log=False)
+        
+        # VietOCR for text recognition (SOTA Vietnamese accuracy)
+        config = Cfg.load_config_from_name("vgg_transformer")
+        config["cnn"]["pretrained"] = False
+        config["device"] = "cuda:0" if use_gpu else "cpu"
+        config["predictor"]["beamsearch"] = False
+        _worker_vietocr = Predictor(config)
+        
+        _worker_provider = "paddle+vietocr-cuda" if use_gpu else "paddle+vietocr-cpu"
+    except Exception as e:
+        _logger.exception("Init lỗi: " + str(e))
+        raise
 
     _configure_batch_size()
-    _logger.info(
-        f"OCR ready | provider={_worker_provider} | pid={os.getpid()} | batch={BATCH_SIZE}"
-    )
+    _logger.info(f"OCR ready | provider={_worker_provider} | pid={os.getpid()} | batch={BATCH_SIZE}")
 
 
 def _result_json(result):
@@ -909,49 +932,52 @@ def ocr_pending_items(items, recent_texts):
 def ocr_batch(images, recent_texts):
     if not images:
         return []
-
-    raw = _paddle_predict(images)
-    if len(raw) != len(images):
-        raw = [None] * len(images)
-
+        
     outputs = []
-    hard_indices = []
-
-    for i, result in enumerate(raw):
-        candidates = parse_paddle_result(result) if result is not None else []
-        ranked = rank_candidates(candidates, recent_texts)
-        outputs.append(
-            {
-                "text": ranked[0]["text"] if ranked else "",
-                "confidence": ranked[0]["confidence"] if ranked else 0.0,
-                "top_candidates": ranked,
-            }
-        )
-        if not ranked or ranked[0]["confidence"] < HARD_CONFIDENCE_THRESHOLD:
-            hard_indices.append(i)
-
-    # Chỉ làm preprocessing/fallback cho frame khó.
-    for i in hard_indices:
-        candidates = parse_paddle_result(raw[i]) if raw[i] is not None else []
-        if ENABLE_HARD_PREPROCESS:
-            for variant, image in preprocess_variants(images[i])[1:]:
-                extra = _paddle_predict([image])
-                if extra:
-                    for item in parse_paddle_result(extra[0]):
-                        item["variant"] = variant
-                        item["source"] = "preprocess"
-                        candidates.append(item)
-
-        if (not candidates or max(x["confidence"] for x in candidates) < HARD_CONFIDENCE_THRESHOLD) and ENABLE_EASYOCR_FALLBACK:
-            candidates.extend(_easyocr_one(images[i]))
-
-        ranked = rank_candidates(candidates, recent_texts)
-        outputs[i] = {
-            "text": ranked[0]["text"] if ranked else "",
-            "confidence": ranked[0]["confidence"] if ranked else 0.0,
-            "top_candidates": ranked,
-        }
-
+    for img in images:
+        try:
+            # Detect boxes only (rec=False saves VRAM and time)
+            result = _worker_ocr.ocr(img, det=True, rec=False, cls=True)
+            if not result or not result[0]:
+                outputs.append({"text": "", "confidence": 0.0, "top_candidates": []})
+                continue
+                
+            boxes = result[0]
+            items = []
+            
+            # Extract and recognize with VietOCR
+            for box in boxes:
+                pts = np.array(box, np.int32)
+                rect = cv2.boundingRect(pts)
+                x, y, w, h = rect
+                # Ensure within bounds
+                x, y = max(0, x), max(0, y)
+                crop_img = img[y:y+h, x:x+w]
+                if crop_img.size == 0: continue
+                
+                pil_img = Image.fromarray(crop_img) # Image is already RGB from preprocess_cv2
+                viet_text, viet_score = _worker_vietocr.predict(pil_img, return_prob=True)
+                
+                if len(viet_text) >= MIN_TEXT_LEN and viet_score >= CONFIDENCE_THRESHOLD:
+                    items.append((float(y), viet_text, float(viet_score)))
+            
+            items.sort(key=lambda x: (x[0], x[1].casefold()))
+            
+            if items:
+                final_text = " | ".join(x[1] for x in items)
+                final_conf = float(np.mean([x[2] for x in items]))
+                outputs.append({
+                    "text": final_text,
+                    "confidence": round(final_conf, 3),
+                    "top_candidates": [{"text": final_text, "confidence": round(final_conf, 3), "source": "vietocr"}]
+                })
+            else:
+                outputs.append({"text": "", "confidence": 0.0, "top_candidates": []})
+                
+        except Exception as e:
+            _logger.warning(f"Lỗi batch OCR: {e}")
+            outputs.append({"text": "", "confidence": 0.0, "top_candidates": []})
+            
     return outputs
 
 
@@ -1354,11 +1380,12 @@ def process_video(video_id):
                 )
             image_items.sort(key=lambda x: (_frame_order_key(x[1]), x[0]))
 
+        safe_video_id = video_id.replace('/', '_').replace('\\', '_')
         output_dir = os.path.dirname(os.path.abspath(OUTPUT_FILE)) or "."
         os.makedirs(output_dir, exist_ok=True)
         try:
             fd, temp_path = tempfile.mkstemp(
-                prefix=f".ocr_{video_id}_",
+                prefix=f".ocr_{safe_video_id}_",
                 suffix=".tmp",
                 dir=output_dir,
             )
@@ -1481,7 +1508,7 @@ def process_video(video_id):
         # no full-video transcript list is loaded into RAM.
         try:
             final_fd, final_temp = tempfile.mkstemp(
-                prefix=f".ocr_final_{video_id}_",
+                prefix=f".ocr_final_{safe_video_id}_",
                 suffix=".tmp",
                 dir=output_dir,
             )
@@ -1638,10 +1665,12 @@ def main():
     )
 
     cleanup_orphaned_temp_files()
-    videos = sorted(
-        name for name in os.listdir(KEYFRAME_ROOT)
-        if name != "maps" and os.path.isdir(os.path.join(KEYFRAME_ROOT, name))
-    )
+    videos = []
+    for p in glob.glob(os.path.join(KEYFRAME_ROOT, "**", "keyframes"), recursive=True):
+        if os.path.isdir(p):
+            rel_dir = os.path.relpath(os.path.dirname(p), KEYFRAME_ROOT).replace("\\", "/")
+            videos.append(rel_dir)
+    videos = sorted(videos)
     done = load_done_videos_and_clean_partial()
     todo = [video_id for video_id in videos if video_id not in done]
 
@@ -1670,32 +1699,54 @@ def main():
     # through Pool initializer under spawn. It is slower than ctx.Lock(),
     # but robust across spawn/forkserver and worker replacement.
     try:
-        with ctx.Manager() as manager:
-            lock = manager.Lock()
-            with ctx.Pool(
-                processes=NUM_WORKERS,
-                initializer=init_worker,
-                initargs=(lock, use_gpu),
-                maxtasksperchild=MAX_TASKS_PER_CHILD,
-            ) as pool:
-                for i, result in enumerate(pool.imap_unordered(process_video, todo), 1):
-                    video_id, frames, ocr_runs, skipped, elapsed, completed = result
-                    total_frames += frames
-                    total_ocr += ocr_runs
-                    total_dup += skipped
-    
-                    if completed:
-                        completed_since_gc += 1
-                        if completed_since_gc >= max(5, NUM_WORKERS * 2):
-                            gc.collect()
-                            completed_since_gc = 0
-    
-                    status = "completed" if completed else "failed"
-                    _logger.info(
-                        f"[{i}/{len(todo)}] {status} {video_id} | "
-                        f"frames={frames} | OCR={ocr_runs} | "
-                        f"dup={skipped} | time={elapsed:.1f}s"
-                    )
+        if NUM_WORKERS == 1:
+            init_worker(None, use_gpu)
+            for i, video_id in enumerate(todo, 1):
+                result = process_video(video_id)
+                video_id, frames, ocr_runs, skipped, elapsed, completed = result
+                total_frames += frames
+                total_ocr += ocr_runs
+                total_dup += skipped
+
+                if completed:
+                    completed_since_gc += 1
+                    if completed_since_gc >= 10:
+                        gc.collect()
+                        completed_since_gc = 0
+
+                status = "completed" if completed else "failed"
+                _logger.info(
+                    f"[{i}/{len(todo)}] {status} {video_id} | "
+                    f"frames={frames} | OCR={ocr_runs} | "
+                    f"dup={skipped} | time={elapsed:.1f}s"
+                )
+        else:
+            with ctx.Manager() as manager:
+                lock = manager.Lock()
+                with ctx.Pool(
+                    processes=NUM_WORKERS,
+                    initializer=init_worker,
+                    initargs=(lock, use_gpu),
+                    maxtasksperchild=MAX_TASKS_PER_CHILD,
+                ) as pool:
+                    for i, result in enumerate(pool.imap_unordered(process_video, todo), 1):
+                        video_id, frames, ocr_runs, skipped, elapsed, completed = result
+                        total_frames += frames
+                        total_ocr += ocr_runs
+                        total_dup += skipped
+
+                        if completed:
+                            completed_since_gc += 1
+                            if completed_since_gc >= max(5, NUM_WORKERS * 2):
+                                gc.collect()
+                                completed_since_gc = 0
+
+                        status = "completed" if completed else "failed"
+                        _logger.info(
+                            f"[{i}/{len(todo)}] {status} {video_id} | "
+                            f"frames={frames} | OCR={ocr_runs} | "
+                            f"dup={skipped} | time={elapsed:.1f}s"
+                        )
     except KeyboardInterrupt:
         _logger.warning("Dừng Ctrl+C. Chỉ video có video_done mới được coi là hoàn tất.")
         return

@@ -183,7 +183,12 @@ function exportKisCSV(fileName) {
     const pathParts = item.src.split('/');
     const videoName = pathParts[pathParts.length - 3];
     const imageName = pathParts[pathParts.length - 1];
-    const imageNumber = imageName.split('_')[1].split('.')[0];
+    let imageNumber;
+    if (imageName.includes('_')) {
+        imageNumber = imageName.split('_')[1].split('.')[0];
+    } else {
+        imageNumber = imageName.split('.')[0];
+    }
     return `${videoName},${imageNumber}`;
   });
 
@@ -199,7 +204,12 @@ function exportVqaCSV(fileName) {
     const pathParts = item.src.split('/');
     const videoName = pathParts[pathParts.length - 3];
     const imageName = pathParts[pathParts.length - 1];
-    const imageNumber = imageName.split('_')[1].split('.')[0];
+    let imageNumber;
+    if (imageName.includes('_')) {
+        imageNumber = imageName.split('_')[1].split('.')[0];
+    } else {
+        imageNumber = imageName.split('.')[0];
+    }
     const vqaInput = vqaInputs[item.frameId] || '0';
     return `${videoName},${imageNumber},${vqaInput}`;
   });
@@ -259,6 +269,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const vqaButton = document.getElementById('vqa');
   const contentWrapper = document.querySelector('.content-wrapper');
 
+  const refineSearchButton = document.getElementById('refine-search');
+
   // Add event listeners
   exportButton.addEventListener('click', toggleExportArea);
   openExportButton.addEventListener('click', toggleExportArea);
@@ -268,6 +280,20 @@ document.addEventListener('DOMContentLoaded', function() {
   resetExportButton.addEventListener('click', resetExportArea);
   kisButton.addEventListener('click', () => toggleTask('kis'));
   vqaButton.addEventListener('click', () => toggleTask('vqa'));
+  if (refineSearchButton) {
+    refineSearchButton.addEventListener('click', () => {
+      const relevantIds = exportedImages.map(img => `${img.frameInfo.split('-')[0]}_${img.frameId}`);
+      if (relevantIds.length > 0) {
+        if (typeof performRefineSearch === 'function') {
+          performRefineSearch(relevantIds);
+        } else {
+          console.error("performRefineSearch is not defined");
+        }
+      } else {
+        alert("Vui lòng thêm ít nhất 1 ảnh vào danh sách để sử dụng tính năng Refine Search!");
+      }
+    });
+  }
 
   // Add drag listeners to images
   addDragListeners();

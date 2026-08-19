@@ -59,7 +59,8 @@ function createImageDiv(result, index) {
     <img alt="${info.frameInfo}" class="result" loading="lazy" id="${index}"
       src="${info.imgSrc}" data-src="${info.imgSrc}">
     <div class="infor">${info.frameInfo}</div>
-    <div name="similarity_search" class="similarity_search" title="Phóng to hình ảnh"></div>
+    <div name="similarity_search" class="similarity_search" title="Tìm kiếm tương tự (Similarity Search)" style="display: flex; justify-content: center; align-items: center; width: 22px; height: 22px; position: absolute; right: 5px; top: 5px; cursor: pointer; z-index: 10; background-color: rgba(0,0,0,0.5); border-radius: 4px;"><i class="fa-solid fa-camera" style="color: white; font-size: 12px;"></i></div>
+    <div name="fullscreen_zoom" class="fullscreen_zoom" title="Phóng to hình ảnh" style="display: flex; justify-content: center; align-items: center; width: 22px; height: 22px; position: absolute; right: 5px; top: 32px; cursor: pointer; z-index: 10; background-color: rgba(0,0,0,0.5); border-radius: 4px;"><i class="fa-solid fa-expand" style="color: white; font-size: 12px;"></i></div>
     <div class="export_icon" title="Thêm vào danh sách xuất"></div>
   `;
 

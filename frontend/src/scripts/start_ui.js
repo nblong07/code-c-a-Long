@@ -154,8 +154,8 @@ document.getElementById("list-photo").addEventListener('click', (event) => {
       showVideo(resultElement);
       event.stopPropagation(); // Prevent the preview frame from being hidden
     }
-  } else if (event.target.classList.contains('similarity_search')) {
-    // Handle similarity search click - Changed to Fullscreen Zoom
+  } else if (event.target.closest('.fullscreen_zoom')) {
+    // Handle Fullscreen Zoom
     event.stopPropagation();
     const imgElement = event.target.closest('.img-dis').querySelector('img');
     if (imgElement && imgElement.src) {
@@ -163,12 +163,19 @@ document.getElementById("list-photo").addEventListener('click', (event) => {
         showFullscreenImage(imgElement.src);
       }
     }
-    // const imageId = data.kq[parseInt(imgElement.id) - 1]?.id;
-    // if (imageId) {
-    //   performSimilaritySearch(imageId);
-    // } else {
-    //   console.error("Invalid image ID for similarity search");
-    // }
+  } else if (event.target.closest('.similarity_search')) {
+    // Handle Similarity Search
+    event.stopPropagation();
+    const inforElement = event.target.closest('.img-dis').querySelector('.infor');
+    if (inforElement) {
+      const parts = inforElement.textContent.split('-');
+      const videoName = parts[0];
+      const frameId = parts[1];
+      const vectorId = `${videoName}_${frameId}`;
+      if (typeof performSimilaritySearch === 'function') {
+        performSimilaritySearch(vectorId);
+      }
+    }
   }
 });
 

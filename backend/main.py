@@ -364,13 +364,13 @@ class TextQueryRequest(BaseModel):
     Next_query: Optional[str] = Field("", alias="secondQuery", description="Mô tả sự kiện tiếp theo (Temporal)")
     text_query: Optional[str] = Field("", description="Mô tả văn bản trực tiếp")
     model: Optional[str] = Field("clip", description="Lựa chọn mô hình: clip, eva-clip, vit-l, vit-b, dinov2, blip, mix")
-    top_k: Optional[int] = Field(1000, description="Số lượng kết quả cần trả về")
+    top_k: Optional[int] = Field(50, description="Số lượng kết quả cần trả về")
 
 
 class ImageQueryRequest(BaseModel):
     image_base64: str = Field(..., description="Chuỗi Base64 của ảnh truy vấn")
     model: Optional[str] = Field("clip", description="Lựa chọn mô hình AI")
-    top_k: Optional[int] = Field(1000, description="Số lượng kết quả cần trả về")
+    top_k: Optional[int] = Field(50, description="Số lượng kết quả cần trả về")
 
 
 class HybridQueryRequest(BaseModel):
@@ -379,14 +379,14 @@ class HybridQueryRequest(BaseModel):
     text_weight: Optional[float] = Field(0.5, description="Trọng số vector văn bản")
     image_weight: Optional[float] = Field(0.5, description="Trọng số vector hình ảnh")
     model: Optional[str] = Field("clip", description="Lựa chọn mô hình AI")
-    top_k: Optional[int] = Field(1000, description="Số lượng kết quả trả về")
+    top_k: Optional[int] = Field(50, description="Số lượng kết quả trả về")
 
 
 class RefineSearchRequest(BaseModel):
     original_vector: List[float]
     relevant_ids: List[str]
     non_relevant_ids: Optional[List[str]] = []
-    top_k: Optional[int] = 1000
+    top_k: Optional[int] = 50
     alpha: Optional[float] = 1.0
     beta: Optional[float] = 0.75
     gamma: Optional[float] = 0.15
@@ -432,6 +432,7 @@ class ServerConfig:
     log_level: str = "INFO"
     gzip_minimum_size: int = 1000
     keyframes_dir: str = "./data-keyframes"
+    video_dirs: List[str] = field(default_factory=lambda: ["C:/video_test", "D:/video_test"])
     api_key: str = ""
 
 
@@ -546,6 +547,18 @@ class MultiModelManager:
             )
 
         self.logger.info(f"Đang nạp mô hình Top-1 SOTA '{key_norm}' ({model_name}, pretrained='{pretrained}') lên {self.device}...")
+        
+        # OOM Prevention for 6GB VRAM: Clear old models before loading new ones
+        if len(self.loaded_models) > 0:
+            self.logger.info(f"Đang giải phóng VRAM các mô hình cũ để tránh tràn bộ nhớ (OOM)...")
+            self.loaded_models.clear()
+            self.loaded_transforms.clear()
+            self.loaded_tokenizers.clear()
+            import gc
+            gc.collect()
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
+
         try:
             model, _, preprocess = open_clip.create_model_and_transforms(
                 model_name,
@@ -995,9 +1008,26 @@ class VectorSearchService:
         beta: float = 0.75,
         gamma: float = 0.15
     ) -> List[float]:
-        q0 = np.array(original_vec, dtype=np.float32)
-        rel_term = np.mean(relevant_vecs, axis=0) if relevant_vecs else np.zeros_like(q0)
-        non_rel_term = np.mean(non_relevant_vecs, axis=0) if non_relevant_vecs else np.zeros_like(q0)
+        # Define base dimension from relevant_vecs or non_relevant_vecs if original_vec is empty
+        base_dim = None
+        if relevant_vecs and len(relevant_vecs[0]) > 0:
+            base_dim = len(relevant_vecs[0])
+        elif non_relevant_vecs and len(non_relevant_vecs[0]) > 0:
+            base_dim = len(non_relevant_vecs[0])
+        elif original_vec and len(original_vec) > 0:
+            base_dim = len(original_vec)
+            
+        if not base_dim:
+            return []
+
+        if original_vec and len(original_vec) == base_dim:
+            q0 = np.array(original_vec, dtype=np.float32)
+        else:
+            q0 = np.zeros(base_dim, dtype=np.float32)
+            alpha = 0.0 # Ignore original_vec if it's empty
+
+        rel_term = np.mean(relevant_vecs, axis=0) if relevant_vecs else np.zeros(base_dim, dtype=np.float32)
+        non_rel_term = np.mean(non_relevant_vecs, axis=0) if non_relevant_vecs else np.zeros(base_dim, dtype=np.float32)
 
         q_new = alpha * q0 + beta * rel_term - gamma * non_rel_term
         norm = np.linalg.norm(q_new)
@@ -1011,7 +1041,7 @@ class VectorSearchService:
         first_query: str,
         second_query: str = "",
         model_name: str = "clip",
-        limit: int = 1000
+        limit: int = 50
     ) -> List[Dict[str, Any]]:
         start_time = time.time()
         try:
@@ -1206,35 +1236,38 @@ def create_app(config_file: str = None) -> FastAPI:
         from fastapi.responses import FileResponse, Response
         import re
 
+        @app.get("/keyframes/maps/{map_name}")
+        async def dynamic_map_handler(map_name: str):
+            for root, _, files in os.walk(kf_path):
+                if "maps" in root and map_name in files:
+                    return FileResponse(os.path.join(root, map_name))
+            return Response(status_code=404)
+
         @app.get("/keyframes/{video_name}/keyframes/{image_name}")
-        async def legacy_keyframe_handler(video_name: str, image_name: str):
-            match = re.search(r'(\d+)', image_name)
-            if match:
-                frame_num = int(match.group(1))
-                base_dir = os.path.join(kf_path, "keyframes", video_name)
-                for fmt in ["{:03d}.jpg", "{:04d}.jpg", "{:03d}.webp", "{:d}.jpg"]:
-                    test_file = os.path.join(base_dir, fmt.format(frame_num))
+        async def dynamic_keyframe_handler(video_name: str, image_name: str):
+            for root, _, files in os.walk(kf_path):
+                if os.path.basename(root) == video_name:
+                    test_file = os.path.join(root, "keyframes", image_name)
                     if os.path.exists(test_file):
                         return FileResponse(test_file)
             return Response(status_code=404)
 
-        app.mount("/keyframes", StaticFiles(directory=kf_path), name="keyframes")
-        service.logger.info(f"Mounted static path keyframes: {kf_path} -> /keyframes")
+        service.logger.info(f"Registered dynamic keyframe handler for: {kf_path}")
 
     frontend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
     if os.path.exists(frontend_path):
         app.mount("/frontend", StaticFiles(directory=frontend_path, html=True), name="frontend")
         service.logger.info(f"Mounted static frontend: {frontend_path} -> /frontend")
 
-    video_setting = os.environ.get("VIDEO_DIR", "D:/video_test")
-    possible_video_paths = [
-        os.path.abspath(video_setting),
-        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", video_setting)),
-        os.path.abspath(os.path.join(os.path.dirname(__file__), video_setting)),
-    ]
-    video_path = next((p for p in possible_video_paths if os.path.exists(p)), None)
-    if video_path:
-        app.mount("/videos", StaticFiles(directory=video_path), name="videos")
+    from fastapi.responses import FileResponse, Response
+    @app.get("/videos/{video_name}")
+    async def dynamic_video_handler(video_name: str):
+        for vdir in config.server.video_dirs:
+            if os.path.exists(vdir):
+                for root, _, files in os.walk(vdir):
+                    if video_name in files:
+                        return FileResponse(os.path.join(root, video_name), media_type="video/mp4")
+        return Response(status_code=404)
 
     @app.get("/")
     async def root():

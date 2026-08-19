@@ -30,7 +30,11 @@
   "max_workers": 8,
   "log_level": "INFO",
   "gzip_minimum_size": 1000,
-  "keyframes_dir": "./Keyframes_L21",
+  "keyframes_dir": "D:/code-c-a-Long/data-keyframes",
+  "video_dirs": [
+    "C:/video_test",
+    "D:/video_test"
+  ],
   "api_key": "aic_challenge_secure_token_2026",
 
   "// Cấu hình Bộ Điều Hướng Adaptive Router & Heuristic Filters": "Tính năng tự chọn mô hình theo dữ liệu",

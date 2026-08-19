@@ -31,3 +31,12 @@ paddleocr>=2.7.3
 paddlepaddle-gpu>=2.6.0
 faster-whisper>=1.0.0
 sherpa-onnx>=1.10.0
+
+# Advanced Models (Added based on other teams)
+vietocr>=0.3.12
+# TransNetV2 requires tensorflow and is installed via github
+tensorflow
+git+https://github.com/soCzech/TransNetV2.git
+# PaddlePaddle requires older protobuf to prevent conflicts with tensorflow
+protobuf<=3.20.2
+FlagEmbedding>=1.2.0

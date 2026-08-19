@@ -239,6 +239,32 @@ function performSimilaritySearch(vectorId) {
     }
 }
 
+/**
+ * Thực hiện Refine Search dựa trên các ảnh đã chọn
+ * @param {Array} relevantIds - Mảng chứa các ID (ví dụ 'L21_V001_1000') của các frame được đánh dấu là relevant
+ */
+function performRefineSearch(relevantIds) {
+    if (socket.readyState === WebSocket.OPEN) {
+        requestTime = performance.now();
+        toggleLoadingIndicator(true);
+        const data = {
+            type: "refine_query",
+            original_vector: [], // Không dùng original_vector, server sẽ tự tính centroid
+            relevant_ids: relevantIds,
+            non_relevant_ids: [],
+            alpha: 1.0,
+            beta: 0.75,
+            gamma: 0.15,
+            top_k: 100
+        };
+        socket.send(JSON.stringify(data));
+    } else {
+        console.error('Main WebSocket chưa mở. Không thể Refine Search.');
+        toggleLoadingIndicator(false);
+    }
+}
+
+
 
 
 

@@ -73,7 +73,12 @@ def detect_model_dim(model, device: torch.device) -> int:
     if dim is None and hasattr(model, "visual") and hasattr(model.visual, "output_dim"):
         dim = model.visual.output_dim
     if dim is None:
-        dummy = torch.zeros(1, 3, 224, 224, device=device)
+        img_size = getattr(model.visual, "image_size", (224, 224))
+        if isinstance(img_size, int):
+            img_size = (img_size, img_size)
+        elif not isinstance(img_size, (tuple, list)):
+            img_size = (224, 224)
+        dummy = torch.zeros(1, 3, img_size[0], img_size[1], device=device)
         with torch.no_grad():
             out = model.encode_image(dummy)
         dim = out.shape[-1]
@@ -217,8 +222,8 @@ def build_index_and_load(collection_name: str, milvus_host: str, milvus_port: st
 
 def parse_args():
     p = argparse.ArgumentParser(description="Milvus Indexer for video keyframe WEBP files.")
-    p.add_argument("--root", type=str, default="./output-keyframes",
-                   help="Root folder containing video keyframe subfolders (default: ./output-keyframes).")
+    p.add_argument("--root", type=str, default="./data-keyframes",
+                   help="Root folder containing video keyframe subfolders (default: ./data-keyframes).")
     p.add_argument("--glob", type=str, default="**/keyframes/*.webp",
                    help="Glob pattern relative to root (default: **/keyframes/*.webp).")
     p.add_argument("--start-index", type=int, default=0, help="Skip first N files.")
@@ -236,7 +241,7 @@ def parse_args():
                    help="Model architecture (default: ViT-SO400M-14-SigLIP-384).")
     p.add_argument("--pretrained", type=str, default="webli",
                    help="Pretrained weights dataset (default: webli).")
-    p.add_argument("--dimension", type=int, default=-1, help="-1 to auto-detect dimension.")
+    p.add_argument("--dimension", type=int, default=1152, help="Vector dimension. Default 1152 for ViT-SO400M-14-SigLIP-384. Use -1 to auto-detect.")
 
     # Performance params
     p.add_argument("--batch-size", type=int, default=32, help="Batch size for image encoding.")

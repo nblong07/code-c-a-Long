@@ -11,6 +11,8 @@ build/
 .eggs/
 *.egg
 .pytest_cache/
+.coverage
+htmlcov/
 
 # Virtual environments
 venv/
@@ -22,40 +24,74 @@ conda-env/
 .conda/
 
 # ===========================
-# Dữ liệu trích xuất (Không commit)
+# Dữ liệu trích xuất & Metadata (Không commit vì rất nặng)
 # ===========================
 *.npy
 *.npz
 *.csv
 *.json
+*.jsonl
 !backend/config.json
 !package.json
 ocr_asr_metadata.json
+ocr_results.jsonl
+asr_results.jsonl
+*.issues.jsonl
 features.npy
 image_paths.npy
 
 # ===========================
-# Thư mục chứa Keyframes & Video (Rất nặng)
+# Trọng số Mô hình AI & Checkpoints (Hàng GB)
+# ===========================
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+*.engine
+*.tflite
+checkpoints/
+models/
+.cache/
+**/.cache/
+
+# ===========================
+# Thư mục chứa Keyframes & Video & Nén (Rất nặng)
 # ===========================
 Keyframes_L21/
 data-keyframes/
 output-keyframes/
 *.webp
+*.jpg
+*.jpeg
+*.png
 *.mp4
 *.m3u8
 *.ts
+*.avi
+*.mkv
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
 
 # ===========================
-# CSDL Vector Milvus & Cấu hình Docker
+# CSDL Vector Milvus & Docker Volumes
 # ===========================
+volumes/
+**/volumes/
 data_pipeline/volumes/
 database/volumes/
 
 # ===========================
-# Frontend config (Quan trọng!)
+# Frontend config & Node modules
 # ===========================
-# Mỗi người tự tạo config.js riêng từ config.example.js
 frontend/src/scripts/config.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # ===========================
 # IDE / Editor & Hệ điều hành
@@ -66,6 +102,10 @@ frontend/src/scripts/config.js
 *.swo
 .DS_Store
 Thumbs.db
+desktop.ini
+*.tmp
+*.bak
+.ocr_*.tmp
 
 # ===========================
 # Logs
@@ -80,3 +120,13 @@ fail_load.txt
 .env.local
 .env.production
 backend/.env
+
+# ===========================
+# Thư mục Tài liệu & Docs cá nhân
+# ===========================
+docs/
+*.ipynb
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+*.pdf
+

@@ -4,6 +4,7 @@ Standalone Feature Extractor â€” Extract CLIP image features to numpy file
 """
 
 import os
+import sys
 import argparse
 import torch
 import torch.nn.functional as F
@@ -11,6 +12,11 @@ import open_clip
 from PIL import Image
 import numpy as np
 from tqdm import tqdm
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
 def parse_args():
@@ -147,131 +153,64 @@ from tqdm import tqdm
 def extract_ocr_from_keyframes(keyframes_dir: str):
     """Trích xuất chữ viết xuất hiện trong khung hình keyframe (OCR)"""
     ocr_results = {}
-    
-    # [TÍCH HỢP CHỌN LỌC] Đọc kết quả từ script test_ocr.py nâng cao nếu có
     advanced_ocr_file = "ocr_results.jsonl"
     if os.path.exists(advanced_ocr_file):
-        print(f"🌟 Đang tích hợp dữ liệu OCR từ mô hình nâng cao ({advanced_ocr_file})...")
+        print(f"🌟 Đang tích hợp dữ liệu OCR từ file {advanced_ocr_file}...")
         try:
             with open(advanced_ocr_file, "r", encoding="utf-8") as f:
                 for line in f:
-                    if not line.strip(): continue
+                    if not line.strip():
+                        continue
                     data = json.loads(line)
-                    # File jsonl của test_ocr lưu các segment có trường 'text'
-                    if "video_path" in data and "text" in data and data["text"]:
-                        # Giả định video_path có thể chứa đường dẫn file ảnh keyframe
+                    text = data.get("text", "").strip()
+                    if not text:
+                        continue
+
+                    if "video_path" in data:
                         path = data["video_path"]
-                        rel_path = os.path.relpath(path, keyframes_dir) if os.path.isabs(path) else path
-                        ocr_results[rel_path] = data["text"]
+                        rel_path = os.path.relpath(path, keyframes_dir).replace("\\", "/") if os.path.isabs(path) else path.replace("\\", "/")
+                    elif "video_id" in data and "frame_id" in data:
+                        vid = data["video_id"].replace("\\", "/")
+                        fid = data["frame_id"]
+                        rel_path = f"{vid}/keyframes/keyframe_{fid}.webp"
+                    else:
+                        continue
+
+                    ocr_results[rel_path] = text
             if ocr_results:
-                print(f"✅ Đã nạp {len(ocr_results)} kết quả OCR nâng cao (có fix lỗi chính tả & CLAHE).")
+                print(f"✅ Đã nạp thành công {len(ocr_results)} bản ghi OCR có chữ.")
                 return ocr_results
         except Exception as e:
-            print(f"⚠️ Lỗi đọc {advanced_ocr_file}: {e}. Rớt xuống (fallback) OCR cơ bản.")
-
-    # Fallback OCR cơ bản
-    try:
-        from paddleocr import PaddleOCR
-        reader = PaddleOCR(use_angle_cls=True, lang='vi', use_gpu=True, show_log=False)
-        use_paddle = True
-    except Exception:
-        use_paddle = False
-        print("⚠️ PaddleOCR chưa sẵn sàng. Chạy chế độ fallback trống.")
-
-    image_paths = []
-    for root, _, files in os.walk(keyframes_dir):
-        for f in files:
-            if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png')):
-                image_paths.append(os.path.join(root, f))
-                
-    print(f"🔍 Đang chạy OCR cơ bản trên {len(image_paths)} keyframes...")
-    for img_path in tqdm(image_paths):
-        rel_path = os.path.relpath(img_path, keyframes_dir)
-        if use_paddle:
-            try:
-                result = reader.ocr(img_path, cls=True)
-                if result and result[0]:
-                    text_list = [line[1][0] for line in result[0] if line is not None and len(line) > 1]
-                    extracted_text = " ".join(text_list)
-                else:
-                    extracted_text = ""
-            except Exception:
-                extracted_text = ""
-        else:
-            extracted_text = ""
-            
-        ocr_results[rel_path] = extracted_text
-
+            print(f"⚠️ Lỗi đọc {advanced_ocr_file}: {e}")
     return ocr_results
 
 def extract_asr_from_videos(videos_dir: str):
     """Trích xuất lời nói từ file audio trong video (ASR Speech-to-Text)"""
     asr_results = {}
-    
-    # [TÍCH HỢP CHỌN LỌC] Đọc kết quả từ script test_asr.py nâng cao nếu có
     advanced_asr_file = "asr_results.jsonl"
     if os.path.exists(advanced_asr_file):
-        print(f"🌟 Đang tích hợp dữ liệu ASR từ mô hình nâng cao ({advanced_asr_file})...")
+        print(f"🌟 Đang tích hợp dữ liệu ASR từ file {advanced_asr_file}...")
         try:
             with open(advanced_asr_file, "r", encoding="utf-8") as f:
                 for line in f:
-                    if not line.strip(): continue
+                    if not line.strip():
+                        continue
                     data = json.loads(line)
-                    # File jsonl của test_asr lưu các segment có text hoặc status
                     if "video_path" in data and "text" in data and data["text"]:
                         v_name = os.path.splitext(os.path.basename(data["video_path"]))[0]
-                        # Gộp text của các segment trong cùng 1 video
                         existing = asr_results.get(v_name, "")
                         asr_results[v_name] = (existing + " " + data["text"]).strip()
             if asr_results:
-                print(f"✅ Đã nạp kết quả ASR nâng cao cho {len(asr_results)} video (có Silero VAD & RingBuffer).")
+                print(f"✅ Đã nạp thành công dữ liệu ASR cho {len(asr_results)} video.")
                 return asr_results
         except Exception as e:
-            print(f"⚠️ Lỗi đọc {advanced_asr_file}: {e}. Rớt xuống (fallback) ASR cơ bản.")
-
-    # Fallback ASR cơ bản
-    try:
-        from backend.asr_sherpa import SherpaZipformerASR
-        sherpa_engine = SherpaZipformerASR()
-        use_sherpa = sherpa_engine.is_ready
-    except Exception:
-        use_sherpa = False
-
-    use_whisper = False
-    if not use_sherpa:
-        try:
-            from faster_whisper import WhisperModel
-            model = WhisperModel("large-v3", device="cuda", compute_type="float16")
-            use_whisper = True
-            print("🎙️ Sử dụng mô hình ASR SOTA Faster-Whisper Large-v3...")
-        except Exception:
-            use_whisper = False
-            print("⚠️ Cả Sherpa-ONNX và Faster-Whisper chưa sẵn sàng. Chạy chế độ fallback trống.")
-    else:
-        print("⚡ Sử dụng mô hình ASR cơ bản Sherpa-ONNX Zipformer...")
-
-    video_paths = glob.glob(os.path.join(videos_dir, "*.mp4")) + glob.glob(os.path.join(videos_dir, "*.mkv"))
-    print(f"🎙️ Đang chạy ASR Speech-to-Text trên {len(video_paths)} video...")
-    for v_path in tqdm(video_paths):
-        v_name = os.path.splitext(os.path.basename(v_path))[0]
-        if use_sherpa:
-            res = sherpa_engine.transcribe_video(v_path)
-            asr_results[v_name] = res.get("text", "")
-        elif use_whisper:
-            try:
-                segments, info = model.transcribe(v_path, beam_size=5)
-                asr_results[v_name] = " ".join([segment.text for segment in segments])
-            except Exception:
-                asr_results[v_name] = ""
-        else:
-            asr_results[v_name] = ""
-
+            print(f"⚠️ Lỗi đọc {advanced_asr_file}: {e}")
     return asr_results
 
 def extract_ocr_asr_main():
     parser = argparse.ArgumentParser(description="Extract OCR and ASR metadata for Hybrid Search.")
     parser.add_argument("--keyframes-dir", type=str, default="./data-keyframes", help="Path to keyframes directory")
-    parser.add_argument("--videos-dir", type=str, default="./data-videos", help="Path to videos directory")
+    parser.add_argument("--videos-dir", type=str, default=r"C:\video_test", help="Path to videos directory")
     parser.add_argument("--output", type=str, default="ocr_asr_metadata.json", help="Path to output JSON")
     args = parser.parse_args()
 

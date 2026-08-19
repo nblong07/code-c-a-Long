@@ -15,8 +15,8 @@ Cách hoạt động:
 với ticker có nhiều tin xen kẽ nhanh, kết quả có thể vẫn cần soát lại
 bằng mắt cho các trường hợp quan trọng.
 
-Cách chạy (trong container):
-  python3 stitch_ticker.py /app/ocr_results.jsonl /app/ocr_stitched.jsonl
+Cách chạy:
+  python data_pipeline/postprocess_ocr_ticker.py ocr_results.jsonl ocr_stitched.jsonl
 """
 import sys
 import json

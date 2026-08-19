@@ -1,209 +1,79 @@
-# Video Keyframe Extraction & Embedding Indexing
+# Data Pipeline — Keyframe Extraction, Multimodal Processing & Milvus Indexing
 
-This repository provides a pipeline for:
-
-1. **Extracting visual keyframes** from videos using [OpenCLIP](https://github.com/mlfoundations/open_clip) similarity filtering.
-2. **Indexing extracted keyframes into [Milvus](https://milvus.io/)** for efficient similarity search and retrieval.
+This folder contains the complete high-performance data processing pipeline for the **AIC Video Retrieval System**.
 
 ---
 
-## 1. Database: Milvus
-
-[Milvus](https://milvus.io/) is a high-performance vector database designed for similarity search.
-In this project, it stores embeddings for keyframe retrieval.
-
-* We use **HNSW (Hierarchical Navigable Small World Graph)** indexing with **cosine similarity**.
-* Schema:
-
-  * `id`: Primary key (INT64)
-  * `filepath`: Path to keyframe image (VARCHAR)
-  * `embedding`: Float vector (e.g. 768-dim from OpenCLIP `ViT-L-14`, auto-detected based on model)
-  * `video_id`: Parent video folder (VARCHAR)
-  * `frame_id`: Frame index in original video (INT64)
-
-For advanced Milvus features (e.g., partitioning, hybrid search, scaling, query optimization), see the official docs:
-👉 [Milvus Documentation](https://milvus.io/docs)
-
----
-
-## Pipeline Overview
+## 🏗️ Architecture & Processing Workflow
 
 ```mermaid
 graph TD
-    A[Video Files] -->|get_keyframes.py| B[Keyframe Images + Map CSVs]
-    B -->|upload_database.py| C[Milvus Collection]
-    C --> D[Vector Search / Retrieval]
-```
-
----
-## 2. Run Milvus with Docker Compose
-This repo includes a ready-to-use **Docker Compose** file to start Milvus and its dependencies.  
-If you haven't installed Docker yet, install **Docker Engine** and **Docker Compose v2** on your machine.
-
-### What this Compose file starts
-- **etcd** (`quay.io/coreos/etcd:v3.5.18`): Metadata storage for Milvus.
-- **minio** (`minio/minio:RELEASE.2024-12-18T13-15-44Z`): Object storage for logs and index files.
-- **standalone** (`milvusdb/milvus:v2.6.2`): Core Milvus vector database engine.
-
-### Quick start
-
-From the repository folder that contains `docker-compose.yml`:
-
-```bash
-# 1) Start in the background
-docker compose up -d
-
-# 2) Watch status
-docker compose ps
-
-# 3) Tail logs (Ctrl+C to stop tailing)
-docker compose logs -f
-```
-
-When everything is healthy, Milvus should accept connections on **port 19530** (gRPC) and **port 9091** (HTTP REST/health).
-
-### Verify the connection (Python)
-
-```python
-from pymilvus import connections, utility
-connections.connect("default", host="localhost", port="19530")
-print("Connected:", utility.get_server_version())
-```
-
-> Tip: If you run Milvus in the cloud or a remote server, replace `localhost` with the server IP/hostname and make sure the port is open in your firewall.
-
-### Stop & clean up
-
-```bash
-# stop containers but keep data
-docker compose stop
-
-# restart containers
-docker compose start
-
-# stop and remove containers (data persists)
-docker compose down
-
-# stop and remove containers + **delete all volumes/data**
-docker compose down -v
-```
----
-
-## 3. Keyframe Extraction
-
-**Script:** `get_keyframes.py`
-
-This script processes a folder of videos, extracts representative keyframes based on cosine similarity of OpenCLIP embeddings, and saves:
-
-* Keyframes as **`.webp` images**
-* Frame-to-time mappings as **CSV files**
-
-### Usage
-
-```bash
-python get_keyframes.py \
-  --input-folder /path/to/videos \
-  --output-base ./output-keyframes \
-  --clip-threshold 0.93 \
-  --skip-frames 5
-```
-
-### Key Arguments
-
-* `--input-folder`: Root folder containing videos (`.mp4` by default).
-* `--output-base`: Where keyframes and maps will be stored (default: `./output-keyframes`).
-* `--clip-threshold`: Cosine similarity threshold (lower similarity → new keyframe, default: `0.93`).
-* `--skip-frames`: Process every `(skip_frames + 1)`th frame (default: `5`).
-* `--pattern`: Glob pattern for video files (default: `*.mp4`).
-* `--batch-size`: Batch size for CLIP visual encoding (default: `32`).
-* `--model`: OpenCLIP model architecture (default: `ViT-L-14`).
-* `--pretrained`: Pretrained weights tag (default: `laion2b_s32b_b82k`).
-* `--cpu`: Force CPU execution instead of GPU.
-
-Each processed video produces:
-
-```
-output-keyframes/
-  ├── maps/
-  │   └── video1_map.csv
-  ├── video1/
-  │   └── keyframes/
-  │       ├── keyframe_150.webp
-  │       ├── keyframe_300.webp
-  │       └── ...
-  └── video2/
-      └── keyframes/...
+    A[Raw Video Files] -->|transnetv2_keyframes.py| B[Keyframe WebP Images + Maps]
+    B -->|extract_ocr_advanced.py| C[ocr_results.jsonl]
+    C -->|postprocess_ocr_ticker.py| C2[ocr_stitched.jsonl]
+    A -->|extract_asr_advanced.py| D[asr_results.jsonl]
+    C & D -->|extract_features.py 2| E[ocr_asr_metadata.json]
+    B -->|upload_database.py| F[(Milvus Vector DB - HNSW 1152d)]
 ```
 
 ---
 
-## 4. Milvus Indexing
+## 🛠️ Scripts & Utilities
 
-**Script:** `upload_database.py`
-
-This script takes the extracted keyframes (`.webp`) and inserts their embeddings into a Milvus collection for fast vector similarity search.
-
-### Features
-
-* GPU and CPU encoding support
-* Batch-wise insertion with configurable flush interval
-* Automatic collection creation with HNSW index and vector dimension detection
-* Option to build HNSW index after ingestion for faster queries
-
-### Usage
+### 1. Keyframe Extraction: `transnetv2_keyframes.py`
+Uses the deep learning **TransNetV2** model to perform scene boundary detection and extract keyframe images in compact `.webp` format with frame-to-time CSV maps.
 
 ```bash
-python upload_database.py \
-  --root ./output-keyframes \
-  --collection-name AIC25_fullbatch1 \
-  --recreate \
-  --build-index
+python data_pipeline/transnetv2_keyframes.py --input-folder "D:/Videos" --output-base "./data-keyframes"
 ```
 
-### Key Arguments
-
-* `--root`: Root folder containing keyframes (default: `./output-keyframes`).
-* `--collection-name`: Milvus collection name (default: `AIC25_fullbatch1`).
-* `--recreate`: Drop and recreate the collection if it exists.
-* `--build-index`: Build HNSW index and load collection after upload.
-* `--batch-size`: Number of keyframes per encoding batch (default: `32`).
-* `--flush-interval`: Flush every N inserts (default: `2000`).
-* `--model`: OpenCLIP model architecture (default: `ViT-L-14`).
-* `--pretrained`: Pretrained weights tag (default: `laion2b_s32b_b82k`).
-* `--cpu`: Force CPU execution instead of GPU.
-
----
-
-### Common issues & fixes
-
-- **Permission denied on volumes**: On Linux, make sure the directory you bind-mount is writable by Docker. You can `chown -R 1000:1000 <data_dir>` if containers run as uid 1000, or use `:z` on SELinux systems.
-- **Ports already in use**: Change the left side of the `host:container` port mapping in `docker-compose.yml`, e.g. `19531:19530`.
-- **Low memory**: Milvus standalone typically needs at least **4–8 GB RAM**. Try closing other apps or upgrading memory if OOM occurs.
-- **ARM Macs**: If the image doesn’t support ARM, add `platform: linux/amd64` to the service in `docker-compose.yml`.
-- **Remote access blocked**: Ensure your firewall/security group allows inbound TCP on the Milvus port (default **19530**) from your client.
-
-### Where to go next
-
-- Create collections and insert vectors using our scripts in this repo (see sections above).
-- Learn advanced features (partitions, indexes, query tuning, backup) in the official docs: https://milvus.io/docs
-
-## Requirements
-
-* Python 3.9+
-* CUDA-enabled GPU(s) recommended for speed
-* Libraries: `torch`, `open_clip_torch`, `tqdm`, `pymilvus`, `PIL`, `opencv-python`
-
-Install dependencies:
+### 2. High-Speed Multimodal OCR: `extract_ocr_advanced.py`
+Multiprocessed pipeline utilizing **PaddleOCR + VietOCR** with dynamic frame deduplication, CLAHE contrast enhancement, and automatic resume from checkpoint.
 
 ```bash
-pip install torch torchvision tqdm opencv-python pillow pymilvus open_clip_torch
+python data_pipeline/extract_ocr_advanced.py
+```
+
+### 3. Ticker Text Postprocessing: `postprocess_ocr_ticker.py`
+Post-processes OCR output to merge overlapping sliding tickers across continuous frames into complete readable text segments.
+
+```bash
+python data_pipeline/postprocess_ocr_ticker.py ocr_results.jsonl ocr_stitched.jsonl
+```
+
+### 4. Audio Speech-to-Text: `extract_asr_advanced.py`
+Transcribes spoken audio tracks from videos using **Faster-Whisper Large-v3** (float16 on GPU) with Silero VAD silence filtering and automatic resume.
+
+```bash
+python data_pipeline/extract_asr_advanced.py
+```
+
+### 5. Metadata Aggregator: `extract_features.py`
+Merges extracted OCR text and ASR speech transcripts into `ocr_asr_metadata.json` for backend search and hybrid ranking.
+
+```bash
+python data_pipeline/extract_features.py 2
+```
+
+### 6. Milvus Vector Uploader & HNSW Indexer: `upload_database.py`
+Encodes all keyframe images with **Google OpenCLIP SigLIP (`ViT-SO400M-14-SigLIP-384`)** into 1152-dimensional vectors and uploads them to Milvus with a high-speed HNSW index (M=32, efConstruction=250).
+
+```bash
+python data_pipeline/upload_database.py --root ./data-keyframes --dimension 1152 --build-index --batch-size 16
 ```
 
 ---
 
-✅ With this pipeline:
+## 🐳 Milvus Vector Database Setup
 
-* You can extract **compact sets of representative frames** from large video datasets.
-* Store them in **Milvus** for fast semantic search and retrieval.
+Start Milvus standalone using Docker Compose:
+
+```bash
+# Start Milvus services
+docker compose -f data_pipeline/docker-compose.yml up -d
+
+# Check running status
+docker compose -f data_pipeline/docker-compose.yml ps
+```
 
 

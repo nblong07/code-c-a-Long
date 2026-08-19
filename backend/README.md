@@ -7,7 +7,7 @@ Tối ưu hóa cho môi trường: **Windows 11, RAM 16GB, GPU NVIDIA 6GB VRAM (
 
 ## ✨ Tính năng chính
 
-- **OpenCLIP `ViT-L-14` (`laion2b_s32b_b82k`)**: Trích xuất embedding 768 chiều chất lượng cao, nhận diện ngữ nghĩa siêu chuẩn xác.
+- **OpenCLIP `ViT-SO400M-14-SigLIP-384` (`webli`)**: Trích xuất embedding 1152 chiều chất lượng cao SOTA, nhận diện ngữ nghĩa siêu chuẩn xác.
 - **Temporal Query**: Tìm kiếm theo chuỗi thời gian (First Query + Next Query) với thuật toán tính điểm khoảng cách thời gian.
 - **Rocchio Relevance Feedback**: Phản hồi tương tác tinh chỉnh vector tìm kiếm theo các keyframe đã chọn.
 - **Real-time WebSocket & REST API**: Hỗ trợ endpoint `/TextQuery` và WebSocket `/ws`.
@@ -18,17 +18,16 @@ Tối ưu hóa cho môi trường: **Windows 11, RAM 16GB, GPU NVIDIA 6GB VRAM (
 ### 1. Cài đặt thư viện
 
 ```bash
-pip install fastapi uvicorn[standard] torch torchvision open_clip_torch pillow pymilvus numpy pydantic python-multipart
+pip install -r requirements.txt
 ```
-*(Hoặc chạy [setup.bat](file:///D:/code-c-a-Long/setup.bat) từ thư mục gốc)*
 
 ### 2. Cấu hình (`config.json`)
 
 Mẫu file `config.json`:
 ```json
 {
-  "clip_model_name": "ViT-L-14",
-  "clip_pretrained": "laion2b_s32b_b82k",
+  "clip_model_name": "ViT-SO400M-14-SigLIP-384",
+  "clip_pretrained": "webli",
   "device": "cuda",
   "milvus_host": "localhost",
   "milvus_port": 19530,
