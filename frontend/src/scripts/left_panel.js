@@ -3,8 +3,22 @@
 function clearAllTextareas() {
     const textareas = document.querySelectorAll('textarea');
     textareas.forEach(textarea => {
-    textarea.value = '';
+        textarea.value = '';
     });
+}
+
+function resetAllQueries() {
+    clearAllTextareas();
+    if (typeof resetTrakeScenes === 'function') {
+        resetTrakeScenes();
+    }
+    // Clear any extra dynamic containers
+    const ocrContainers = document.querySelectorAll('.ocr-container, .asm-container, .asr-container, .object-filter');
+    ocrContainers.forEach(el => el.remove());
+    // Clear quick answer bar if exists
+    const commonInput = document.getElementById('vqa-common-answer');
+    if (commonInput) commonInput.value = '';
+    focusOnFirstTextbox();
 }
 
 // Function to focus on the first textbox in search-scene-1
@@ -45,22 +59,9 @@ function cycleThroughTextboxes() {
 //------------------------------------------------------------------------//
 
 
-document.addEventListener('DOMContentLoaded', function() {
-    const modelButtons = document.querySelectorAll('.model-option button');
-
-    modelButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            modelButtons.forEach(btn => btn.classList.remove('active'));            
-            this.classList.add('active');
-            const model = this.className.split(' ')[0];
-            switchModel(model);
-        });
-    });
-});
-
+// AI Engine Status Bar: Both SigLIP and LLM Omni-Parser are always active in parallel
 function switchModel(model) {
-    // Add your logic here to switch between models
-    console.log(`Switched to ${model} model`);
+    console.log(`Active model engine: Google SigLIP SO400M + LLM Omni-Parser`);
 }
 
 //------------------------------------------------------------------------//
@@ -84,11 +85,13 @@ function insertOcrTextarea() {
                 const newOcrTextarea = document.createElement('textarea');
                 newOcrTextarea.name = 'Ocr_Query';
                 newOcrTextarea.rows = '2';
-                newOcrTextarea.placeholder = 'Search ocr';
+                newOcrTextarea.placeholder = '🔤 Nhập văn bản cần tìm trên ảnh (OCR - Biển tên đường, biển số xe, cổng chùa)...';
+                newOcrTextarea.title = 'Tìm kiếm chữ viết xuất hiện trên video (OCR)';
                 
                 const closeButton = document.createElement('button');
                 closeButton.innerHTML = '&times;';
                 closeButton.className = 'close-ocr-button';
+                closeButton.title = 'Đóng ô tìm kiếm OCR';
                 closeButton.addEventListener('click', function() {
                     ocrContainer.remove();
                 });
@@ -123,11 +126,13 @@ function insertAsmTextarea() {
                 const newAsmTextarea = document.createElement('textarea');
                 newAsmTextarea.name = 'Asm_Query';
                 newAsmTextarea.rows = '2';
-                newAsmTextarea.placeholder = 'Search asm';
+                newAsmTextarea.placeholder = '🎙️ Nhập lời thoại / giọng nói cần tìm (ASR)...';
+                newAsmTextarea.title = 'Tìm kiếm lời thoại / âm thanh phát ra trong video (ASR)';
                 
                 const closeButton = document.createElement('button');
                 closeButton.innerHTML = '&times;';
                 closeButton.className = 'close-asm-button';
+                closeButton.title = 'Đóng ô tìm kiếm ASR';
                 closeButton.addEventListener('click', function() {
                     asmContainer.remove();
                 });
@@ -166,11 +171,13 @@ function insertQunNhiuChienTextarea() {
                 const newQunNhiuChienTextarea = document.createElement('textarea');
                 newQunNhiuChienTextarea.name = 'QunNhiuChien_Query';
                 newQunNhiuChienTextarea.rows = '2';
-                newQunNhiuChienTextarea.placeholder = 'Search QunNhiuChien';
+                newQunNhiuChienTextarea.placeholder = '🛡️ Nhập từ khóa quân nhu / phương tiện chiến thuật...';
+                newQunNhiuChienTextarea.title = 'Tìm kiếm quân nhu / phương tiện chiến đấu';
                 
                 const closeButton = document.createElement('button');
                 closeButton.innerHTML = '&times;';
                 closeButton.className = 'close-QunNhiuChien-button';
+                closeButton.title = 'Đóng ô tìm kiếm quân nhu';
                 closeButton.addEventListener('click', function() {
                     QunNhiuChienContainer.remove();
                 });
@@ -442,90 +449,88 @@ function clearImage(previewContainer, dropInstruction, fileInput) {
 
 
 //------------------------------------------------------------------------//
-// Add new search scene
+// Add new search scene for multi-event TRAKE (Always appends above the bottom button)
 
 function addNewSearchScene() {
-    const searchForm = document.getElementById('Search');
-    const existingScenes = searchForm.querySelectorAll('.Search_Scene');
+    const scenesContainer = document.getElementById('dynamic-scenes-container') || document.getElementById('Search');
+    if (!scenesContainer) return;
+
+    const existingScenes = scenesContainer.querySelectorAll('.Search_Scene');
     const newSceneNumber = existingScenes.length + 1;
 
-    // Create a new search scene based on the original HTML structure
-    const newSceneHTML = `
-        <div class="Search_Scene" id="search-scene-${newSceneNumber}">
-            <div class="tab-buttons">
-                <button type="button" class="text-button active">
-                    <i class="fa-solid fa-font"></i>
-                    <span>Mô tả chữ</span>
-                </button>
-                <button type="button" class="image-button">
-                    <i class="fa-solid fa-image"></i>
-                    <span>Tải ảnh mẫu</span>
-                </button>
-            </div>
-            
-            <div class="mode-button">
-                <button class="temporal-search active">Temporal</button>
-                <button class="query-expansion">Expansion</button>
-            </div>
+    // Create a streamlined new search scene for multi-event TRAKE
+    const newSceneElement = document.createElement('div');
+    newSceneElement.className = 'Search_Scene';
+    newSceneElement.id = `search-scene-${newSceneNumber}`;
+    newSceneElement.style.cssText = 'margin-top: 10px; border: 1px solid #334155; border-radius: 8px; padding: 10px; background: #0F172A; transition: all 0.2s ease;';
 
-            <div class="query-group">
-                <div class="query-content-area">
-                    <textarea name="Text_Query" id="Text-Query-${newSceneNumber}" rows="4" placeholder="Enter query"></textarea>
-                    
-                    <div class="image-drop-area" style="display: none;">
-                        <p class="drop-instruction">Drag and drop image here or click to upload</p>
-                        <input type="file" accept="image/*" style="display: none;" id="Image-Query-${newSceneNumber}">
-                        <div class="preview-upload-container"></div>
-                    </div>
-
-                </div>
+    newSceneElement.innerHTML = `
+        <div class="scene-header-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span class="scene-title-text" style="font-size: 12px; font-weight: 700; color: #00F2FE;">
+                <i class="fa-solid fa-clock-rotate-left"></i> Sự kiện ${newSceneNumber}
+            </span>
+            <button type="button" class="close-scene2-btn" style="background: none; border: none; color: #EF4444; font-size: 18px; font-weight: 700; cursor: pointer; padding: 0 4px; line-height: 1;" title="Xóa Sự kiện ${newSceneNumber}">&times;</button>
+        </div>
+        <div class="query-group">
+            <div class="query-content-area">
+                <textarea name="Text_Query" id="Omni-Query-${newSceneNumber}" rows="3" placeholder="🔍 Nhập mô tả sự kiện ${newSceneNumber}..." style="width: 100%; box-sizing: border-box;"></textarea>
             </div>
         </div>
     `;
 
-    // Create a new element from the HTML string
-    const newScene = document.createElement('div');
-    newScene.innerHTML = newSceneHTML.trim();
-    const newSceneElement = newScene.firstChild;
+    // Set up close button with automatic sequential reindexing
+    const closeButton = newSceneElement.querySelector('.close-scene2-btn');
+    if (closeButton) {
+        closeButton.addEventListener('click', function() {
+            newSceneElement.remove();
+            reindexScenes();
+        });
+    }
 
-    // Add a close button
-    const closeButton = document.createElement('button');
-    closeButton.innerHTML = '&times;';
-    closeButton.className = 'close-scene-button';
-    closeButton.addEventListener('click', function() {
-        newSceneElement.remove();
-    });
-    newSceneElement.style.position = 'relative';
-    newSceneElement.insertBefore(closeButton, newSceneElement.firstChild);
+    scenesContainer.appendChild(newSceneElement);
 
-    // Append the new scene to the search form
-    searchForm.appendChild(newSceneElement);
-
-    // Set up event listeners for the new scene
-    setupSearchScene(newSceneElement);
-
-    // Set up image upload for the new scene
-    const imageDropArea = newSceneElement.querySelector('.image-drop-area');
-    if (imageDropArea) {
-        const newFileInput = imageDropArea.querySelector('input[type="file"]');
-        const newPreviewContainer = imageDropArea.querySelector('.preview-upload-container');
-        setupImageUpload(imageDropArea, newFileInput, newPreviewContainer);
+    // Auto-focus into the newly created event textarea
+    const newTextarea = newSceneElement.querySelector('textarea');
+    if (newTextarea) {
+        newTextarea.focus();
     }
 }
 
-// Set up all existing search scenes when the document loads
-document.addEventListener('DOMContentLoaded', function() {
-    const searchScenes = document.querySelectorAll('.Search_Scene');
-    searchScenes.forEach(setupSearchScene);
-});
+// Re-indexes all scenes sequentially (Sự kiện 2, 3, 4...) when any scene is removed
+function reindexScenes() {
+    const scenesContainer = document.getElementById('dynamic-scenes-container') || document.getElementById('Search');
+    if (!scenesContainer) return;
 
+    const allScenes = scenesContainer.querySelectorAll('.Search_Scene');
+    allScenes.forEach((scene, idx) => {
+        const num = idx + 1;
+        scene.id = `search-scene-${num}`;
+        if (num > 1) {
+            const titleSpan = scene.querySelector('.scene-title-text');
+            if (titleSpan) {
+                titleSpan.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> Sự kiện ${num}`;
+            }
+            const ta = scene.querySelector('textarea[name="Text_Query"]');
+            if (ta) {
+                ta.id = `Omni-Query-${num}`;
+                ta.placeholder = `🔍 Nhập mô tả sự kiện ${num}...`;
+            }
+        }
+    });
+}
 
-function removeAddedScenes() {
-    const searchForm = document.getElementById('Search');
-    const scenes = searchForm.querySelectorAll('.Search_Scene');
+function resetTrakeScenes() {
+    const scenesContainer = document.getElementById('dynamic-scenes-container') || document.getElementById('Search');
+    if (!scenesContainer) return;
+
+    const scenes = scenesContainer.querySelectorAll('.Search_Scene');
     scenes.forEach((scene, index) => {
-        if (index >= 2) { // Keep the first two default scenes
+        if (index >= 1) { // Keep only Scene 1
             scene.remove();
         }
     });
+}
+
+function removeAddedScenes() {
+    resetTrakeScenes();
 }

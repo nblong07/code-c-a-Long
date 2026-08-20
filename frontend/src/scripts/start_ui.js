@@ -2,7 +2,7 @@
 
 
 // Adjust interval as needed
-// Set the favicon
+// Set the Cyber Robot favicon
 let data;
 const link = document.querySelector("link[rel~='icon']") || (() => {
   const newLink = document.createElement('link');
@@ -10,7 +10,7 @@ const link = document.querySelector("link[rel~='icon']") || (() => {
   document.head.appendChild(newLink);
   return newLink;
 })();
-link.href = './src/Img/icons8-heart-80.png';
+link.href = './src/Img/favicon-robot.svg?v=5';
 
 
 
@@ -100,36 +100,46 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initially hide the new-right-panel
   document.querySelector('.show-image-1').style.display = 'block';
   
-  // Add event listener for the new-right-panel
+  // Add event listener for the new-right-panel (images-rows)
   document.getElementById("images-rows").addEventListener('click', (event) => {
     if (event.target.classList.contains('result')) {
       showVideo(event.target);
-      event.stopPropagation(); // Prevent the preview frame from being hidden
-    } else if (event.target.closest('.similarity_search')) {
       event.stopPropagation();
-      const imgElement = event.target.closest('.img-dis').querySelector('img');
+    } else if (event.target.closest('.fullscreen_zoom')) {
+      event.stopPropagation();
+      const imgDis = event.target.closest('.img-dis');
+      const imgElement = imgDis ? imgDis.querySelector('img') : null;
       if (imgElement && imgElement.src) {
         if (typeof showFullscreenImage === 'function') {
-          showFullscreenImage(imgElement.src);
+          showFullscreenImage(imgElement.src, false, imgDis);
+        }
+      }
+    } else if (event.target.closest('.similarity_search')) {
+      event.stopPropagation();
+      const imgDis = event.target.closest('.img-dis');
+      const inforElement = imgDis ? imgDis.querySelector('.infor') : null;
+      const imgElement = imgDis ? imgDis.querySelector('img') : null;
+      const imgSrc = imgElement ? (imgElement.src || imgElement.dataset.src) : '';
+      if (inforElement) {
+        const parts = inforElement.textContent.split('-');
+        const videoName = parts[0];
+        const frameId = parts[1];
+        const vectorId = `${videoName}_${frameId}`;
+        if (typeof performSimilaritySearch === 'function') {
+          performSimilaritySearch(vectorId, imgSrc);
         }
       }
     }
   });
 });
 
-
-
-// Set up event listener for the right panel
+// Set up event listener for the right panel (list-photo)
 document.getElementById("list-photo").addEventListener('click', (event) => {
-  // Check if the clicked element or its parent has the 'result' class
   const resultElement = event.target.closest('.result');
   if (resultElement) {
-
-    // Try different selectors to find the image
     const imgElement = resultElement.querySelector('img') || 
                        resultElement.querySelector('.result-image') || 
                        event.target.closest('img');
-
 
     if (event.ctrlKey) {
       // Ctrl+click on a result: perform group search
@@ -137,10 +147,8 @@ document.getElementById("list-photo").addEventListener('click', (event) => {
       event.stopPropagation();
       
       if (imgElement && data.kq) {
-
         const index = parseInt(imgElement.id) - 1;
         const imageData = data.kq[index];
-
         if (imageData && imageData.id) {
           performGroupSearch(imageData.id);
         } else {
@@ -152,28 +160,32 @@ document.getElementById("list-photo").addEventListener('click', (event) => {
     } else {
       // Normal click on a result: show video
       showVideo(resultElement);
-      event.stopPropagation(); // Prevent the preview frame from being hidden
+      event.stopPropagation();
     }
   } else if (event.target.closest('.fullscreen_zoom')) {
     // Handle Fullscreen Zoom
     event.stopPropagation();
-    const imgElement = event.target.closest('.img-dis').querySelector('img');
+    const imgDis = event.target.closest('.img-dis');
+    const imgElement = imgDis ? imgDis.querySelector('img') : null;
     if (imgElement && imgElement.src) {
       if (typeof showFullscreenImage === 'function') {
-        showFullscreenImage(imgElement.src);
+        showFullscreenImage(imgElement.src, false, imgDis);
       }
     }
   } else if (event.target.closest('.similarity_search')) {
     // Handle Similarity Search
     event.stopPropagation();
-    const inforElement = event.target.closest('.img-dis').querySelector('.infor');
+    const imgDis = event.target.closest('.img-dis');
+    const inforElement = imgDis ? imgDis.querySelector('.infor') : null;
+    const imgElement = imgDis ? imgDis.querySelector('img') : null;
+    const imgSrc = imgElement ? (imgElement.src || imgElement.dataset.src) : '';
     if (inforElement) {
       const parts = inforElement.textContent.split('-');
       const videoName = parts[0];
       const frameId = parts[1];
       const vectorId = `${videoName}_${frameId}`;
       if (typeof performSimilaritySearch === 'function') {
-        performSimilaritySearch(vectorId);
+        performSimilaritySearch(vectorId, imgSrc);
       }
     }
   }
@@ -223,24 +235,19 @@ document.addEventListener('DOMContentLoaded', function() {
   const shortcutList = document.getElementById('shortcut-list');
 
   const shortcuts = [
-    { key: 'Enter', description: 'Trigger the search button' },
-    { key: 'Shift + Enter', description: 'Trigger the filter button' },
-    { key: '/', description: 'Focus on the textbox in first search card' },
-    { key: 'Shift + /', description: 'Cycle through textboxes' },
-    { key: 'Alt + W', description: 'Toggle switch view' },
-    { key: 'Alt + E', description: 'Toggle translate' },
-    { key: 'Ctrl + I', description: 'Add search OCR textarea' },
-    { key: 'Ctrl + J', description: 'Add search object element' },
-    { key: 'Ctrl + K', description: 'Add search ASR textarea' },
-    { key: 'Ctrl + H', description: 'Add a new search scene' },
-    { key: 'Ctrl + Q', description: 'Reset left panel' },
-    { key: 'Ctrl + E', description: 'Clear all textareas' },
-    { key: 'Alt + R', description: 'Switch text and image tabs in search card 1' },
-    { key: 'Alt + T', description: 'Switch text and image tabs in search card 2' },
-    { key: 'Alt + A', description: 'Toggle export area' },
-    { key: 'Alt + S', description: 'Reset export area' },
-    { key: 'Alt + D', description: 'Toggle object list' },
-    { key: 'Alt + X', description: 'Enable preview mode' }
+    { key: 'Enter', description: 'Tìm kiếm ngay (Execute search)' },
+    { key: 'Ctrl + S', description: 'Đóng gói & Nén file submission.zip tự động (Auto-Pack Zip)' },
+    { key: 'Alt + P', description: 'Mở Gói Quản Lý Bài Thi Sơ Tuyển (Open Submission Package)' },
+    { key: 'Alt + A', description: 'Bật/Tắt khay chọn kết quả / Export Area (Toggle Export)' },
+    { key: 'Ctrl + I', description: 'Thêm ô tìm kiếm OCR (Add OCR Query box)' },
+    { key: 'Ctrl + K', description: 'Thêm ô tìm kiếm ASR/Lời thoại (Add ASR Query box)' },
+    { key: 'Ctrl + H', description: 'Thêm phân cảnh thời gian Scene 2 (Add Temporal Scene)' },
+    { key: 'Ctrl + Q', description: 'Xóa bộ lọc & quay về mặc định (Reset search panels)' },
+    { key: 'Ctrl + E', description: 'Xóa sạch chữ các ô (Clear all textboxes)' },
+    { key: 'Alt + R', description: 'Tinh chỉnh vector tự học (Rocchio Refine Search)' },
+    { key: 'Alt + S', description: 'Xóa danh sách ảnh trong khay (Reset export area)' },
+    { key: 'Alt + W', description: 'Đổi chế độ xem lưới / phân nhóm (Toggle Grid/Row view)' },
+    { key: 'Escape', description: 'Đóng cửa sổ phóng to / popup (Close Fullscreen/Modal)' }
   ];
 
   function populateShortcutList() {

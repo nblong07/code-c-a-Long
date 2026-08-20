@@ -46,21 +46,29 @@ def extract_with_transnet(model, video_path, output_dir, resize_factor=0.5, qual
         
         for scene_frames in scenes:
             if not scene_frames: continue
-            # Get middle frame of the scene as keyframe
-            mid_idx = scene_frames[len(scene_frames) // 2]
+            # Get middle frame of the scene as keyframe (0-based index from video stream)
+            mid_idx_0based = scene_frames[len(scene_frames) // 2]
             
-            cap.set(cv2.CAP_PROP_POS_FRAMES, mid_idx)
+            # Frame ID tuân thủ quy định BTC: Frame đầu tiên tính từ frame 1 (1-based index)
+            frame_id_1based = mid_idx_0based + 1
+            
+            cap.set(cv2.CAP_PROP_POS_FRAMES, mid_idx_0based)
             ret, frame = cap.read()
             if ret:
-                kf_path = os.path.join(kf_dir, f"keyframe_{mid_idx}.webp")
+                kf_path = os.path.join(kf_dir, f"keyframe_{frame_id_1based}.webp")
                 save_image_webp(frame, kf_path, quality, resize_factor)
                 
-                msec = cap.get(cv2.CAP_PROP_POS_MSEC)
-                sec = msec / 1000.0
-                f.write(f"{mid_idx},{sec:.3f},{video_name},{msec:.3f},{fps:.2f}\n")
+                # Presentation Time (PTS) theo mili-giây từ luồng video
+                pts_msec = cap.get(cv2.CAP_PROP_POS_MSEC)
+                if pts_msec <= 0 and fps > 0:
+                    pts_msec = (mid_idx_0based / fps) * 1000.0
+                pts_sec = pts_msec / 1000.0
+                
+                # Ghi CSV theo chuẩn DRES: FrameID (1-based), Seconds (PTS), Timestamp_ms (PTS ms)
+                f.write(f"{frame_id_1based},{pts_sec:.3f},{video_name},{pts_msec:.3f},{fps:.2f}\n")
                 
     cap.release()
-    print(f"Extracted {len(scenes)} scenes for {video_name}")
+    print(f"Extracted {len(scenes)} scenes for {video_name} (1-based FrameID, PTS Presentation Time)")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

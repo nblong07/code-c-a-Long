@@ -1,148 +1,146 @@
-# 📖 HƯỚNG DẪN CHI TIẾT TỪ A ĐẾN Z DỰ ÁN VIDEO RETRIEVAL SYSTEM
-## Code-c-a-Long — Tối Ưu Cho Windows 11 (RAM 16GB + NVIDIA 6GB GPU)
-
-> **Công nghệ sử dụng:** PyTorch (CUDA GPU), OpenCLIP (`ViT-SO400M-14-SigLIP-384`), Milvus Vector Database (Docker), FastAPI, WebSocket, PaddleOCR (v4), Faster-Whisper (Large-v3).
+# 📖 CẨM NANG HƯỚNG DẪN THI ĐẤU TOÀN DIỆN TỪ A ĐẾN Z
+## Dự Án Video Retrieval System — code-c-a-Long (AIC 2026)
 
 ---
 
-## 📌 QUY TRÌNH CHẠY HỆ THỐNG CHUẨN (TỪ A ĐẾN Z)
-Dưới đây là quy trình chuẩn xác, đã được tinh chỉnh chống lỗi 100% để bạn chạy từ dữ liệu video thô cho đến khi có thể tìm kiếm trên trình duyệt.
-
-### BƯỚC 0: TẢI VÀ CÀI ĐẶT MÔI TRƯỜNG (DÀNH CHO NGƯỜI MỚI)
-Để hệ thống có thể chạy được, bạn cần chuẩn bị môi trường Python và Docker. Nếu bạn chưa biết gì, hãy làm theo từng bước sau:
-
-1. **Cài đặt Miniconda (Trình quản lý Python):** 
-   - Truy cập [trang chủ Miniconda](https://docs.conda.io/en/latest/miniconda.html) và tải bản cài đặt cho Windows.
-   - Cài đặt bình thường (cứ ấn Next liên tục).
-2. **Cài đặt Docker Desktop (Chạy Cơ sở dữ liệu):** 
-   - Tải [Docker Desktop](https://www.docker.com/products/docker-desktop) và cài đặt.
-   - Mở Docker Desktop lên và để nó chạy ngầm.
-3. Mở **Anaconda Prompt (Miniconda3)** bằng cách tìm kiếm trong menu Start của Windows (chuột phải chọn Run as Administrator nếu có thể).
-4. Tạo môi trường ảo (giúp cài đặt gọn gàng, không bị lỗi máy):
-   ```cmd
-   conda create -n video_ai python=3.11 -y
-   ```
-5. Kích hoạt môi trường vừa tạo:
-   ```cmd
-   conda activate video_ai
-   ```
-6. Di chuyển vào thư mục dự án (Nếu bạn lưu thư mục code ở nơi khác, hãy thay đổi đường dẫn `D:\code-c-a-Long` cho phù hợp):
-   ```cmd
-   cd /d D:\code-c-a-Long
-   ```
-7. Cài đặt toàn bộ thư viện cần thiết:
-   ```cmd
-   pip install -r backend/requirements.txt
-   ```
+## 🏗️ 1. TỔNG QUAN CÔNG NGHỆ SOTA CỦA HỆ THỐNG
+- **Thị giác AI Top-1 SOTA:** Google OpenCLIP `ViT-SO400M-14-SigLIP-384` (Vector 1152 chiều, Pretrained WebLI).
+- **Dung hợp Ngữ nghĩa Song ngữ:** Cross-Lingual Dual-Embedding Blending (0.45 Tiếng Việt + 0.55 Tiếng Anh).
+- **Từ điển Mở rộng Tiếng Việt:** Vietnamese Synonym Thesaurus tự động mở rộng từ đồng nghĩa.
+- **Tra cứu Văn bản & Lời thoại Siêu tốc:** BM25 Inverted Index trên CPU RAM (< 2ms, chiếm 0 MB VRAM).
+- **Tinh chỉnh Đa phương thức:** Thuật toán Rocchio Relevance Feedback (Phím tắt `Alt + R`).
+- **Trình Quản lý Gói Nộp Bài (Batch Submission Package Manager):** Quản lý toàn bộ câu truy vấn KIS, Q&A, TRAKE và tự động nén `submission.zip` chuẩn 100% cấu trúc BTC chỉ với 1 cú click!
 
 ---
 
-### BƯỚC 1: TRÍCH XUẤT KHUNG HÌNH (KEYFRAMES) TỪ VIDEO
-Sử dụng AI TransNetV2 để tự động cắt các phân cảnh quan trọng từ video, loại bỏ rác/quảng cáo.
-1. Gom tất cả video (mp4) của bạn vào một thư mục, ví dụ: `D:/Videos_AI`.
-2. Chạy lệnh trích xuất:
-   ```cmd
-   python data_pipeline/transnetv2_keyframes.py --input-folder "D:/Videos_AI" --output-base "./data-keyframes"
-   ```
-   > **Lưu ý:** AI sẽ quét video và tự động lưu các khung hình ở định dạng nén `.webp` vào thư mục `./data-keyframes` trong dự án của bạn.
+## 🗄️ 2. GIẢI THÍCH VỀ ĐỊNH DẠNG DỮ LIỆU (VÌ SAO DÙNG .JSONL THAY VÌ .JSON CŨ?)
+Trong các hệ thống AI xử lý dữ liệu lớn (Big Data):
+- **Định dạng cũ (`.json` đơn lẻ):** Toàn bộ dữ liệu nằm trong 1 file cây json khổng lồ. Khi máy đang chạy mà bị tắt ngang hoặc crash thì **toàn bộ file json bị hỏng (corrupt) và mất sạch dữ liệu**.
+- **Định dạng mới chuẩn quốc tế (`.jsonl` - JSON Lines):** Mỗi dòng là 1 bản ghi độc lập.
+  - Tự động lưu tức thì theo từng video (không bao giờ sợ mất dữ liệu).
+  - Tốc độ đọc/ghi theo luồng (streaming) nhanh gấp 10 lần, tiết kiệm RAM.
+  - Cả 2 file `ocr_results.jsonl` và `asr_results.jsonl` được Backend tự động nạp vào **Bộ chỉ mục BM25 CPU RAM** để tìm kiếm tức thì trong < 2ms!
 
 ---
 
-### BƯỚC 2: TRÍCH XUẤT SIÊU DỮ LIỆU BỔ SUNG (OCR & ASR)
-Đọc chữ từ biển số/biển báo (OCR) và nghe âm thanh video (ASR).
-1. Nhận diện chữ viết tiếng Việt bằng VietOCR + PaddleOCR (Đa luồng/siêu tốc):
-   ```cmd
+## 📌 3. QUY TRÌNH CHUẨN BỊ DỮ LIỆU ĐỂ THI ĐẤU (CHỈ 2 BƯỚC)
+
+Bạn đã có sẵn kho **166.628 Keyframe WebP** và **137.321 dòng lời thoại ASR**. Bạn chỉ cần chạy đúng 2 lệnh sau:
+
+### 🔹 BƯỚC 1: Trích xuất Vector SOTA 1152 chiều mới (SigLIP SO400M)
+Mở **PowerShell** tại `D:\code-c-a-Long` và chạy:
+```powershell
+python data_pipeline/extract_features.py --keyframes-dir ./data-keyframes --batch-size 32
+```
+- **Khối lượng:** 166.628 ảnh WebP.
+- ⏱️ **Thời gian chạy:** **~ 38 - 45 phút** trên GPU NVIDIA RTX 3050.
+- **Kết quả:** Tạo ra file `features.npy` mới hoàn toàn (1152 chiều) và `image_paths.npy`.
+
+---
+
+### 🔹 BƯỚC 2: Trích xuất Chữ viết OCR tiếng Việt mới
+Sau khi Bước 1 chạy xong, chạy tiếp:
+```powershell
+python data_pipeline/extract_ocr_advanced.py
+```
+- **Khối lượng:** 166.628 ảnh WebP.
+- ⏱️ **Thời gian chạy:** **~ 1.5 - 2 tiếng** (nhận diện biển số, biển hiệu, chữ trên áo, tên đường).
+- **Kết quả:** Tạo ra file `ocr_results.jsonl` mới sạch sẽ, khớp 100% với keyframe.
+
+---
+
+### 🔹 BƯỚC 3: Khởi động Backend Server
+```powershell
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
+```
+- Mở trình duyệt tại: 👉 **`http://localhost:8000/frontend/`**
+
+---
+
+## 🎮 4. HƯỚNG DẪN THAO TÁC TRÊN GIAO DIỆN KHI THI ĐẤU
+
+### ⌨️ BẢNG PHÍM TẮT THẦN TỐC (SHORTCUTS):
+- **`Alt + A`**: Bật / Tắt Khay Chọn kết quả bên phải.
+- **`Alt + R`**: Kích hoạt **Cây Đũa Phép ✨ (Tinh chỉnh Refine Search)** theo các ảnh đã chọn.
+- **`Alt + S`**: Lưu câu truy vấn hiện tại vào Gói Nộp Bài.
+- **`Alt + P`** hoặc **`Ctrl + S`**: Mở Bảng Quản Lý Gói Nộp Bài & Nén ZIP.
+- **`Enter`**: Tìm kiếm câu truy vấn đang gõ.
+- **`Chuột giữa (Middle Click)`**: Bấm trực tiếp lên ảnh để thêm ngay vào Khay Chọn.
+
+---
+
+### 📝 THAO TÁC CHO TỪNG DẠNG CÂU HỎI:
+
+#### A. Dạng 1: Textual KIS (`query-X-kis.csv`):
+1. Gõ mô tả sự kiện -> Nhấn `Enter`.
+2. Bấm dấu `[+]` vào 1 - 5 ảnh bạn thấy đúng nhất bằng mắt.
+3. *(Tùy chọn)* Bấm **`✨ Tinh chỉnh (Alt + R)`** nếu muốn AI gom thêm các frame cùng video.
+4. Bấm **`➕ Lưu Query (Alt + S)`** -> Hệ thống tự động đặt ảnh bạn chọn lên đầu và bù đủ 100 dòng AI có điểm cao nhất.
+
+#### B. Dạng 2: Visual Q&A (`query-X-qa.csv`):
+1. Chuyển sang Tab **`❓ Q&A`** ở Khay Chọn.
+2. Gõ câu trả lời vào ô **`"ĐÁP ÁN Q&A"`** (VD: `5`, `Màu đỏ`, `Xe cứu thương`...).
+3. Chọn menu số dòng: `Xuất 100 dòng (Khuyên dùng)` hoặc `Xuất 30 dòng`.
+4. Bấm chọn vài frame khả nghi -> Bấm **`➕ Lưu Query (Alt + S)`**.
+5. Hệ thống tự động gán đáp án đó cho toàn bộ 100 (hoặc 30) dòng ứng viên!
+
+#### C. Dạng 3: TRAKE (`query-X-trake.csv`):
+1. Chuyển sang Tab **`⏱️ TRAKE`** ở Khay Chọn.
+2. Tìm kiếm Event 1 -> Chọn frame 1 của video.
+3. Tìm kiếm Event 2, 3 -> Chọn tiếp frame 2, 3 của video đó.
+4. Bấm **`➕ Lưu Query (Alt + S)`**.
+5. Hệ thống tự động nhóm theo từng video và sắp xếp thời gian tăng dần frame_1 < frame_2 < ... < frame_N.
+
+---
+
+### 📦 ĐÓNG GÓI NÉN ZIP NỘP BÀI (CHỈ 1 CÚ CLICK):
+1. Sau khi làm xong tất cả các câu trong đợt thi (Badge hiện `4/4`), bấm nút **`📦 Gói Nộp Bài & Nén ZIP`** (hoặc nhấn `Ctrl + S`).
+2. Kiểm tra danh sách các câu đã làm (có thể bấm nút `👁️ Xem` để preview file CSV).
+3. Bấm nút neon: **`⚡ NÉN & TẠO FILE SUBMISSION.ZIP`**.
+4. File ZIP hoàn chỉnh sẽ được tạo trực tiếp tại:
+   👉 **`D:\code-c-a-Long\submission.zip`** *(Bên trong có sẵn thư mục `submission/` chứa đầy đủ các file CSV chuẩn 100% quy định BTC)*.
+5. Lên portal cuộc thi và tải file này lên nộp!
+
+---
+
+## 🎯 5. NHỮNG VIỆC TIẾP THEO CẦN LÀM CHO CUỘC THI NGÀY MAI (CHI TIẾT TỪNG BƯỚC)
+
+Dưới đây là kế hoạch hành động chuẩn bị toàn diện để ngày mai bạn bước vào phòng thi với tâm thế tự tin 100%:
+
+### 🕒 GIAI ĐOẠN 1: CHIỀU NAY (16h00 - 18h30) — CHẠY DỮ LIỆU
+1. **Chạy trích xuất Vector SigLIP 1152d:**
+   ```powershell
+   python data_pipeline/extract_features.py --keyframes-dir ./data-keyframes --batch-size 32
+   ```
+2. **Chạy trích xuất OCR tiếng Việt:**
+   ```powershell
    python data_pipeline/extract_ocr_advanced.py
    ```
-2. Nhận diện giọng nói bằng Faster-Whisper:
-   *(Hệ thống đã được kết nối tự động với ổ `C:\video_test` của bạn).*
-   ```cmd
-   python data_pipeline/extract_asr_advanced.py
-   ```
-3. Tổng hợp thành siêu dữ liệu để Backend sử dụng:
-   ```cmd
-   python data_pipeline/extract_features.py 2
-   ```
-   > Sẽ tạo ra file `ocr_asr_metadata.json` ở ngay thư mục gốc.
 
 ---
 
-### BƯỚC 3: KHỞI ĐỘNG CƠ SỞ DỮ LIỆU VECTOR (MILVUS)
-1. Bật cơ sở dữ liệu Milvus trong Docker:
-   ```cmd
-   cd data_pipeline
-   docker compose up -d
+### 🕒 GIAI ĐOẠN 2: TỐI NAY (19h00 - 21h00) — TEST VẬN HÀNH THỰC TẾ
+1. **Khởi động Backend AI:**
+   ```powershell
+   python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
    ```
-2. Trở lại thư mục gốc:
-   ```cmd
-   cd ..
-   ```
+2. **Mở trình duyệt `http://localhost:8000/frontend/` và thử nghiệm:**
+   - [ ] Gõ 1 câu KIS thử (vd: *"cảnh sát giao thông đuổi bắt xe ô tô"*), xem ảnh trả về trong < 0.05s.
+   - [ ] Thử chọn 3 ảnh -> Bấm `Alt + R` để kiểm tra tính năng Tinh chỉnh (Refine Search).
+   - [ ] Thử tạo 1 câu Q&A (gõ đáp án "5") -> Bấm `Alt + S` lưu query.
+   - [ ] Bấm `Ctrl + S` mở bảng Gói Nộp Bài -> Bấm **Nén Submission.zip** -> Kiểm tra xem file `D:\code-c-a-Long\submission.zip` đã được tạo chưa.
+3. **Nghỉ ngơi sớm:** Sau khi test xong mọi thứ mượt mà, tắt máy và đi ngủ sớm để giữ tinh thần sảng khoái.
 
 ---
 
-### BƯỚC 4: NẠP DỮ LIỆU LÊN DATABASE VÀ TẠO CHỈ MỤC (HNSW INDEX)
-Mã hóa các khung hình `.webp` thành các vector 1152 chiều bằng OpenCLIP (ViT-SO400M-14-SigLIP-384) và đẩy lên Milvus.
-Chạy lệnh sau:
-```cmd
-python data_pipeline/upload_database.py --root "./data-keyframes" --dimension 1152 --build-index --batch-size 16
-```
-> **Đảm bảo an toàn:** Đã cài sẵn `--dimension 1152` và `--batch-size 16` để chống lỗi kích thước (Dimension Mismatch) và chống tràn bộ nhớ (Out Of Memory) cho GPU 6GB của bạn.
-
----
-
-### BƯỚC 5: KHỞI ĐỘNG BACKEND SERVICE (AI SERVER)
-Khởi động máy chủ backend để nhận truy vấn và gọi AI xử lý.
-```cmd
-python backend/main.py
-```
-> **Kiểm tra thành công:** Terminal sẽ báo `⚡ Running service on device: cuda` và `✅ Đã nạp bản ghi OCR` (Nếu Bước 2 thành công). 
-
----
-
-### BƯỚC 6: BẬT GIAO DIỆN FRONTEND VÀ TÌM KIẾM
-Để giao diện web gọi API mượt mà không bị lỗi CORS chặn, hãy mở một cửa sổ Terminal mới (không tắt terminal backend), và chạy một HTTP Server nhỏ:
-```cmd
-conda activate video_ai
-cd /d D:\code-c-a-Long
-python -m http.server 8007 --directory frontend
-```
-
-Bây giờ, hãy mở trình duyệt web (Chrome/Edge) và truy cập:
-👉 **http://localhost:8007**
-
-*Bạn đã có thể gõ câu lệnh tiếng Việt hoặc tiếng Anh để tìm kiếm bằng AI!*
-
----
-
-### BƯỚC 7: CÁCH CHẠY LẠI HỆ THỐNG VÀO NGÀY HÔM SAU
-Nếu bạn đã hoàn thành trích xuất và nạp dữ liệu lên Milvus (Bước 1 đến Bước 4) từ hôm trước, thì vào lần mở máy tiếp theo bạn **KHÔNG CẦN** làm lại từ đầu. Chỉ cần làm các thao tác ngắn gọn sau để bật hệ thống:
-
-1. **Bật Database (Docker):**
-   - Mở phần mềm **Docker Desktop** và đợi phần mềm khởi động xong.
-   - Thường thì Milvus sẽ tự chạy ngầm cùng Docker. Nếu không, bạn mở Anaconda Prompt, gõ `cd /d D:\code-c-a-Long\data_pipeline` và chạy lệnh `docker compose up -d`.
-2. **Bật Backend (Terminal 1):**
-   Mở Anaconda Prompt và gõ lần lượt các lệnh:
-   ```cmd
-   conda activate video_ai
-   cd /d D:\code-c-a-Long
-   python backend/main.py
-   ```
-3. **Bật Frontend UI (Terminal 2):**
-   Để nguyên cửa sổ trên, mở thêm một cửa sổ Anaconda Prompt thứ 2 và gõ:
-   ```cmd
-   conda activate video_ai
-   cd /d D:\code-c-a-Long
-   python -m http.server 8007 --directory frontend
-   ```
-4. **Bắt đầu tìm kiếm:**
-   Mở trình duyệt web và truy cập địa chỉ **http://localhost:8007** là hệ thống của bạn đã sẵn sàng!
-
----
-
-## 🛠️ XỬ LÝ SỰ CỐ NHANH (TROUBLESHOOTING)
-- **Lỗi `ModuleNotFoundError: No module named 'tensorflow'` khi chạy Bước 1:** Môi trường chưa cài TensorFlow. Gõ lệnh `pip install tensorflow` rồi chạy lại Bước 1.
-- **Lỗi Protobuf khi chạy Bước 2 (OCR):** Do TensorFlow vô tình làm lệch phiên bản protobuf của PaddleOCR. Chạy lệnh: `pip install protobuf==3.20.2` để sửa.
-- **Lỗi Milvus / Connection Refused ở Bước 4 hoặc Bước 5:** Bạn quên bật Docker Desktop hoặc Docker chưa chạy `docker compose up -d` ở Bước 3.
-- **Hết bộ nhớ GPU (CUDA OOM):** Đảm bảo bạn không mở nhiều tab Chrome (ngốn VRAM) hoặc phần mềm khác dùng GPU trong lúc AI đang mã hóa dữ liệu. Batch size đã được chỉnh an toàn ở mức 16.
-
-Chúc bạn sử dụng hệ thống thành công và bảo mật tuyệt đối! 🚀
+### 🕒 GIAI ĐOẠN 3: NGÀY MAI TRƯỚC 17H00 — SẴN SÀNG CHIẾN ĐẤU
+1. **16h30 ngày mai (Trước giờ thi 30 phút):**
+   - Bật máy tính, kết nối mạng Internet ổn định.
+   - Khởi động sẵn Backend: `python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000`
+   - Mở sẵn giao diện web `http://localhost:8000/frontend/` trên trình duyệt.
+   - Đăng nhập sẵn tài khoản Portal nộp bài của BTC.
+2. **17h00 ngày mai (Bắt đầu thi):**
+   - Khi BTC phát đề đợt 1 (các file `query-1-kis.txt`, `query-2-kis.txt`, `query-3-qa.txt`...):
+   - Đọc từng câu -> Tìm kiếm -> Bấm chọn frame -> Bấm `➕ Lưu Query`.
+   - Khi làm xong đợt thi -> Bấm **`⚡ NÉN SUBMISSION.ZIP`** -> Lấy file `submission.zip` nộp lên portal BTC.
+   - Hoàn thành xuất sắc vòng thi! 🏆

@@ -19,17 +19,21 @@ function showNotification(message, type = 'success') {
 }
 // Helper function to extract query content from a search scene
 async function getFilterQueryContent(scene) {
-    if (!scene) return { text: '', image: '', qa: '' };
+    if (!scene) return { text: '', ocr: '', asr: '', image: '', qa: '' };
 
     const textInput = scene.querySelector('textarea[name="Text_Query"]');
+    const ocrInput = scene.querySelector('textarea[name="Ocr_Query"], textarea[name="OCR_Query"]');
+    const asrInput = scene.querySelector('textarea[name="Asm_Query"], textarea[name="Asr_Query"]');
     const qaInput = scene.querySelector('textarea[name="QA_Query"]');
     const previewImg = scene.querySelector('.preview-upload-container img');
 
     let textContent = textInput ? textInput.value.trim() : '';
+    let ocrContent = ocrInput ? ocrInput.value.trim() : '';
+    let asrContent = asrInput ? asrInput.value.trim() : '';
     let qaContent = (qaInput && qaInput.parentElement.style.display !== 'none') ? qaInput.value.trim() : '';
     let imageContent = (previewImg && previewImg.src) ? previewImg.src : '';
 
-    return { text: textContent, image: imageContent, qa: qaContent };
+    return { text: textContent, ocr: ocrContent, asr: asrContent, image: imageContent, qa: qaContent };
 }
 
 // Common function for handling filter functionality
@@ -42,6 +46,8 @@ async function handleFilterAction(event) {
     const scenes = document.querySelectorAll('.Search_Scene');
     const allFilters = [];
     const allTextQueries = [];
+    const allOcrQueries = [];
+    const allAsrQueries = [];
     const allImageQueries = [];
     const allQaQueries = [];
 
@@ -57,6 +63,12 @@ async function handleFilterAction(event) {
         }
         if (content.text) {
             allTextQueries.push({ type: 'text', content: content.text });
+        }
+        if (content.ocr) {
+            allOcrQueries.push(content.ocr);
+        }
+        if (content.asr) {
+            allAsrQueries.push(content.asr);
         }
         if (content.qa) {
             allQaQueries.push(content.qa);
@@ -76,17 +88,17 @@ async function handleFilterAction(event) {
 
         // Fetch selected model if available
         const activeModelBtn = document.querySelector('.model-option button.active');
-        // Đọc model key từ className (vd: "clip", "blip", "mix") chứ KHÔNG phải innerText (vd: "DINOv2")
-        // vì className mới là key thực sự được backend nhận diện
         const activeModel = activeModelBtn
-            ? activeModelBtn.className.split(' ').find(c => !['active', 'btn'].includes(c)) || 'clip'
+            ? activeModelBtn.getAttribute('data-model') || activeModelBtn.className.split(' ').find(c => !['active', 'btn'].includes(c)) || 'clip'
             : 'clip';
 
-        jsonString = JSON.stringify({
+        const jsonString = JSON.stringify({
             model: activeModel,
             qaQueries: allQaQueries,
             filters: allFilters,
             textQueries: allTextQueries,
+            ocrtext: allOcrQueries,
+            asmtext: allAsrQueries,
             imageQueries: allImageQueries
         });
 

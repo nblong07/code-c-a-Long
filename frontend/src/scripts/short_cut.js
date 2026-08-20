@@ -4,58 +4,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const originalLeftPanel = document.querySelector('.left-panel').cloneNode(true);
 
     // Enter: trigger the search button
+    // Enter: trigger search
     document.addEventListener('keydown', async function(event) {
         if (event.key === "Enter" && !event.shiftKey) {
             const activeElement = document.activeElement;
-            const searchScene = activeElement.closest('.Search_Scene');
+            const searchScene = activeElement.closest('.Search_Scene') || activeElement.closest('#Search');
     
-            console.log("huhuhuhu");
             if (searchScene) {
                 const isTextInput = activeElement.matches('textarea[name="Text_Query"]') ||
                                     activeElement.matches('textarea[name="Ocr_Query"]') ||
                                     activeElement.matches('textarea[name="Asm_Query"]') ||
+                                    activeElement.matches('textarea[name="Asr_Query"]') ||
+                                    activeElement.matches('textarea[name="QA_Query"]') ||
                                     activeElement.matches('textarea[name="QunNhiuChien_Query"]') ||
-                                    activeElement.closest('.object-filter');
-                
-                const isImageTab = searchScene.querySelector('.image-button').classList.contains('active');
-    
-                if (isTextInput || isImageTab) {
-                    event.preventDefault(); // Prevent default Enter behavior
-                    
-                    
-                    // Collect text queries before performing search
-                    collectTextQueries();
-
-
-                    // Get all search scenes
-                    const searchScenes = document.querySelectorAll('.Search_Scene');
-                    let filledQueriesCount = 0;
-    
-                    // Check how many search groups have content
-                    for (const scene of searchScenes) {
-                        const query = await getQueryContent(scene);
-                        if (query.content) {
-                            filledQueriesCount++;
-                        }
+                                    activeElement.matches('#Omni-Query-First') ||
+                                    activeElement.matches('#Omni-Query-VQA-First');
+                if (isTextInput) {
+                    event.preventDefault();
+                    if (typeof handleFilterAction === 'function') {
+                        handleFilterAction(event);
                     }
-    
-                    toggleLoadingIndicator(true);
-    
-                    // Perform search based on how many search scenes have content
-                    if (isQuickSearch) {
-                        // Quick search mode
-                        // Perform search based on how many search scenes have content
-                        if (filledQueriesCount === 1) {
-                            await performPagnitionCombinedSearch();
-                        } else if (filledQueriesCount > 1) {
-                            await performCombinedSearch();
-                        }
-                    } else {
-                        // Normal search mode
-                        await performCombinedSearch();
-                    }
-    
-                    toggleLoadingIndicator(false);  // Hide loading indicator when done
                 }
             }
         }
@@ -136,16 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Alt + d: Toggle object list
-    document.addEventListener('keydown', function(event) {
-        if (event.altKey && event.key === 'd') {
-            event.preventDefault();
-            const objectListButton = document.getElementById('show-object-list');
-            if (objectListButton) {
-                objectListButton.click(); // Simulate button click to toggle the list
-            }
-        }
-    });
+
 
     // Ctrl + i: Add search OCR textarea
     document.addEventListener('keydown', function(event) {
@@ -187,14 +146,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Ctrl + q: Delete search OCR and search object element
+    // Ctrl + q: Clear all query text and reset to 1 scene
     document.addEventListener('keydown', function(event) {
         if (event.ctrlKey && event.key === 'q') {
             event.preventDefault();
-            resetLeftPanel(originalLeftPanel);
-            clearAllTextareas();
-            removeAddedScenes();
-            focusOnFirstTextbox();
+            if (typeof resetAllQueries === 'function') {
+                resetAllQueries();
+            } else {
+                clearAllTextareas();
+                removeAddedScenes();
+                focusOnFirstTextbox();
+            }
         }
     });
     
@@ -221,52 +183,40 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Alt + r: Switch between text and image tabs in search-scene-1
-    document.addEventListener('keydown', function(event) {
-        if (event.altKey && event.key === 'r') {
-            event.preventDefault();
-            const scene1 = document.getElementById('search-scene-1');
-            const textButton = scene1.querySelector('.text-button');
-            const imageButton = scene1.querySelector('.image-button');
-            const isTextActive = textButton.classList.contains('active');
-            switchTab(scene1, isTextActive ? 'image' : 'text');
-        }
-    });
 
-    // Alt + t: Switch between text and image tabs in search-scene-2
-    document.addEventListener('keydown', function(event) {
-        if (event.altKey && event.key === 't') {
-            event.preventDefault();
-            const scene2 = document.getElementById('search-scene-2');
-            const textButton = scene2.querySelector('.text-button');
-            const imageButton = scene2.querySelector('.image-button');
-            const isTextActive = textButton.classList.contains('active');
-            switchTab(scene2, isTextActive ? 'image' : 'text');
-        }
-    });
 
     // Alt + a: Toggle export area
     document.addEventListener('keydown', function(event) {
-        if (event.altKey && event.key === 'a') {
+        if (event.altKey && (event.key === 'a' || event.key === 'A')) {
           event.preventDefault();
-          toggleExportArea();
+          if (typeof toggleExportArea === 'function') toggleExportArea();
         }
     });
 
-    // Alt + x: Press reset-export-button to delete all images in export area
+    // Alt + p: Open Submission Package Manager Modal
     document.addEventListener('keydown', function(event) {
-        if (event.altKey && event.key === 's') {
+        if (event.altKey && (event.key === 'p' || event.key === 'P')) {
             event.preventDefault();
-            document.getElementById('reset-export').click();
+            if (typeof openSubmissionPackageModal === 'function') openSubmissionPackageModal();
         }
     });
 
-    
-    // Ctrl + s: Trigger submit button
+    // Alt + s: Reset images in export area
     document.addEventListener('keydown', function(event) {
-        if (event.ctrlKey && event.key === 's') {
+        if (event.altKey && (event.key === 's' || event.key === 'S')) {
             event.preventDefault();
-            document.getElementById('submit-button').click();
+            const resetBtn = document.getElementById('reset-export');
+            if (resetBtn) resetBtn.click();
+        }
+    });
+
+    // Ctrl + s: Trigger Pack & Zip Submission
+    document.addEventListener('keydown', function(event) {
+        if (event.ctrlKey && (event.key === 's' || event.key === 'S')) {
+            event.preventDefault();
+            if (typeof packAndZipSubmission === 'function') {
+                packAndZipSubmission();
+            }
         }
     });
 });

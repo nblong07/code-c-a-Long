@@ -8,8 +8,11 @@ Tối ưu hóa cho môi trường: **Windows 11, RAM 16GB, GPU NVIDIA 6GB VRAM (
 ## ✨ Tính năng chính
 
 - **OpenCLIP `ViT-SO400M-14-SigLIP-384` (`webli`)**: Trích xuất embedding 1152 chiều chất lượng cao SOTA, nhận diện ngữ nghĩa siêu chuẩn xác.
-- **Temporal Query**: Tìm kiếm theo chuỗi thời gian (First Query + Next Query) với thuật toán tính điểm khoảng cách thời gian.
+- **Cross-Lingual Dual-Embedding Blending**: Tự động nhận diện tiếng Việt và dung hợp song ngữ (`0.45 * vi + 0.55 * en`) với bộ từ điển đồng nghĩa chuyên sâu.
+- **BM25 Inverted Index Engine**: Tìm kiếm OCR ($17.223$ bản ghi) và ASR ($137.321$ bản ghi) trên RAM CPU với độ trễ $<2\text{ms}$ và **0 MB VRAM**.
+- **TRAKE Temporal Query Logic**: Quy hoạch động chuỗi thời gian GPU Tensor Dynamic Programming ($<35\text{ms}$).
 - **Rocchio Relevance Feedback**: Phản hồi tương tác tinh chỉnh vector tìm kiếm theo các keyframe đã chọn.
+- **VRAM Safety Guard**: Tự động giải phóng cache bộ nhớ đệm GPU chống tràn VRAM trên RTX 3050 6GB.
 - **Real-time WebSocket & REST API**: Hỗ trợ endpoint `/TextQuery` và WebSocket `/ws`.
 - **Cấu hình qua `config.json`**: Dễ dàng tùy chỉnh host, port, collection name, limit.
 

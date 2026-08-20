@@ -75,15 +75,15 @@ button:active {
 .mode-option {
     position: relative;
     display: inline-block;
-    width: 60px;
-    height: 24px;
+    width: 52px;
+    height: 26px;
     flex-shrink: 0;
 }
 .translate-option {
     position: relative;
     display: inline-block;
-    max-width: 60px;
-    height: 24px;
+    max-width: 52px;
+    height: 26px;
 }
 .toggle-checkbox {
     display: none;
@@ -100,9 +100,11 @@ button:active {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #e4d1be;
-    transition: .4s;
-    border-radius: 24px;
+    background-color: #0F172A;
+    border: 1px solid #334155;
+    transition: all .3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 26px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
 }
 .slider:before {
     position: absolute;
@@ -111,82 +113,105 @@ button:active {
     width: 18px;
     left: 3px; 
     bottom: 3px;
-    background-color: white;
-    transition: .4s;
+    background-color: #64748B;
+    transition: all .3s cubic-bezier(0.4, 0, 0.2, 1);
     border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
 }
 input:checked + .slider {
-    background-color: #8B5A2B;
+    background-color: rgba(0, 242, 254, 0.18);
+    border-color: #00F2FE;
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.25);
 }
 input:checked + .slider:before {
-    transform: translateX(36px);
+    transform: translateX(26px);
+    background-color: #00F2FE;
+    box-shadow: 0 0 8px #00F2FE;
 }
 
 /*--------------------------------------------------------------------------*/
-/* System Status Badge & Indicator */
+/* Traffic Light Status Capsule (Không có chữ, 3 đèn Xanh-Vàng-Đỏ) */
 
-.system-status-badge {
+.traffic-light-status {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 14px;
+    height: 26px;
+    box-sizing: border-box;
+    padding: 0 12px;
+    background: #0B1120;
+    border: 1px solid #334155;
     border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    background: #f1f5f9;
-    border: 1px solid #cbd5e1;
-    color: #475569;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 0 8px rgba(0, 242, 254, 0.08);
+    cursor: pointer;
     user-select: none;
+    transition: all 0.3s ease;
 }
 
-.system-status-badge.connected {
-    background: #dcfce7;
-    color: #15803d;
-    border-color: #86efac;
+.traffic-light-status:hover {
+    border-color: #00F2FE;
+    box-shadow: 0 0 12px rgba(0, 242, 254, 0.25);
 }
 
-.system-status-badge.disconnected {
-    background: #fee2e2;
-    color: #b91c1c;
-    border-color: #fca5a5;
-}
-
-.system-status-badge.connecting {
-    background: #fef3c7;
-    color: #b45309;
-    border-color: #fde68a;
-}
-
-.status-dot {
-    width: 10px;
-    height: 10px;
+.traffic-light {
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    display: inline-block;
-    flex-shrink: 0;
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-sizing: border-box;
+    transform: scale(1);
+    opacity: 0.35;
 }
 
-.status-dot.connected {
-    background-color: #22c55e;
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
-    animation: statusPulse 1.8s infinite;
+.traffic-light.red {
+    background-color: #EF4444;
 }
 
-.status-dot.disconnected {
-    background-color: #ef4444;
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
+.traffic-light.yellow {
+    background-color: #F59E0B;
 }
 
-.status-dot.connecting {
-    background-color: #f59e0b;
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
-    animation: statusPulse 1s infinite;
+.traffic-light.green {
+    background-color: #10B981;
 }
 
-@keyframes statusPulse {
-    0% { transform: scale(0.95); opacity: 0.8; }
-    50% { transform: scale(1.15); opacity: 1; }
-    100% { transform: scale(0.95); opacity: 0.8; }
+.traffic-light.red.active {
+    opacity: 1;
+    background-color: #FF2222;
+    transform: scale(1.6);
+    box-shadow: 0 0 10px #FF2222, 0 0 20px rgba(255, 34, 34, 0.85), inset 0 0 2px #FFFFFF;
+    animation: statusPulseRed 1.8s infinite;
+}
+
+.traffic-light.yellow.active {
+    opacity: 1;
+    background-color: #FFCC00;
+    transform: scale(1.6);
+    box-shadow: 0 0 10px #FFCC00, 0 0 20px rgba(255, 204, 0, 0.85), inset 0 0 2px #FFFFFF;
+    animation: statusPulseYellow 1.8s infinite;
+}
+
+.traffic-light.green.active {
+    opacity: 1;
+    background-color: #00FF66;
+    transform: scale(1.6);
+    box-shadow: 0 0 10px #00FF66, 0 0 20px rgba(0, 255, 102, 0.9), inset 0 0 2px #FFFFFF;
+    animation: statusPulseGreen 1.8s infinite;
+}
+
+@keyframes statusPulseGreen {
+    0%, 100% { transform: scale(1.5); box-shadow: 0 0 8px #00FF66, 0 0 16px rgba(0, 255, 102, 0.6); }
+    50% { transform: scale(1.7); box-shadow: 0 0 14px #00FF66, 0 0 26px rgba(0, 255, 102, 0.95); }
+}
+
+@keyframes statusPulseYellow {
+    0%, 100% { transform: scale(1.5); box-shadow: 0 0 8px #FFCC00, 0 0 16px rgba(255, 204, 0, 0.6); }
+    50% { transform: scale(1.7); box-shadow: 0 0 14px #FFCC00, 0 0 26px rgba(255, 204, 0, 0.95); }
+}
+
+@keyframes statusPulseRed {
+    0%, 100% { transform: scale(1.5); box-shadow: 0 0 8px #FF2222, 0 0 16px rgba(255, 34, 34, 0.6); }
+    50% { transform: scale(1.7); box-shadow: 0 0 14px #FF2222, 0 0 26px rgba(255, 34, 34, 0.95); }
 }
 
 /* Main Search Button in Search Card */
@@ -199,15 +224,15 @@ input:checked + .slider:before {
 .card-search-btn {
     width: 100%;
     padding: 12px 20px;
-    background: linear-gradient(135deg, #FF2E63 0%, #D90429 50%, #800020 100%);
-    color: #ffffff;
+    background: linear-gradient(135deg, #6366F1 0%, #00F2FE 100%);
+    color: #0F172A;
     font-size: 15px;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 0.5px;
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(217, 4, 41, 0.35);
+    box-shadow: 0 0 15px rgba(0, 242, 254, 0.35);
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
@@ -216,30 +241,30 @@ input:checked + .slider:before {
 }
 
 .card-search-btn:hover {
-    background: linear-gradient(135deg, #FF4D79 0%, #E60026 50%, #990026 100%);
+    background: linear-gradient(135deg, #4F46E5 0%, #00d2de 100%);
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(217, 4, 41, 0.45);
+    box-shadow: 0 0 25px rgba(0, 242, 254, 0.55);
 }
 
 .card-search-btn:active {
     transform: translateY(1px);
-    box-shadow: 0 2px 8px rgba(217, 4, 41, 0.3);
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
 }
 
 /*--------------------------------------------------------------------------*/
-/* loading indicator*/
+/* Loading indicator */
 
 .loading-indicator {
     position: fixed;
     top: 80px;
     right: 30px;
-    background: rgba(15, 23, 42, 0.92);
+    background: rgba(15, 23, 42, 0.95);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(59, 130, 246, 0.4);
+    border: 1px solid #00F2FE;
     color: #ffffff;
     border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 242, 254, 0.3);
     padding: 16px 24px;
     display: none;
     align-items: center;
@@ -252,8 +277,8 @@ input:checked + .slider:before {
 .spinner {
     width: 32px;
     height: 32px;
-    border: 4px solid rgba(255, 255, 255, 0.2);
-    border-top: 4px solid #3b82f6;
+    border: 4px solid rgba(255, 255, 255, 0.15);
+    border-top: 4px solid #00F2FE;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     flex-shrink: 0;
@@ -283,33 +308,33 @@ input:checked + .slider:before {
 }
 
 @keyframes pulseGlow {
-    0% { box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3); }
-    100% { box-shadow: 0 6px 30px rgba(59, 130, 246, 0.6); }
+    0% { box-shadow: 0 4px 20px rgba(0, 242, 254, 0.2); }
+    100% { box-shadow: 0 6px 30px rgba(0, 242, 254, 0.45); }
 }
 
 /*--------------------------------------------------------------------------*/
 
 /* Tùy chỉnh thanh cuộn cho các trình duyệt dựa trên WebKit */
 ::-webkit-scrollbar {
-    width: 8px; /* Độ rộng của thanh cuộn */
-    height: 8px; /* Chiều cao của thanh cuộn ngang */
+    width: 8px;
+    height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-    background: #f1f1f1; /* Màu nền của track */
+    background: #0B1120;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #888; /* Màu của thanh cuộn */
-    border-radius: 10px; /* Bo tròn các góc */
+    background: #334155;
+    border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #555; /* Màu của thanh cuộn khi hover */
+    background: #6366F1;
 }
 
 /* Tùy chỉnh thanh cuộn cho Firefox */
 * {
-    scrollbar-width: thin; /* Độ rộng của thanh cuộn */
-    scrollbar-color: #888 #f1f1f1; /* Màu của thanh cuộn và track */
+    scrollbar-width: thin;
+    scrollbar-color: #334155 #0B1120;
 }

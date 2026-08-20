@@ -36,6 +36,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
+// Define lazy-loading observer for images
+const imageObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const img = entry.target;
+            if (img.dataset && img.dataset.src && img.src !== img.dataset.src) {
+                img.src = img.dataset.src;
+            }
+            observer.unobserve(img);
+        }
+    });
+}, { rootMargin: '200px' });
+
 let Pagnitionsocket = null; // WebSocket variable
 let currentPage = 0;  // Keep track of the current page
 let currentModelType = 'clip'; // Default model type

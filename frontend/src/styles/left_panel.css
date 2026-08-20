@@ -1,5 +1,5 @@
 /*--------------------------------------------------------------------------*/
-/* content in left panel */
+/* Content in left panel - 8pt Grid spacing */
 
 .Box_Function {
     display: flex;
@@ -7,8 +7,9 @@
     flex: 1;
     overflow-y: auto;
     scrollbar-width: none; 
-    padding: 12px;
-    gap: 12px;
+    padding: 16px;
+    gap: 16px;
+    background-color: var(--card-background);
 }
 .Box_Function::-webkit-scrollbar {
     display: none;
@@ -18,7 +19,7 @@
     background-color: transparent;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -27,95 +28,132 @@
 .model-option-bar {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    background-color: #FFFFFF;
-    border: 1.5px solid var(--border-color);
-    border-radius: 10px;
-    padding: 8px 10px;
-    box-shadow: 0 2px 8px rgba(217, 4, 41, 0.05);
+    gap: 4px;
+    background-color: #1E293B;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 10px;
+    box-shadow: var(--shadow-sm);
 }
 
 .model-bar-label {
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 700;
     color: var(--text-muted);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
+}
+
+.model-bar-label i {
+    color: var(--secondary-color);
 }
 
 .model-option {
     display: flex;
     gap: 4px;
-    background-color: #FAF0F2;
-    padding: 3px;
-    border-radius: 8px;
-    border: 1px solid #F3C6CE;
+    background-color: #0F172A;
+    padding: 2px;
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
 }
 
 .model-option button {
     flex: 1;
-    padding: 6px 4px;
+    padding: 4px 6px;
     border: none;
     background-color: transparent;
     cursor: pointer;
-    color: #5C232B;
-    font-size: 11.5px;
+    color: var(--text-muted);
+    font-size: 10.5px;
     font-weight: 700;
     transition: all 0.2s ease;
-    border-radius: 6px;
+    border-radius: 4px;
 }
 
 .model-option button.active {
-    background: linear-gradient(135deg, #FF2E63 0%, #D90429 100%);
-    color: #FFFFFF;
-    box-shadow: 0 2px 8px rgba(217, 4, 41, 0.3);
+    background: var(--cyber-gradient);
+    color: #0F172A;
+    box-shadow: 0 0 10px var(--secondary-glow);
 }
 
 .model-option button:hover:not(.active) {
-    background-color: #F8E2E6;
-    color: #1F080C;
+    background-color: #334155;
+    color: var(--text-color);
 }
 
 /*--------------------------------------------------------------------------*/
 /* Search Scene container */
 
 .Search_Scene {
-    padding: 12px;
-    border: 1.5px solid var(--border-color);
-    border-radius: 12px;
-    background-color: #FFFFFF;
-    box-shadow: 0 4px 15px rgba(217, 4, 41, 0.08);
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background-color: #1E293B;
+    box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .Search_Scene:focus-within {
-    border-color: #D90429;
-    box-shadow: 0 0 16px rgba(217, 4, 41, 0.28);
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 15px var(--secondary-glow);
 }
 
 .scene-header-title {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: linear-gradient(135deg, #FF2E63 0%, #D90429 100%);
-    color: #FFFFFF;
-    padding: 6px 10px;
+    background-color: #0F172A;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 8px 12px;
     border-radius: 6px;
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 700;
+}
+
+.scene-header-title i {
+    color: var(--secondary-color);
+    margin-right: 4px;
 }
 
 .close-scene2-btn {
     background: transparent;
     border: none;
-    color: white;
+    color: var(--text-muted);
     font-size: 16px;
     cursor: pointer;
     line-height: 1;
+}
+.close-scene2-btn:hover {
+    color: var(--secondary-color);
+}
+
+.clear-query-icon-btn {
+    background: #0F172A;
+    border: 1px solid #334155;
+    color: #94A3B8;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 11.5px;
+    padding: 0;
+}
+
+.clear-query-icon-btn:hover {
+    border-color: #00F2FE;
+    color: #00F2FE;
+    background: rgba(0, 242, 254, 0.12);
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.35);
+    transform: rotate(90deg);
 }
 
 /*--------------------------------------------------------------------------*/
@@ -124,48 +162,48 @@
 .tab-buttons.mode-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: 8px;
 }
 
 .text-button, .image-button, .ocr-button, .asr-button {
-    padding: 8px 10px;
-    border: 1.5px solid #F3C6CE;
-    background-color: #FFFFFF;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    background-color: #0F172A;
     cursor: pointer;
-    color: #381219;
+    color: var(--text-color);
     font-size: 12.5px;
-    font-weight: 700;
-    border-radius: 8px;
+    font-weight: 600;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 6px rgba(217, 4, 41, 0.05);
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
 }
 
 .text-button i, .image-button i, .ocr-button i, .asr-button i {
     font-size: 13px;
-    color: #D90429;
+    color: var(--secondary-color);
     transition: all 0.2s ease;
 }
 
 .text-button:hover, .image-button:hover, .ocr-button:hover, .asr-button:hover {
-    background-color: #FAF0F2;
-    border-color: #D90429;
-    color: #1F080C;
+    background-color: #273549;
+    border-color: var(--secondary-color);
+    color: #00F2FE;
 }
 
 .text-button.active, .image-button.active, .ocr-button.active, .asr-button.active {
-    background: linear-gradient(135deg, #FF2E63 0%, #D90429 50%, #800020 100%);
-    border-color: #9B001C;
-    color: #FFFFFF !important;
+    background: var(--cyber-gradient);
+    border-color: #00F2FE;
+    color: #0F172A !important;
     font-weight: 800;
-    box-shadow: 0 4px 12px rgba(217, 4, 41, 0.35);
+    box-shadow: 0 0 12px var(--secondary-glow);
 }
 
 .text-button.active i, .image-button.active i, .ocr-button.active i, .asr-button.active i {
-    color: #FFFFFF !important;
+    color: #0F172A !important;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -173,74 +211,85 @@
 
 .mode-button {
     display: flex;
-    gap: 4px;
+    gap: 8px;
 }
 
-.temporal-search, .query-expansion {
+.temporal-toggle, .query-expansion {
     flex: 1;
-    padding: 6px;
+    padding: 8px;
     border: 1px solid var(--border-color);
-    background-color: rgba(255, 255, 255, 0.03);
+    background-color: #0F172A;
     color: var(--text-muted);
-    font-size: 11px;
-    font-weight: bold;
+    font-size: 11.5px;
+    font-weight: 700;
     border-radius: 6px;
     cursor: pointer;
     text-align: center;
     transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 }
 
-.temporal-search:hover, .query-expansion:hover {
-    background-color: rgba(255, 255, 255, 0.06);
+.temporal-toggle:hover, .query-expansion:hover {
+    background-color: #273549;
     color: var(--text-color);
+    border-color: #6366F1;
 }
 
-.temporal-search.active, .query-expansion.active {
-    background-color: rgba(16, 185, 129, 0.1);
-    border-color: var(--accent-green);
-    color: var(--accent-green);
+.temporal-toggle.active, .query-expansion.active {
+    background-color: rgba(99, 102, 241, 0.2);
+    border-color: #6366F1;
+    color: #00F2FE;
+    box-shadow: 0 0 8px var(--primary-glow);
 }
 
 /*--------------------------------------------------------------------------*/
 /* Upload image area */
 
 .image-drop-area {
-    border: 2px dashed rgba(255, 255, 255, 0.15);
-    padding: 10px;
-    background-color: rgba(255, 255, 255, 0.01);
-    border-radius: 6px;
+    border: 2px dashed var(--border-color);
+    padding: 12px;
+    background-color: #0F172A;
+    border-radius: 8px;
     cursor: pointer;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    height: 120px;
+    height: 90px;
     position: relative;
     transition: all 0.2s ease;
     box-sizing: border-box;
 }
 
 .image-drop-area:hover {
-    border-color: var(--primary-color);
-    background-color: rgba(59, 130, 246, 0.02);
+    border-color: var(--secondary-color);
+    background-color: rgba(0, 242, 254, 0.08);
 }
 
 .image-drop-area.dragover {
-    border-color: var(--primary-color);
-    background-color: rgba(59, 130, 246, 0.07);
+    border-color: var(--secondary-color);
+    background-color: rgba(0, 242, 254, 0.12);
 }
 
 .drop-instruction {
     margin: 0;
-    font-size: 11px;
+    font-size: 11.5px;
     color: var(--text-muted);
     text-align: center;
     line-height: 1.4;
+    font-weight: 500;
+}
+
+.drop-instruction i {
+    color: var(--secondary-color);
 }
 
 .preview-upload-container {
     width: 100%;
-    height: 100px;
+    height: 70px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -248,9 +297,10 @@
 
 .preview-upload-container img {
     max-width: 100%;
-    max-height: 90px;
+    max-height: 65px;
     object-fit: contain;
     border-radius: 4px;
+    border: 1px solid var(--border-color);
 }
 
 .image-preview-container {
@@ -259,32 +309,33 @@
 }
 .remove-image-button {
     position: absolute;
-    top: 5px;
-    right: 5px;
-    background: rgba(0, 0, 0, 0.65);
+    top: 4px;
+    right: 4px;
+    background: rgba(15, 23, 42, 0.85);
     color: white;
-    border: none;
+    border: 1px solid #334155;
     border-radius: 50%;
     width: 20px;
     height: 20px;
-    font-size: 14px;
+    font-size: 13px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s ease;
+    transition: all 0.2s ease;
 }
 .remove-image-button:hover {
-    background: var(--accent-red);
+    background: #EF4444;
+    border-color: #EF4444;
 }
 
 /*--------------------------------------------------------------------------*/
-/* text area */
+/* Textareas */
 
 .query-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
 }
 
 .query-content-area {
@@ -293,82 +344,101 @@
     position: relative;
 }
 
-textarea[name="Text_Query"], textarea[name="Ocr_Query"], textarea[name="Asm_Query"] {
-    background-color: #FAF0F2;
-    border: 1.5px solid var(--border-color);
+textarea[name="Text_Query"], textarea[name="Ocr_Query"], textarea[name="Asm_Query"], textarea[name="QA_Query"] {
+    background-color: #0F172A;
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    color: #1F080C;
-    font-weight: 600;
+    color: #F8FAFC;
+    font-weight: 500;
     width: 100%;
-    height: 100px;
-    padding: 10px;
+    height: 96px;
+    padding: 10px 12px;
     font-size: 13px;
-    line-height: 1.45;
+    line-height: 1.5;
     resize: none;
     box-sizing: border-box;
     font-family: inherit;
-    transition: border-color 0.2s ease, background-color 0.2s ease;
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-textarea[name="Text_Query"]:focus, textarea[name="Ocr_Query"]:focus, textarea[name="Asm_Query"]:focus {
-    border-color: #D90429;
+textarea[name="Text_Query"]:focus, textarea[name="Ocr_Query"]:focus, textarea[name="Asm_Query"]:focus, textarea[name="QA_Query"]:focus {
+    border-color: var(--secondary-color);
     outline: none;
-    background-color: #FFFFFF;
-    box-shadow: 0 0 12px rgba(217, 4, 41, 0.25);
+    background-color: #0B1120;
+    box-shadow: 0 0 12px var(--secondary-glow);
 }
 
-textarea[name="Text_Query"]::placeholder, textarea[name="Ocr_Query"]::placeholder, textarea[name="Asm_Query"]::placeholder {
-    color: #8C404D;
-    font-weight: 500;
-    opacity: 0.85;
+textarea[name="Text_Query"]::placeholder, textarea[name="Ocr_Query"]::placeholder, textarea[name="Asm_Query"]::placeholder, textarea[name="QA_Query"]::placeholder {
+    color: var(--text-light);
+    font-weight: 400;
+}
+
+.ocr-container, .asm-container {
+    position: relative;
+    margin-top: 8px;
+}
+
+.close-ocr-button, .close-asm-button {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    background: #334155;
+    border: none;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 13px;
+    color: #94A3B8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.close-ocr-button:hover, .close-asm-button:hover {
+    background: #EF4444;
+    color: white;
 }
 
 .main-search-btn-container {
     margin-top: 4px;
 }
 
+/* CTA Button - Cyber Neon Gradient (#6366F1 to #00F2FE) */
 .card-search-btn, #search-button {
     width: 100%;
-    padding: 11px;
-    background: linear-gradient(135deg, #FF2E63 0%, #D90429 50%, #800020 100%);
+    padding: 12px;
+    background: var(--cyber-gradient);
     border: none;
     border-radius: 8px;
-    color: #FFFFFF;
+    color: #0F172A;
     font-size: 14px;
     font-weight: 800;
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(217, 4, 41, 0.35);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 15px var(--secondary-glow);
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
+    letter-spacing: 0.3px;
 }
 
 .card-search-btn:hover, #search-button:hover {
-    box-shadow: 0 6px 20px rgba(217, 4, 41, 0.5);
-    transform: translateY(-2px);
-    background: linear-gradient(135deg, #FF4D79 0%, #E60026 50%, #990026 100%);
+    background: var(--cyber-gradient-hover);
+    box-shadow: 0 0 25px var(--secondary-glow);
+    transform: translateY(-1px);
 }
 
 #filter-button {
-    background-color: rgba(255, 255, 255, 0.07);
+    background-color: #0F172A;
     color: var(--text-color);
     border: 1px solid var(--border-color);
 }
 
 #filter-button:hover {
-    background-color: rgba(255, 255, 255, 0.12);
+    background-color: #273549;
+    border-color: var(--border-hover);
     transform: translateY(-1px);
-}
-
-/* Translate switch button styling */
-.translate-option {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    margin-top: 4px;
-    font-size: 12px;
-    color: var(--text-muted);
 }

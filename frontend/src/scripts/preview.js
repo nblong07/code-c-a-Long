@@ -246,39 +246,79 @@ if (videoFrames) {
 
 
 // Show the image in fullscreen mode with navigation controls
-function showFullscreenImage(src, isLeftPreview = false) {
+let currentFullscreenContext = {
+  type: 'search', // 'search' or 'video'
+  currentIndex: 1,
+  totalResults: 100,
+  currentFrameNumber: 0,
+  directory: ''
+};
+
+function showFullscreenImage(src, isLeftPreview = false, targetElement = null) {
   const container = document.getElementById('fullscreen-image-container');
   const image = document.getElementById('fullscreen-image');
-  const navigation = document.getElementById('fullscreen-navigation');
-  const imageIndex = document.getElementById('image-index');
+  const titleEl = document.getElementById('fullscreen-frame-title');
+  const ocrBadge = document.getElementById('fullscreen-ocr-badge');
+  const ocrTextEl = document.getElementById('fullscreen-ocr-text');
   
+  if (!container || !image) return;
+
   image.src = src;
   container.style.display = 'flex';
-  container.dataset.previewType = isLeftPreview ? 'left' : 'right';
 
-  if (isLeftPreview) {
-    const leftPreview = document.querySelector('.left-preview');
-    const positionIndex = leftPreview.querySelector('.positionIndex').textContent;
-    imageIndex.textContent = positionIndex;
-    imageIndex.style.display = 'block';
-  } else {
-    const rightPreview = document.querySelector('.right-preview');
-    const frameInfo = rightPreview.querySelector('.infor').textContent;
-    const frameNumber = frameInfo.split('-')[1];
-    imageIndex.textContent = frameNumber;
-    imageIndex.style.display = 'block';
+  // Determine context
+  let imgDis = null;
+  if (targetElement) {
+    imgDis = targetElement.closest ? targetElement.closest('.img-dis, .frame-container') : null;
+  }
+  
+  if (!imgDis && event && event.target) {
+    imgDis = event.target.closest('.img-dis, .frame-container');
   }
 
-  navigation.style.display = 'block';
+  if (imgDis && imgDis.classList.contains('img-dis')) {
+    currentFullscreenContext.type = 'search';
+    const index = parseInt(imgDis.dataset.index || imgDis.querySelector('.result')?.id || '1');
+    currentFullscreenContext.currentIndex = isNaN(index) ? 1 : index;
+
+    const infoText = imgDis.querySelector('.infor')?.textContent || '';
+    const ocrText = imgDis.dataset.ocr || imgDis.querySelector('.ocr-text-tag')?.textContent || '';
+
+    if (titleEl) titleEl.textContent = `Kết quả #${currentFullscreenContext.currentIndex} | ${infoText}`;
+    if (ocrBadge && ocrTextEl) {
+      if (ocrText) {
+        ocrTextEl.textContent = ocrText.replace('Văn bản nhận diện (OCR):', '').trim();
+        ocrBadge.style.display = 'inline-flex';
+      } else {
+        ocrBadge.style.display = 'none';
+      }
+    }
+  } else {
+    // Video frames strip or Right Preview context
+    currentFullscreenContext.type = 'video';
+    const framesContainer = document.querySelector('.frames-container');
+    currentFullscreenContext.directory = framesContainer ? (framesContainer.dataset.directory || '') : '';
+    
+    let frameNumber = 0;
+    const srcParts = src.split('/');
+    const lastPart = srcParts[srcParts.length - 1] || '';
+    if (lastPart.includes('_')) {
+      frameNumber = parseInt(lastPart.split('_')[1].split('.')[0]) || 0;
+    }
+    currentFullscreenContext.currentFrameNumber = frameNumber;
+
+    if (titleEl) titleEl.textContent = `Khung hình: ${frameNumber}`;
+    if (ocrBadge) ocrBadge.style.display = 'none';
+  }
+
+  document.removeEventListener('keydown', handleEscapeKey);
   document.addEventListener('keydown', handleEscapeKey);
 }
 
 // Hide the fullscreen image and remove event listeners
 function hideFullscreenImage() {
   const container = document.getElementById('fullscreen-image-container');
-  container.style.display = 'none';
-
-  // Remove event listener for Escape key
+  if (container) container.style.display = 'none';
   document.removeEventListener('keydown', handleEscapeKey);
 }
 
@@ -289,123 +329,137 @@ function handleEscapeKey(event) {
   }
 }
 
-// Navigate between images in fullscreen mode using direction
+// Navigate between images in fullscreen mode using direction (-1 for prev, +1 for next)
 function navigateFullscreenImage(direction) {
   const container = document.getElementById('fullscreen-image-container');
   const image = document.getElementById('fullscreen-image');
-  const imageIndex = document.getElementById('image-index');
-  const isLeftPreview = container.dataset.previewType === 'left';
-  const srcParts = (image && image.src) ? image.src.split('/') : [];
-  const lastPart = srcParts[srcParts.length - 1] || '';
-  const frame_id = lastPart.includes('_') ? lastPart.split('_')[1].split('.')[0] : '0';
-  if (isLeftPreview) {
-    const currentIndex = parseInt(imageIndex.textContent);
-    const newIndex = currentIndex + direction;
-    
-    const nextImage = document.querySelector(`.result[id="${newIndex}"], .export-image[id="${newIndex}"]`);
-    
-    if (nextImage) {
-      image.src = nextImage.src;
-      imageIndex.textContent = newIndex;
-      // Update left preview information
-      const leftPreview = document.querySelector('.left-preview');
-      const previewImage = leftPreview.querySelector('#preview-image');
-      const previewInfo = leftPreview.querySelector('.infor');
-      const positionIndexElement = leftPreview.querySelector('.positionIndex');
+  const titleEl = document.getElementById('fullscreen-frame-title');
+  const ocrBadge = document.getElementById('fullscreen-ocr-badge');
+  const ocrTextEl = document.getElementById('fullscreen-ocr-text');
+  
+  if (!container || container.style.display !== 'flex' || !image) return;
+
+  if (currentFullscreenContext.type === 'search') {
+    // Navigate along search result list
+    const visibleContainer = document.querySelector('.show-image-1').style.display !== 'none' 
+      ? document.getElementById('list-photo') 
+      : document.getElementById('images-rows');
+
+    const allCards = Array.from(visibleContainer.querySelectorAll('.img-dis'));
+    if (!allCards || allCards.length === 0) return;
+
+    let targetIndex = currentFullscreenContext.currentIndex + direction;
+    if (targetIndex < 1) targetIndex = allCards.length; // wrap around
+    if (targetIndex > allCards.length) targetIndex = 1; // wrap around
+
+    const nextCard = allCards.find(c => parseInt(c.dataset.index) === targetIndex) || allCards[targetIndex - 1];
+    if (nextCard) {
+      currentFullscreenContext.currentIndex = targetIndex;
+      const nextImg = nextCard.querySelector('img');
+      const infoText = nextCard.querySelector('.infor')?.textContent || '';
+      const ocrText = nextCard.dataset.ocr || nextCard.querySelector('.ocr-text-tag')?.textContent || '';
+
+      if (nextImg) image.src = nextImg.src || nextImg.dataset.src;
+      if (titleEl) titleEl.textContent = `Kết quả #${targetIndex} | ${infoText}`;
       
-      previewImage.src = nextImage.src;
-      previewInfo.textContent = nextImage.closest('.img-dis').querySelector('.infor').textContent;
-      positionIndexElement.textContent = newIndex;
+      if (ocrBadge && ocrTextEl) {
+        if (ocrText) {
+          ocrTextEl.textContent = ocrText.replace('Văn bản nhận diện (OCR):', '').trim();
+          ocrBadge.style.display = 'inline-flex';
+        } else {
+          ocrBadge.style.display = 'none';
+        }
+      }
     }
   } else {
-    // Navigation for right preview
-    // Right preview navigation (updated)
-    const currentFrame = parseInt(imageIndex.textContent);
-    const newFrame = currentFrame + direction;
-    
-    const framesContainer = document.querySelector('.frames-container');
-    const directory = framesContainer.dataset.directory;
-    
-    // Find the index of the current frame in the globalFrameList
-    const currentIndex = globalFrameList.indexOf(currentFrame);
-    if (currentIndex === -1) {
-      console.error("Current frame not found in global frame list");
-      return;
+    // Navigate along video frame strip
+    if (globalFrameList && globalFrameList.length > 0) {
+      const curIdx = globalFrameList.indexOf(currentFullscreenContext.currentFrameNumber);
+      let newIdx = (curIdx !== -1 ? curIdx : 0) + direction;
+      if (newIdx < 0) newIdx = globalFrameList.length - 1;
+      if (newIdx >= globalFrameList.length) newIdx = 0;
+
+      const newFrameNumber = globalFrameList[newIdx];
+      currentFullscreenContext.currentFrameNumber = newFrameNumber;
+
+      const framesContainer = document.querySelector('.frames-container');
+      const directory = framesContainer ? framesContainer.dataset.directory : currentFullscreenContext.directory;
+      const newSrc = `${directory}keyframe_${newFrameNumber}.webp`;
+
+      image.src = newSrc;
+      if (titleEl) titleEl.textContent = `Khung hình: ${newFrameNumber}`;
+      if (ocrBadge) ocrBadge.style.display = 'none';
+
+      // Also sync right preview if function exists
+      if (typeof updateMainFrame === 'function') {
+        const videoName = typeof parseVideoNameFromDirOrInfo === 'function' ? parseVideoNameFromDirOrInfo(directory, '') : 'video';
+        updateMainFrame(newFrameNumber, directory, `${videoName}-${newFrameNumber}`);
+      }
     }
-    
-    // Calculate the new index
-    const newIndex = currentIndex + direction;
-    if (newIndex < 0 || newIndex >= globalFrameList.length) {
-      console.log("Reached the end of frame list");
-      return;
-    }
-    
-    // Get the new frame number from the globalFrameList
-    const newFrameNumber = globalFrameList[newIndex];
-    
-    // Update the fullscreen image
-    const newSrc = `${directory}keyframe_${newFrameNumber}.webp`;
-    image.src = newSrc;
-    imageIndex.textContent = newFrameNumber;
-    
-    // Update the right preview
-    const rightPreview = document.querySelector('.right-preview');
-    const currentPreview = rightPreview.querySelector('#current-preview');
-    const currentPreviewInfo = rightPreview.querySelector('.infor');
-    
-    currentPreview.src = newSrc;
-    const videoName = typeof parseVideoNameFromDirOrInfo === 'function' ? parseVideoNameFromDirOrInfo(directory, currentPreviewInfo ? currentPreviewInfo.textContent : '') : (directory.split('/').filter(Boolean).slice(-2)[0] || 'video');
-    currentPreviewInfo.textContent = `${videoName}-${newFrameNumber}`;
-    
-    // Update the main frame in the video frames section
-    updateMainFrame(newFrameNumber, directory, `${videoName}-${newFrameNumber}`);
   }
 }
 
 // Event listeners for fullscreen image controls
 document.addEventListener('DOMContentLoaded', () => {
-  const previewFrame = document.getElementById('preview-frame');
   const fullscreenContainer = document.getElementById('fullscreen-image-container');
   const closeFullscreenButton = document.getElementById('close-fullscreen-button');
   const prevFrameButton = document.getElementById('prev-frame-button');
   const nextFrameButton = document.getElementById('next-frame-button');
+  const prevArrow = document.getElementById('fullscreen-prev-arrow');
+  const nextArrow = document.getElementById('fullscreen-next-arrow');
+  const addExportBtn = document.getElementById('fullscreen-add-export-btn');
 
-  previewFrame.addEventListener('dblclick', (e) => {
-    if (e.target.tagName === 'IMG') {
-      const isLeftPreview = e.target.closest('.preview-container').classList.contains('left-preview');
-      showFullscreenImage(e.target.src, isLeftPreview);
-    }
-  });
+  if (closeFullscreenButton) closeFullscreenButton.addEventListener('click', hideFullscreenImage);
+  if (prevFrameButton) prevFrameButton.addEventListener('click', () => navigateFullscreenImage(-1));
+  if (nextFrameButton) nextFrameButton.addEventListener('click', () => navigateFullscreenImage(1));
+  if (prevArrow) prevArrow.addEventListener('click', () => navigateFullscreenImage(-1));
+  if (nextArrow) nextArrow.addEventListener('click', () => navigateFullscreenImage(1));
 
-  closeFullscreenButton.addEventListener('click', hideFullscreenImage);
+  if (addExportBtn) {
+    addExportBtn.addEventListener('click', () => {
+      const img = document.getElementById('fullscreen-image');
+      if (img && img.src) {
+        const srcParts = img.src.split('/');
+        const lastPart = srcParts[srcParts.length - 1] || '';
+        const frameId = lastPart.includes('_') ? lastPart.split('_')[1].split('.')[0] : '0';
+        const titleText = document.getElementById('fullscreen-frame-title')?.textContent || '';
+        const info = titleText.includes('|') ? titleText.split('|')[1].trim() : `frame-${frameId}`;
+        if (typeof addImageToExportArea === 'function') {
+          addImageToExportArea(frameId, img.src, info);
+          if (typeof showNotification === 'function') {
+            showNotification('Đã thêm ảnh vào danh sách xuất / nộp bài!', 'success');
+          }
+        }
+      }
+    });
+  }
 
-  prevFrameButton.addEventListener('click', () => navigateFullscreenImage(-1));
-  nextFrameButton.addEventListener('click', () => navigateFullscreenImage(1));
-
-  fullscreenContainer.addEventListener('click', (e) => {
-    if (e.target === fullscreenContainer) {
-      hideFullscreenImage();
-    }
-  });
+  if (fullscreenContainer) {
+    fullscreenContainer.addEventListener('click', (e) => {
+      if (e.target === fullscreenContainer) {
+        hideFullscreenImage();
+      }
+    });
+  }
 });
 
-
-const prevFrameButton = document.getElementById('prev-frame-button');
-const nextFrameButton = document.getElementById('next-frame-button');
-
-prevFrameButton.addEventListener('click', () => navigateFullscreenImage(-1));
-nextFrameButton.addEventListener('click', () => navigateFullscreenImage(1));
-
-// Navigate to the next frame in fullscreen mode
+// Navigate with keyboard arrows in fullscreen mode
 function handleFullscreenKeyPress(event) {
-  if (document.getElementById('fullscreen-image-container').style.display === 'flex') {
+  const container = document.getElementById('fullscreen-image-container');
+  if (container && container.style.display === 'flex') {
     if (event.key === 'ArrowLeft') {
       navigateFullscreenImage(-1);
+      event.preventDefault();
     } else if (event.key === 'ArrowRight') {
       navigateFullscreenImage(1);
+      event.preventDefault();
+    } else if (event.key === 'Escape') {
+      hideFullscreenImage();
+      event.preventDefault();
     }
   }
 }
 
 document.addEventListener('keydown', handleFullscreenKeyPress);
+
 

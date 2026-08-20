@@ -4,7 +4,7 @@
     left: 0;
     width: 100%;
     height: 16vh;
-    background-color: rgba(255, 253, 247, 0.95);
+    background-color: rgba(15, 23, 42, 0.95);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-top: 1px solid var(--border-color);
@@ -12,7 +12,7 @@
     justify-content: center;
     align-items: center;
     z-index: 1000;
-    box-shadow: 0 -4px 20px rgba(197, 160, 89, 0.15);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.7);
 }
 
 .frames-container {
@@ -26,7 +26,7 @@
     height: 4px;
 }
 .frames-container::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.1);
+    background: #334155;
     border-radius: 2px;
 }
 
@@ -42,7 +42,7 @@
     object-fit: cover;
     border: 2px solid transparent;
     border-radius: 4px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
     transition: all 0.2s ease;
     cursor: pointer;
 }
@@ -52,8 +52,8 @@
 }
 
 .current-frame {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 12px var(--primary-glow);
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 12px var(--secondary-glow);
 }
 
 .frame-container .infor {
@@ -76,7 +76,7 @@
 }
 
 .nav-button {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: #0F172A;
     border: 1px solid var(--border-color);
     color: var(--text-color);
     border-radius: 4px;
@@ -91,9 +91,10 @@
 }
   
 .nav-button:hover {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-    box-shadow: 0 0 8px var(--primary-glow);
+    background: var(--cyber-gradient);
+    border-color: var(--secondary-color);
+    color: #0F172A;
+    box-shadow: 0 0 8px var(--secondary-glow);
 }
 
 .close-button {

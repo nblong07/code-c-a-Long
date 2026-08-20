@@ -8,31 +8,29 @@
     width: 680px;
     overflow: hidden;
     border-radius: 12px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 20px rgba(0, 242, 254, 0.15);
 }
 
 .Details .details_bg {
     display: flex;
     position: relative;
-    background-color: rgba(18, 19, 28, 0.85);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: #1E293B;
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     height: 100%;
     width: 100%;
     justify-content: center;
     align-items: center;
     box-sizing: border-box;
-    padding-top: 30px; /* space for drag bar */
+    padding-top: 32px;
 }
 
 .Details .details_bg .vid_details {
     display: block;
     width: 95%;
-    max-height: 80%;
+    max-height: 78%;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
     background-color: #000;
 }
 
@@ -40,10 +38,10 @@
     position: absolute;
     top: 0;
     right: 0;
-    width: 40px;
-    height: 30px;
+    width: 36px;
+    height: 32px;
     color: var(--text-muted);
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 500;
     transition: all 0.2s ease;
     display: flex;
@@ -58,7 +56,7 @@
 
 .Details .details_bg .close:hover {
     color: white;
-    background-color: var(--accent-red);
+    background-color: #EF4444;
 }
 
 .draggable-bar {
@@ -66,15 +64,15 @@
     top: 0;
     left: 0;
     width: 100%;
-    height: 30px;
-    background-color: rgba(255, 255, 255, 0.03);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    height: 32px;
+    background-color: #0F172A;
+    border-bottom: 1px solid var(--border-color);
     cursor: move;
 }
 
 .Details .details_bg .custom-controls {
     position: absolute;
-    bottom: 20px;
+    bottom: 16px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
@@ -84,9 +82,9 @@
 .Details .details_bg .custom-controls button {
     width: 36px;
     height: 36px;
-    background-color: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: var(--text-color);
+    background-color: #0F172A;
+    border: 1px solid var(--border-color);
+    color: var(--secondary-color);
     border-radius: 50%;
     cursor: pointer;
     display: flex;
@@ -94,12 +92,13 @@
     align-items: center;
     font-size: 13px;
     transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
 }
 
 .Details .details_bg .custom-controls button:hover {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-    color: white;
-    box-shadow: 0 0 10px var(--primary-glow);
-    transform: scale(1.05);
+    background: var(--cyber-gradient);
+    border-color: var(--secondary-color);
+    color: #0F172A;
+    transform: scale(1.08);
+    box-shadow: 0 0 15px var(--secondary-glow);
 }

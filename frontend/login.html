@@ -1,97 +1,302 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enter Session</title>
+    <title>Cấu Hình Phiên Thi Đấu DRES — AIC2026</title>
+    <link rel="icon" type="image/svg+xml" href="src/Img/favicon-robot.svg?v=5" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
+            min-height: 100vh;
+            background-color: #0F172A;
+            color: #F8FAFC;
         }
         .login-container {
-            background-color: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            background-color: #1E293B;
+            border: 1px solid #334155;
+            padding: 32px;
+            border-radius: 14px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9), 0 0 25px rgba(0, 242, 254, 0.15);
+            width: 100%;
+            max-width: 440px;
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .login-header .logo-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #6366F1 0%, #00F2FE 100%);
+            color: #0F172A;
+            font-weight: 800;
+            font-size: 0.8rem;
+            padding: 4px 12px;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            box-shadow: 0 0 12px rgba(0, 242, 254, 0.35);
         }
         h1 {
-            text-align: center;
-            color: #333;
+            font-size: 1.45rem;
+            font-weight: 800;
+            color: #F8FAFC;
+            margin-bottom: 6px;
         }
-        form {
-            display: flex;
-            flex-direction: column;
+        p.subtitle {
+            font-size: 0.88rem;
+            color: #94A3B8;
+            font-weight: 500;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #CBD5E1;
+            margin-bottom: 6px;
+        }
+        label i {
+            color: #00F2FE;
+            margin-right: 4px;
         }
         input {
-            margin: 0.5rem 0;
-            padding: 0.5rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            background-color: #0F172A;
+            color: #F8FAFC;
+            font-size: 0.95rem;
+            font-weight: 500;
+            outline: none;
+            transition: all 0.2s ease;
         }
-        button {
-            margin-top: 1rem;
-            padding: 0.5rem;
-            background-color: #007bff;
-            color: white;
+        input:focus {
+            border-color: #00F2FE;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+            background-color: #0B1120;
+        }
+        input::placeholder {
+            color: #64748B;
+        }
+        .btn-submit {
+            margin-top: 20px;
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #6366F1 0%, #00F2FE 100%);
+            color: #0F172A;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 800;
             cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.35);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
         }
-        button:hover {
-            background-color: #0056b3;
+        .btn-submit:hover {
+            background: linear-gradient(135deg, #4F46E5 0%, #00d2de 100%);
+            box-shadow: 0 0 25px rgba(0, 242, 254, 0.5);
+            transform: translateY(-1px);
+        }
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+        .btn-skip {
+            margin-top: 8px;
+            width: 100%;
+            padding: 10px;
+            background-color: #0F172A;
+            color: #94A3B8;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-skip:hover {
+            background-color: #273549;
+            border-color: #00F2FE;
+            color: #00F2FE;
+        }
+        #status-msg {
+            margin-top: 16px;
+            font-size: 0.88rem;
+            padding: 12px;
+            border-radius: 8px;
+            display: none;
+            font-weight: 600;
+            text-align: center;
+        }
+        .status-error {
+            background-color: rgba(239, 68, 68, 0.15);
+            border: 1px solid #EF4444;
+            color: #FCA5A5;
+        }
+        .status-success {
+            background-color: rgba(0, 242, 254, 0.15);
+            border: 1px solid #00F2FE;
+            color: #00F2FE;
+            box-shadow: 0 0 12px rgba(0, 242, 254, 0.25);
         }
     </style>
 </head>
 <body>
     <div class="login-container">
-        <h1>Enter Session</h1>
+        <div class="login-header">
+            <span class="logo-badge">UIT-TT AI RETRIEVAL</span>
+            <h1>Cấu Hình Thi Đấu DRES</h1>
+            <p class="subtitle">Nhập thông tin kết nối máy chủ nộp bài DRES</p>
+        </div>
+
         <form id="login-form">
-            <input type="text" id="username" placeholder="Username" required>
-            <input type="password" id="password" placeholder="Password" required>
-            <button type="submit">Enter</button>
+            <div class="form-group">
+                <label for="dres_url"><i class="fa-solid fa-server"></i> Địa chỉ DRES Server URL:</label>
+                <input type="text" id="dres_url" placeholder="https://eventretrieval.one hoặc http://192.168.20.164:5000" value="https://eventretrieval.one" required>
+            </div>
+
+            <div class="form-group">
+                <label for="username"><i class="fa-solid fa-user"></i> Tên đăng nhập (Username):</label>
+                <input type="text" id="username" placeholder="Nhập username thi đấu" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password"><i class="fa-solid fa-lock"></i> Mật khẩu (Password):</label>
+                <input type="password" id="password" placeholder="Nhập password thi đấu" required>
+            </div>
+
+            <button type="submit" class="btn-submit" id="submit-btn">
+                <i class="fa-solid fa-right-to-bracket"></i> ĐĂNG NHẬP VÀO PHIÊN THI
+            </button>
+            <button type="button" class="btn-skip" onclick="window.location.href='index.html'">
+                Bỏ qua (Chế độ Offline / Luyện tập)
+            </button>
         </form>
+
+        <div id="status-msg"></div>
     </div>
 
     <script>
+        const savedUrl = localStorage.getItem('dresBaseUrl');
+        if (savedUrl) {
+            document.getElementById('dres_url').value = savedUrl;
+        }
+        const savedUser = localStorage.getItem('userName');
+        if (savedUser) {
+            document.getElementById('username').value = savedUser;
+        }
+
         document.getElementById('login-form').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            
+            const dresBase = document.getElementById('dres_url').value.trim().replace(/\/+$/, '');
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const statusMsg = document.getElementById('status-msg');
+            const submitBtn = document.getElementById('submit-btn');
+
+            statusMsg.style.display = 'block';
+            statusMsg.className = 'status-success';
+            statusMsg.textContent = '⏳ Đang kết nối tới máy chủ DRES...';
+            submitBtn.disabled = true;
+
             try {
-                const dresBase = window.DRES_BASE || "http://localhost:5000";
-                const loginResponse = await fetch(`${dresBase}/api/v2/login`, {
-                    method: "POST",
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
+                localStorage.setItem('dresBaseUrl', dresBase);
 
-                if (loginResponse.ok) {
-                    const loginData = await loginResponse.json();
-                    const contestSessionID = loginData.sessionId;
+                // Use Backend Proxy first to completely bypass browser CORS limitations
+                let loginSuccess = false;
+                let contestSessionID = null;
+                let evaluationID = null;
 
-                    localStorage.setItem('userName', username);
-                    localStorage.setItem('contestSessionID', contestSessionID);
-
-                    const evalResponse = await fetch(`${dresBase}/api/v2/client/evaluation/list?session=${contestSessionID}`);
-                    if (evalResponse.ok) {
-                        const evalData = await evalResponse.json();
-                        if (evalData && evalData.length > 0) {
-                            localStorage.setItem('evaluationID', evalData[0].id);
+                try {
+                    const proxyResp = await fetch('http://localhost:8000/api/dres/login', {
+                        method: "POST",
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ dres_url: dresBase, username, password })
+                    });
+                    if (proxyResp.ok) {
+                        const pData = await proxyResp.json();
+                        if (pData.sessionId) {
+                            contestSessionID = pData.sessionId;
+                            evaluationID = pData.evaluationID;
+                            loginSuccess = true;
                         }
+                    }
+                } catch (proxyErr) {
+                    console.warn("Proxy attempt failed, trying direct fetch:", proxyErr);
+                }
+
+                // Direct fallback
+                if (!loginSuccess) {
+                    const loginResponse = await fetch(`${dresBase}/api/v2/login`, {
+                        method: "POST",
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+
+                    if (loginResponse.ok) {
+                        const loginData = await loginResponse.json();
+                        contestSessionID = loginData.sessionId;
+                        loginSuccess = true;
+
+                        try {
+                            const evalResponse = await fetch(`${dresBase}/api/v2/client/evaluation/list?session=${contestSessionID}`);
+                            if (evalResponse.ok) {
+                                const evalData = await evalResponse.json();
+                                if (evalData && evalData.length > 0) {
+                                    evaluationID = evalData[0].id;
+                                }
+                            }
+                        } catch (evalErr) {
+                            console.warn('Không thể tự động lấy evaluation list:', evalErr);
+                        }
+                    } else {
+                        const errText = await loginResponse.text();
+                        statusMsg.className = 'status-error';
+                        statusMsg.textContent = `❌ Đăng nhập thất bại (${loginResponse.status}): ${errText}`;
+                        submitBtn.disabled = false;
+                        return;
                     }
                 }
 
-                window.location.href = '/index.html';
+                if (loginSuccess && contestSessionID) {
+                    localStorage.setItem('userName', username);
+                    localStorage.setItem('contestSessionID', contestSessionID);
+                    if (evaluationID) {
+                        localStorage.setItem('evaluationID', evaluationID);
+                    }
+
+                    statusMsg.className = 'status-success';
+                    statusMsg.textContent = '✅ Đăng nhập phiên thi thành công! Đang chuyển vào hệ thống...';
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 800);
+                } else {
+                    statusMsg.className = 'status-error';
+                    statusMsg.textContent = '❌ Không nhận được Session ID từ máy chủ DRES. Vui lòng kiểm tra lại tài khoản!';
+                    submitBtn.disabled = false;
+                }
             } catch (error) {
                 console.error('Error during login process:', error);
-                window.location.href = '/index.html';
+                statusMsg.className = 'status-error';
+                statusMsg.textContent = `❌ Không thể kết nối tới server: ${dresBase}. Lỗi: ${error.message}`;
+                submitBtn.disabled = false;
             }
         });
     </script>

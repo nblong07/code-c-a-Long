@@ -75,15 +75,15 @@ OUTPUT_FILE = os.environ.get("OCR_OUTPUT_FILE", os.path.join(BASE_DIR, "ocr_resu
 DONE_FILE = os.environ.get("OCR_DONE_FILE", os.path.join(BASE_DIR, "ocr_done.txt"))
 PIPELINE_VERSION = "v5.10-hardened"
 
-CROP_BOTTOM_RATIO = float(os.environ.get("OCR_CROP_BOTTOM_RATIO", "0.45"))
+CROP_BOTTOM_RATIO = float(os.environ.get("OCR_CROP_BOTTOM_RATIO", "1.0")) # 1.0 = Full frame (Quét trọn 100% khung hình: biển tên chùa, bảng hiệu, tên đường trên cao)
 TICKER_BAND_RATIO = float(os.environ.get("OCR_TICKER_BAND_RATIO", "0.35"))
-OCR_MAX_WIDTH = max(320, int(os.environ.get("OCR_MAX_WIDTH", "960")))
-MIN_CROP_WIDTH = max(50, int(os.environ.get("OCR_MIN_CROP_WIDTH", "50")))
-MIN_CROP_HEIGHT = max(20, int(os.environ.get("OCR_MIN_CROP_HEIGHT", "20")))
+OCR_MAX_WIDTH = max(320, int(os.environ.get("OCR_MAX_WIDTH", "1280"))) # Nâng độ phân giải lên 1280 để đọc rõ chữ nhỏ
+MIN_CROP_WIDTH = max(30, int(os.environ.get("OCR_MIN_CROP_WIDTH", "30")))
+MIN_CROP_HEIGHT = max(15, int(os.environ.get("OCR_MIN_CROP_HEIGHT", "15")))
 
-CONFIDENCE_THRESHOLD = float(os.environ.get("OCR_CONFIDENCE_THRESHOLD", "0.40"))
-HARD_CONFIDENCE_THRESHOLD = float(os.environ.get("OCR_HARD_CONFIDENCE_THRESHOLD", "0.70"))
-MIN_TEXT_LEN = max(1, int(os.environ.get("OCR_MIN_TEXT_LEN", "3")))
+CONFIDENCE_THRESHOLD = float(os.environ.get("OCR_CONFIDENCE_THRESHOLD", "0.25")) # Ngưỡng nhạy 0.25 bắt trọn chữ mờ / bị che 1 phần
+HARD_CONFIDENCE_THRESHOLD = float(os.environ.get("OCR_HARD_CONFIDENCE_THRESHOLD", "0.60"))
+MIN_TEXT_LEN = max(1, int(os.environ.get("OCR_MIN_TEXT_LEN", "2"))) # Bắt trọn chữ viết tắt 2 ký tự: Đ., Q., P., TP, 51
 TOP_K = max(1, min(5, int(os.environ.get("OCR_TOP_K", "5"))))
 
 OCR_BATCH_SIZE_RAW = os.environ.get("OCR_BATCH_SIZE", "auto").strip().lower()
@@ -98,19 +98,16 @@ else:
 AUTO_BATCH_SIZE = OCR_BATCH_SIZE_RAW == "auto"
 MAX_AUTO_BATCH_SIZE = max(1, int(os.environ.get("OCR_MAX_BATCH_SIZE", "16")))
 MIN_AUTO_BATCH_SIZE = max(1, int(os.environ.get("OCR_MIN_BATCH_SIZE", "2")))
-FLUSH_EVERY_RECORDS = max(20, int(os.environ.get("OCR_FLUSH_EVERY", "200")))  # compatibility; temp file is fsynced per OCR batch
+FLUSH_EVERY_RECORDS = max(20, int(os.environ.get("OCR_FLUSH_EVERY", "200")))
 CPU_COUNT = os.cpu_count() or 2
 DEFAULT_WORKERS = max(1, min(4, CPU_COUNT // 2 or 1))
 NUM_WORKERS = max(1, int(os.environ.get("OCR_NUM_WORKERS", "1")))
-# Keep total Paddle CPU parallelism bounded: workers x Paddle threads should
-# not accidentally oversubscribe a small container. Explicit env still wins.
 _CPU_THREADS_ENV = os.environ.get("OCR_CPU_THREADS")
 if _CPU_THREADS_ENV is None:
     OCR_CPU_THREADS = max(1, CPU_COUNT // max(1, NUM_WORKERS))
 else:
     OCR_CPU_THREADS = max(1, int(_CPU_THREADS_ENV))
 MAX_TASKS_PER_CHILD = max(1, int(os.environ.get("OCR_MAX_TASKS_PER_CHILD", "30")))
-# Safety cap: never let a worker accumulate an unbounded number of tasks.
 MAX_TASKS_PER_CHILD = min(MAX_TASKS_PER_CHILD, 1000)
 LOCK_ACQUIRE_TIMEOUT = max(5.0, float(os.environ.get("OCR_LOCK_TIMEOUT", "120")))
 TEMP_MAX_AGE_SECONDS = max(3600.0, float(os.environ.get("OCR_TEMP_MAX_AGE_HOURS", "24")) * 3600.0)
@@ -129,8 +126,8 @@ USE_INTERVAL_MIDPOINT = os.environ.get("OCR_USE_INTERVAL_MIDPOINT", "1").lower()
 TIMESTAMP_DECIMALS = max(0, int(os.environ.get("OCR_TIMESTAMP_DECIMALS", "3")))
 
 ENABLE_EASYOCR_FALLBACK = False
-ENABLE_HARD_PREPROCESS = os.environ.get("OCR_ENABLE_HARD_PREPROCESS", "1").lower() in {"1", "true", "yes"}
-ENABLE_SPELL_FIX = os.environ.get("OCR_ENABLE_SPELL_FIX", "0").lower() in {"1", "true", "yes"}
+ENABLE_HARD_PREPROCESS = os.environ.get("OCR_ENABLE_HARD_PREPROCESS", "1").lower() in {"1", "true", "yes"} # Bật sẵn CLAHE và Sharpening
+ENABLE_SPELL_FIX = os.environ.get("OCR_ENABLE_SPELL_FIX", "1").lower() in {"1", "true", "yes"} # Bật sẵn sửa lỗi chính tả Tiếng Việt
 CONSENSUS_WINDOW = max(2, int(os.environ.get("OCR_CONSENSUS_WINDOW", "5")))
 
 SPELL_FIX_MAP = {
@@ -1664,6 +1661,21 @@ def main():
         f"max_width={OCR_MAX_WIDTH}px | midpoint={'ON' if USE_INTERVAL_MIDPOINT else 'OFF'}"
     )
 
+    if "--force" in sys.argv or "--clean" in sys.argv or "-f" in sys.argv:
+        _logger.warning("🧹 Nhận cờ --force: Đang xóa file kết quả cũ để trích xuất Full-Frame từ đầu...")
+        if os.path.isfile(OUTPUT_FILE):
+            try:
+                os.remove(OUTPUT_FILE)
+                _logger.info(f"Đã xóa {OUTPUT_FILE}")
+            except Exception as e:
+                _logger.warning(f"Không thể xóa {OUTPUT_FILE}: {e}")
+        if os.path.isfile(DONE_FILE):
+            try:
+                os.remove(DONE_FILE)
+                _logger.info(f"Đã xóa {DONE_FILE}")
+            except Exception as e:
+                _logger.warning(f"Không thể xóa {DONE_FILE}: {e}")
+
     cleanup_orphaned_temp_files()
     videos = []
     for p in glob.glob(os.path.join(KEYFRAME_ROOT, "**", "keyframes"), recursive=True):
@@ -1758,6 +1770,54 @@ def main():
     _logger.info(f"Bỏ qua trùng: {total_dup}")
     _logger.info(f"Thời gian: {elapsed_all / 60:.1f} phút")
     _logger.info(f"Output: {OUTPUT_FILE}")
+
+    # Tự động đồng bộ kết quả mới vào ocr_asr_metadata.json để Backend dùng ngay
+    sync_to_metadata_json()
+
+
+def sync_to_metadata_json():
+    """Tự động cập nhật / gộp toàn bộ kết quả OCR vào ocr_asr_metadata.json"""
+    metadata_path = os.path.join(BASE_DIR, "ocr_asr_metadata.json")
+    _logger.info(f"🔄 Đang tự động đồng bộ kết quả OCR vào {metadata_path}...")
+    
+    current_data = {"ocr": {}, "asr": {}}
+    if os.path.isfile(metadata_path):
+        try:
+            with open(metadata_path, "r", encoding="utf-8") as f:
+                current_data = json.load(f)
+        except Exception as e:
+            _logger.warning(f"Không thể đọc {metadata_path}, tạo mới: {e}")
+
+    ocr_dict = current_data.get("ocr", {})
+    if not isinstance(ocr_dict, dict):
+        ocr_dict = {}
+
+    count_added = 0
+    if os.path.isfile(OUTPUT_FILE):
+        with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    item = json.loads(line)
+                    txt = item.get("text", "").strip()
+                    if txt:
+                        vid = item.get("video_id", "")
+                        fid = item.get("frame_id", "0")
+                        key = f"{vid}/keyframes/keyframe_{fid}.webp"
+                        ocr_dict[key] = txt
+                        count_added += 1
+                except Exception:
+                    continue
+
+    current_data["ocr"] = ocr_dict
+    try:
+        with open(metadata_path, "w", encoding="utf-8") as f:
+            json.dump(current_data, f, ensure_ascii=False, indent=2)
+        _logger.info(f"✅ Đã đồng bộ thành công {len(ocr_dict)} bản ghi OCR vào {metadata_path} (Backend có thể tìm kiếm ngay)!")
+    except Exception as e:
+        _logger.error(f"Lỗi khi ghi {metadata_path}: {e}")
 
 
 if __name__ == "__main__":

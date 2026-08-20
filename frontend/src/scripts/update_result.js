@@ -16,9 +16,22 @@ function getEntityInfo(result) {
   const entity = (result && result.entity) ? result.entity : (result || {});
   const video = entity.video_id || entity.video || 'video';
   const frameId = entity.frame_id !== undefined ? entity.frame_id : 0;
-  const timeVal = entity.time !== undefined ? parseFloat(Number(entity.time).toFixed(2)) : frameId;
+  
+  // Tính toán thời gian thực chuẩn xác (Seconds & Milliseconds)
+  let timestampMs = 0;
+  if (entity.timestamp_ms !== undefined && entity.timestamp_ms !== null) {
+    timestampMs = parseInt(entity.timestamp_ms);
+  } else if (entity.time !== undefined && entity.time !== null) {
+    timestampMs = Math.round(parseFloat(entity.time) * 1000.0);
+  } else {
+    timestampMs = Math.round((parseInt(frameId) / 25.0) * 1000.0);
+  }
+  
+  const timeVal = (timestampMs / 1000.0).toFixed(2);
   const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
   const imgSrc = `${keyframeBase}/${video}/keyframes/keyframe_${frameId}.webp`;
+  const ocrText = entity.ocr_text || result.ocr_text || '';
+  const asrText = entity.asr_text || result.asr_text || '';
 
   let scoreVal = null;
   if (result && result.rerank_score !== undefined && result.rerank_score !== null) {
@@ -33,7 +46,7 @@ function getEntityInfo(result) {
     scoreVal = parseFloat(entity.score);
   }
 
-  return { video, frameId, timeVal, imgSrc, frameInfo: `${video}-${timeVal}`, scoreVal };
+  return { video, frameId, timeVal, timestampMs, imgSrc, frameInfo: `${video}-${timeVal}`, scoreVal, ocrText, asrText };
 }
 
 function createImageDiv(result, index) {
@@ -50,18 +63,33 @@ function createImageDiv(result, index) {
     scoreHtml = `<span class="score-badge" title="Score / Distance"><i class="fa-solid fa-chart-simple"></i> ${formattedScore}</span>`;
   }
 
+  let ocrHtml = '';
+  if (info.ocrText) {
+    ocrHtml = `<div class="ocr-text-tag" title="Văn bản nhận diện (OCR): ${info.ocrText}"><i class="fa-solid fa-font"></i> ${info.ocrText}</div>`;
+  }
+
+  let asrHtml = '';
+  if (info.asrText) {
+    asrHtml = `<div class="ocr-text-tag" style="background: rgba(14, 165, 233, 0.4); border-color: rgba(56, 189, 248, 0.5); color: #bae6fd;" title="Giọng nói nhận diện (ASR): ${info.asrText}"><i class="fa-solid fa-microphone"></i> ${info.asrText}</div>`;
+  }
+
   const div = document.createElement('div');
   div.className = 'img-dis';
   div.dataset.index = index;
+  div.dataset.ocr = info.ocrText;
+  div.dataset.asr = info.asrText;
+  div.dataset.timestampMs = info.timestampMs;
   div.innerHTML = `
     <span class="rank-badge ${topClass}" title="Thứ tự ưu tiên #${index}">#${index}</span>
     ${scoreHtml}
+    ${ocrHtml}
+    ${asrHtml}
     <img alt="${info.frameInfo}" class="result" loading="lazy" id="${index}"
       src="${info.imgSrc}" data-src="${info.imgSrc}">
     <div class="infor">${info.frameInfo}</div>
-    <div name="similarity_search" class="similarity_search" title="Tìm kiếm tương tự (Similarity Search)" style="display: flex; justify-content: center; align-items: center; width: 22px; height: 22px; position: absolute; right: 5px; top: 5px; cursor: pointer; z-index: 10; background-color: rgba(0,0,0,0.5); border-radius: 4px;"><i class="fa-solid fa-camera" style="color: white; font-size: 12px;"></i></div>
-    <div name="fullscreen_zoom" class="fullscreen_zoom" title="Phóng to hình ảnh" style="display: flex; justify-content: center; align-items: center; width: 22px; height: 22px; position: absolute; right: 5px; top: 32px; cursor: pointer; z-index: 10; background-color: rgba(0,0,0,0.5); border-radius: 4px;"><i class="fa-solid fa-expand" style="color: white; font-size: 12px;"></i></div>
-    <div class="export_icon" title="Thêm vào danh sách xuất"></div>
+    <div class="export_icon" title="Thêm vào danh sách xuất file / Nộp bài (+)" style="display: flex; justify-content: center; align-items: center; width: 24px; height: 24px; position: absolute; right: 5px; top: 5px; cursor: pointer; z-index: 10; background-color: rgba(16, 185, 129, 0.85); border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; color: white;"><i class="fa-solid fa-plus" style="font-size: 13px;"></i></div>
+    <div name="similarity_search" class="similarity_search" title="Tìm kiếm tương tự (Similarity Search)" style="display: flex; justify-content: center; align-items: center; width: 24px; height: 24px; position: absolute; right: 5px; top: 33px; cursor: pointer; z-index: 10; background-color: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; color: white;"><i class="fa-solid fa-camera" style="font-size: 12px;"></i></div>
+    <div name="fullscreen_zoom" class="fullscreen_zoom" title="Phóng to hình ảnh (Xem chi tiết)" style="display: flex; justify-content: center; align-items: center; width: 24px; height: 24px; position: absolute; right: 5px; top: 61px; cursor: pointer; z-index: 10; background-color: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; color: white;"><i class="fa-solid fa-expand" style="font-size: 12px;"></i></div>
   `;
 
   const img = div.querySelector('img');
@@ -70,9 +98,13 @@ function createImageDiv(result, index) {
   
   const exportIcon = div.querySelector('.export_icon');
   if (exportIcon) {
-    exportIcon.addEventListener('click', () => {
+    exportIcon.addEventListener('click', (e) => {
+      e.stopPropagation();
       const imagePath = img.src || img.dataset.src;
-      addImageToExportArea(info.frameId, imagePath, info.frameInfo);
+      addImageToExportArea(info.frameId, imagePath, info.frameInfo, true, info.timestampMs);
+      if (typeof showNotification === 'function') {
+        showNotification(`Đã thêm #${index} (${info.frameInfo}) vào danh sách xuất!`, 'success');
+      }
     });
   }
 
@@ -226,22 +258,11 @@ function updateRightPanel_rows(results) {
   imagesRows.scrollTop = 0;
 }
 
-// Update both panels (hiển thị 100 kết quả tìm kiếm)
+// Update both panels (hiển thị Top 100 kết quả tìm kiếm có độ chính xác cao nhất khớp với file nộp)
 function updateUIWithSearchResults(results) {
   const top100Results = Array.isArray(results) ? results.slice(0, 100) : [];
   updateRightPanel_list(top100Results);
   updateRightPanel_rows(top100Results);
-  updateObjectList(top100Results);
-  
-  // If the object list is visible, update its content
-  if (isObjectListVisible) {
-    renderObjectList();
-    // Ensure the object list content remains visible
-    const objectListContent = document.querySelector('.object-list-content');
-    if (objectListContent) {
-      objectListContent.classList.add('show');
-    }
-  }
 
 
   document.querySelector('.show-image-1').scrollTop = 0;
@@ -254,17 +275,6 @@ function updateUIWithSearchResults(results) {
 function addImageEventListeners() {
   document.querySelectorAll('.img-dis img').forEach(img => {
     img.addEventListener('dragstart', drag);
-  });
-
-  document.querySelectorAll('.export_icon').forEach(icon => {
-    icon.addEventListener('click', (event) => {
-      const container = event.target.closest('.img-dis');
-      const img = container.querySelector('img');
-      const infor = container.querySelector('.infor');
-      const frameId = infor.textContent.split('-')[1];
-      const imageSrc = img.src;
-      addImageToExportArea(frameId, imageSrc, infor.textContent);
-    });
   });
 
   // Add middle-click event listener to all relevant containers
@@ -283,18 +293,12 @@ function cleanupSearchResults() {
   ['list-photo', 'images-rows'].forEach(id => {
     const element = document.getElementById(id);
     if (element) {
-      // Remove all observers and event listeners
-      element.querySelectorAll('img').forEach(img => imageObserver.unobserve(img));
+      if (typeof imageObserver !== 'undefined' && imageObserver) {
+        element.querySelectorAll('img').forEach(img => imageObserver.unobserve(img));
+      }
       element.innerHTML = '';
     }
   });
-
-  // Clear object list if exists
-  const objectList = document.querySelector('.object-list-content');
-  if (objectList) {
-    objectList.innerHTML = '';
-    objectList.classList.remove('show');
-  }
 
   // Reset scroll positions
   ['show-image-1', 'show-image-2'].forEach(className => {

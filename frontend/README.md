@@ -22,7 +22,6 @@ Tối ưu hóa cho môi trường: **Windows 11 (Google Chrome / Microsoft Edge 
 frontend/
 ├── index.html                # Trang chính giao diện tìm kiếm
 ├── login.html                # Trang nhập thông tin Session / DRES Login
-├── service-worker.js         # Hỗ trợ cache PWA cơ bản
 └── src/
     ├── Img/                  # Biểu tượng, icon giao diện
     ├── scripts/              # Mã xử lý JavaScript (WebSocket, Render UI, Events)

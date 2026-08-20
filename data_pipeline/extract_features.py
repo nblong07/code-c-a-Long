@@ -246,10 +246,14 @@ def extract_ocr_asr_main():
 if __name__ == '__main__':
     import sys
     print('Choose extraction task: 1 for CLIP, 2 for OCR/ASR, 3 for BOTH')
-    if len(sys.argv) > 1:
+    if len(sys.argv) > 1 and sys.argv[1] in ['1', '2', '3']:
         choice = sys.argv[1]
+        sys.argv = [sys.argv[0]] + sys.argv[2:]
+    elif len(sys.argv) > 1 and not sys.argv[1].startswith('-'):
+        choice = sys.argv[1]
+        sys.argv = [sys.argv[0]] + sys.argv[2:]
     else:
-        choice = input('Enter choice (1/2/3): ')
+        choice = input('Enter choice (1 for CLIP / 2 for OCR-ASR / 3 for BOTH): ').strip()
     
     if choice == '1':
         extract_clip_main()
@@ -257,10 +261,10 @@ if __name__ == '__main__':
         extract_ocr_asr_main()
     elif choice == '3':
         print('--- EXTRACTING CLIP ---')
-        # reset sys.argv to avoid conflicts
-        sys.argv = [sys.argv[0]]
+        orig_argv = list(sys.argv)
         extract_clip_main()
         print('--- EXTRACTING OCR/ASR ---')
+        sys.argv = orig_argv
         extract_ocr_asr_main()
     else:
         print('Invalid choice')

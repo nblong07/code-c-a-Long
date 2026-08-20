@@ -21,19 +21,27 @@ let requestTime;  // Lưu thời điểm gửi request để đo hiệu suất
  */
 function updateSystemStatusBadge(status, message) {
     const badge = document.getElementById('system-status-badge');
-    const dot = document.getElementById('status-dot');
-    const text = document.getElementById('status-text');
-    if (!badge || !dot || !text) return;
+    const redLight = document.getElementById('tl-red');
+    const yellowLight = document.getElementById('tl-yellow');
+    const greenLight = document.getElementById('tl-green');
+    if (!badge) return;
 
-    badge.className = `system-status-badge ${status}`;
-    dot.className = `status-dot ${status}`;
+    badge.className = `traffic-light-status ${status}`;
+    const defaultMsg = status === 'connected' ? 'Hệ thống: Sẵn sàng 🟢' : (status === 'disconnected' ? 'Hệ thống: Ngắt kết nối 🔴' : 'Hệ thống: Đang kết nối 🟡');
+    badge.setAttribute('title', message || defaultMsg);
 
-    if (status === 'connected') {
-        text.textContent = message || 'Hệ thống: Sẵn sàng 🟢';
-    } else if (status === 'disconnected') {
-        text.textContent = message || 'Hệ thống: Ngoại tuyến 🔴';
-    } else {
-        text.textContent = message || 'Hệ thống: Đang kết nối... 🟡';
+    if (redLight && yellowLight && greenLight) {
+        redLight.classList.remove('active');
+        yellowLight.classList.remove('active');
+        greenLight.classList.remove('active');
+
+        if (status === 'connected') {
+            greenLight.classList.add('active');
+        } else if (status === 'disconnected') {
+            redLight.classList.add('active');
+        } else {
+            yellowLight.classList.add('active');
+        }
     }
 }
 
@@ -101,71 +109,7 @@ function connectWebSocket() {
  * Không gọi lại ở đây.
  */
 
-let socket_share; // WebSocket để chia sẻ hình ảnh giữa các client
 
-/**
- * Gửi cập nhật VQA input cho các client khác qua WebSocket share_image.
- * @param {string} frameId - ID của frame
- * @param {string} vqaInput - Nội dung VQA input cần chia sẻ
- */
-function sendVqaInputUpdate(frameId, vqaInput) {
-    if (socket_share && socket_share.readyState === WebSocket.OPEN) {
-        const message = JSON.stringify({
-            type: 'vqa_input_update',
-            frameId: frameId,
-            vqaInput: vqaInput
-        });
-        socket_share.send(message);
-    } else {
-        console.error('WebSocket share không mở. Không thể gửi VQA input update.');
-    }
-}
-
-/**
- * Kết nối đến WebSocket /ws/share_image.
- * Xử lý việc chia sẻ hình ảnh và VQA input giữa các client.
- */
-function connectWebSocketcrossing() {
-  const tokenParam = window.API_KEY ? `?token=${encodeURIComponent(window.API_KEY)}` : '';
-  socket_share = new WebSocket(`ws://localhost:8000/ws/share_image${tokenParam}`);
-  
-  socket_share.onopen = () => {
-    console.log('Share WebSocket đã kết nối (/ws/share_image)');
-  };
-
-  socket_share.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      
-      if (data.type === 'image_share') {
-        // Nhận hình ảnh được chia sẻ từ client khác
-        if (data.frameId && data.src && data.frameInfo) {
-          addImageToExportArea(data.frameId, data.src, data.frameInfo, false);
-        } else {
-          console.error("Dữ liệu hình ảnh nhận không đủ thuộc tính:", data);
-        }
-      } else if (data.type === 'vqa_input_update') {
-        // Nhận cập nhật VQA input từ client khác
-        if (data.frameId && data.vqaInput !== undefined) {
-          updateVqaInput(data.frameId, data.vqaInput);
-        } else {
-          console.error("Dữ liệu VQA input update không đủ thuộc tính:", data);
-        }
-      }
-    } catch (error) {
-      console.error("Lỗi parse dữ liệu share:", error);
-    }
-  };
-
-  socket_share.onerror = (error) => {
-    console.error('Lỗi Share WebSocket:', error);
-  };
-
-  socket_share.onclose = () => {
-    console.log('Share WebSocket bị đóng. Thử kết nối lại sau 5 giây...');
-    setTimeout(connectWebSocketcrossing, 5000);
-  };
-}
 
 
 
@@ -225,17 +169,30 @@ function connectSimilaritySearchWebSocket() {
 }
 
 /**
- * Thực hiện tìm kiếm tương tự với frame có ID cho trước.
+ * Thực hiện tìm kiếm tương tự với frame có ID hoặc URL hình ảnh cho trước.
  * @param {string} vectorId - ID của vector/frame cần tìm
+ * @param {string} imageSrc - Đường dẫn URL hoặc file của hình ảnh
  */
-function performSimilaritySearch(vectorId) {
-    if (similaritySearchSocket.readyState === WebSocket.OPEN) {
+function performSimilaritySearch(vectorId, imageSrc = '') {
+    if (similaritySearchSocket && similaritySearchSocket.readyState === WebSocket.OPEN) {
         requestTime = performance.now();
         toggleLoadingIndicator(true);
-        similaritySearchSocket.send(JSON.stringify({ vector: vectorId }));
+        similaritySearchSocket.send(JSON.stringify({ vector: vectorId, image_src: imageSrc }));
     } else {
-        console.error('Similarity Search WebSocket chưa mở');
-        toggleLoadingIndicator(false);
+        console.warn('Similarity Search WebSocket chưa sẵn sàng, đang thử kết nối lại...');
+        connectSimilaritySearchWebSocket();
+        setTimeout(() => {
+            if (similaritySearchSocket && similaritySearchSocket.readyState === WebSocket.OPEN) {
+                requestTime = performance.now();
+                toggleLoadingIndicator(true);
+                similaritySearchSocket.send(JSON.stringify({ vector: vectorId, image_src: imageSrc }));
+            } else {
+                toggleLoadingIndicator(false);
+                if (typeof showNotification === 'function') {
+                    showNotification('Không thể kết nối đến máy chủ Similarity Search', 'error');
+                }
+            }
+        }, 500);
     }
 }
 
@@ -513,6 +470,10 @@ function connectAlertWebSocket() {
  * Gửi cảnh báo/thông báo cho các client khác qua WebSocket alerts.
  * @param {string} message - Nội dung thông báo
  */
+/**
+ * Gửi cảnh báo/thông báo cho các client khác qua WebSocket alerts.
+ * @param {string} message - Nội dung thông báo
+ */
 function sendAlertViaWebSocket(message) {
     if (alertSocket && alertSocket.readyState === WebSocket.OPEN) {
         const alertData = {
@@ -525,7 +486,141 @@ function sendAlertViaWebSocket(message) {
     }
 }
 
+/**
+ * Tìm kiếm nhóm / lân cận bằng ID ảnh
+ */
+function performGroupSearch(imageId) {
+    if (typeof groupSearchSocket !== 'undefined' && groupSearchSocket && groupSearchSocket.readyState === WebSocket.OPEN) {
+        requestTime = performance.now();
+        if (typeof toggleLoadingIndicator === 'function') toggleLoadingIndicator(true);
+        groupSearchSocket.send(JSON.stringify({ imageId: imageId }));
+    } else if (socket && socket.readyState === WebSocket.OPEN) {
+        requestTime = performance.now();
+        if (typeof toggleLoadingIndicator === 'function') toggleLoadingIndicator(true);
+        socket.send(JSON.stringify({ type: 'group_search', imageId: imageId }));
+    } else {
+        console.error('WebSocket is not open for group search');
+        if (typeof toggleLoadingIndicator === 'function') toggleLoadingIndicator(false);
+    }
+}
+
+/**
+ * Lấy nội dung truy vấn từ Search Scene
+ */
+async function getQueryContent(searchScene) {
+    const textArea = searchScene.querySelector('textarea[name="Text_Query"]');
+    const imageDropArea = searchScene.querySelector('.image-drop-area');
+    const soundTextArea = searchScene.querySelector('textarea[name="Sound_Text"]');
+    let detailsTextArea = searchScene.querySelector('textarea[name="QunNhiuChien_Query"]') || "";
+
+    if (textArea && textArea.style.display !== 'none') { 
+        const originalText = textArea.value;
+        const translateCheckbox = document.getElementById('translate-checkbox');
+        if (translateCheckbox && translateCheckbox.checked && typeof translateText === 'function') {
+            const translatedText = await translateText(originalText);
+            const translatedDetailText = detailsTextArea ? await translateText(detailsTextArea.value) : "";
+            textArea.value = translatedText;
+            if (detailsTextArea) detailsTextArea.value = translatedDetailText;
+            return { type: 'text', content: translatedText, detail: translatedDetailText };
+        } else {
+            return { type: 'text', content: originalText };
+        }
+    } else if (imageDropArea && imageDropArea.style.display === 'flex') {
+        const img = imageDropArea.querySelector('img');
+        const translatedDetailText = (detailsTextArea && typeof translateText === 'function') ? await translateText(detailsTextArea.value) : "";
+        if (detailsTextArea) detailsTextArea.value = translatedDetailText;
+        if (img) {
+            return { type: 'image', content: img.src, detail: translatedDetailText };
+        }
+    } else if (soundTextArea && soundTextArea.style.display !== 'none') {
+        return { type: 'sound', content: soundTextArea.value };
+    }
+    return { type: 'text', content: '', detail: detailsTextArea ? detailsTextArea.value : "" };
+}
+
+/**
+ * Thực hiện tìm kiếm kết hợp nhiều cảnh
+ */
+async function performCombinedSearch() {
+    const searchScenes = document.querySelectorAll('.Search_Scene');
+    const queries = [];
+
+    const activeModelButton = document.querySelector('.model-option button.active');
+    const modelType = activeModelButton ? activeModelButton.className.split(' ')[0] : 'unknown';
+
+    for (const scene of searchScenes) {
+        const activeModeButton = scene.querySelector('.mode-button button.active');
+        const modeType = activeModeButton ? activeModeButton.className.split(' ')[0] : 'unknown';
+
+        const query = await getQueryContent(scene);
+        if (query.content) {
+            queries.push({
+                ...query,
+                mode: modeType
+            });
+        }
+    }
+
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        let message = {
+            type: 'multi_query',
+            model: modelType,
+            queries: queries.map(q => ({
+                type: q.type,
+                content: q.type === 'image' ? (q.content.includes(',') ? q.content.split(',')[1] : q.content) : q.content,
+                mode: q.mode,
+                detail: q.detail
+            }))
+        };
+
+        requestTime = performance.now();
+        socket.send(JSON.stringify(message));
+    } else {
+        console.error('WebSocket is not open. ReadyState:', socket ? socket.readyState : 'null');
+        connectWebSocket();
+    }
+}
+
+/**
+ * Tìm kiếm kết hợp phân trang
+ */
+async function performPagnitionCombinedSearch() {
+    if (typeof resetSearch === 'function') resetSearch();
+    const searchScenes = document.querySelectorAll('.Search_Scene');
+    const queries = [];
+
+    const activeModelButton = document.querySelector('.model-option button.active');
+    const modelType = activeModelButton ? activeModelButton.className.split(' ')[0] : 'unknown';
+
+    const activeModeButton = document.querySelector('.mode-button button.active');
+    const modeType = activeModeButton ? activeModeButton.className.split(' ')[0] : 'unknown';
+
+    for (const scene of searchScenes) {
+        const query = await getQueryContent(scene);
+        if (query.content) {
+            queries.push(query);
+        }
+    }
+
+    if (typeof Pagnitionsocket !== 'undefined' && Pagnitionsocket && Pagnitionsocket.readyState === WebSocket.OPEN) {
+        let message = {
+            type: 'multi_query',
+            model: modelType,
+            mode: modeType,
+            queries: queries.map(q => ({
+                type: q.type,
+                content: q.type === 'image' ? q.content.split(',')[1] : q.content
+            })),
+        };
+
+        requestTime = performance.now();
+        Pagnitionsocket.send(JSON.stringify(message));
+    } else {
+        console.error('Pagnitionsocket is not open.');
+        connectWebSocket();
+    }
+}
+
 // Khởi tạo tất cả các WebSocket còn lại khi tải app
-// (connectWebSocket và connectWebSocketcrossing được gọi trong DOMContentLoaded của submit_dres.js)
 connectSimilaritySearchWebSocket();
 connectFilterWebSocket();
