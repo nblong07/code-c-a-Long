@@ -276,15 +276,46 @@ function showFullscreenImage(src, isLeftPreview = false, targetElement = null) {
     imgDis = event.target.closest('.img-dis, .frame-container');
   }
 
+  let videoName = '';
+  let frameNumber = 0;
+  const srcParts = src.split('/');
+  const match = src.match(/\/([^\/]+)\/keyframes\/keyframe_(\d+)\./i) ||
+                src.match(/(L\d+_V\d+).*?keyframe_(\d+)\./i);
+  if (match) {
+    videoName = match[1];
+    frameNumber = parseInt(match[2], 10) || 0;
+  } else {
+    const kfIdx = srcParts.lastIndexOf('keyframes');
+    if (kfIdx > 0 && srcParts[kfIdx - 1] && !srcParts[kfIdx - 1].includes(':')) {
+      videoName = srcParts[kfIdx - 1];
+      const lastPart = srcParts[srcParts.length - 1] || '';
+      if (lastPart.includes('_')) {
+        frameNumber = parseInt(lastPart.split('_')[1].split('.')[0]) || 0;
+      }
+    }
+  }
+
+  currentFullscreenContext.videoName = videoName;
+  currentFullscreenContext.currentFrameNumber = frameNumber;
+  const kfIdx = srcParts.lastIndexOf('keyframes');
+  currentFullscreenContext.directory = kfIdx > 0 ? srcParts.slice(0, kfIdx + 1).join('/') + '/' : '';
+
+  if (videoName && typeof getVideoFrameMap === 'function') {
+    getVideoFrameMap(videoName).then(mapData => {
+      currentFullscreenContext.frameList = mapData.frames || [];
+      currentFullscreenContext.timesMap = mapData.times || {};
+    });
+  }
+
   if (imgDis && imgDis.classList.contains('img-dis')) {
-    currentFullscreenContext.type = 'search';
+    currentFullscreenContext.type = 'video';
     const index = parseInt(imgDis.dataset.index || imgDis.querySelector('.result')?.id || '1');
     currentFullscreenContext.currentIndex = isNaN(index) ? 1 : index;
 
-    const infoText = imgDis.querySelector('.infor')?.textContent || '';
+    const infoText = imgDis.querySelector('.infor')?.textContent || `${videoName}-${(frameNumber/25).toFixed(2)}`;
     const ocrText = imgDis.dataset.ocr || imgDis.querySelector('.ocr-text-tag')?.textContent || '';
 
-    if (titleEl) titleEl.textContent = `Kết quả #${currentFullscreenContext.currentIndex} | ${infoText}`;
+    if (titleEl) titleEl.textContent = `Video: ${videoName} | Khung hình: ${frameNumber} (${infoText})`;
     if (ocrBadge && ocrTextEl) {
       if (ocrText) {
         ocrTextEl.textContent = ocrText.replace('Văn bản nhận diện (OCR):', '').trim();
@@ -294,20 +325,8 @@ function showFullscreenImage(src, isLeftPreview = false, targetElement = null) {
       }
     }
   } else {
-    // Video frames strip or Right Preview context
     currentFullscreenContext.type = 'video';
-    const framesContainer = document.querySelector('.frames-container');
-    currentFullscreenContext.directory = framesContainer ? (framesContainer.dataset.directory || '') : '';
-    
-    let frameNumber = 0;
-    const srcParts = src.split('/');
-    const lastPart = srcParts[srcParts.length - 1] || '';
-    if (lastPart.includes('_')) {
-      frameNumber = parseInt(lastPart.split('_')[1].split('.')[0]) || 0;
-    }
-    currentFullscreenContext.currentFrameNumber = frameNumber;
-
-    if (titleEl) titleEl.textContent = `Khung hình: ${frameNumber}`;
+    if (titleEl) titleEl.textContent = `Video: ${videoName} | Khung hình: ${frameNumber}`;
     if (ocrBadge) ocrBadge.style.display = 'none';
   }
 
@@ -330,7 +349,7 @@ function handleEscapeKey(event) {
 }
 
 // Navigate between images in fullscreen mode using direction (-1 for prev, +1 for next)
-function navigateFullscreenImage(direction) {
+async function navigateFullscreenImage(direction) {
   const container = document.getElementById('fullscreen-image-container');
   const image = document.getElementById('fullscreen-image');
   const titleEl = document.getElementById('fullscreen-frame-title');
@@ -339,63 +358,40 @@ function navigateFullscreenImage(direction) {
   
   if (!container || container.style.display !== 'flex' || !image) return;
 
-  if (currentFullscreenContext.type === 'search') {
-    // Navigate along search result list
-    const visibleContainer = document.querySelector('.show-image-1').style.display !== 'none' 
-      ? document.getElementById('list-photo') 
-      : document.getElementById('images-rows');
+  const videoName = currentFullscreenContext.videoName;
+  let frames = currentFullscreenContext.frameList;
+  let timesMap = currentFullscreenContext.timesMap || {};
 
-    const allCards = Array.from(visibleContainer.querySelectorAll('.img-dis'));
-    if (!allCards || allCards.length === 0) return;
+  if ((!frames || frames.length === 0) && videoName && typeof getVideoFrameMap === 'function') {
+    const mapData = await getVideoFrameMap(videoName);
+    frames = mapData.frames || [];
+    timesMap = mapData.times || {};
+    currentFullscreenContext.frameList = frames;
+    currentFullscreenContext.timesMap = timesMap;
+  }
 
-    let targetIndex = currentFullscreenContext.currentIndex + direction;
-    if (targetIndex < 1) targetIndex = allCards.length; // wrap around
-    if (targetIndex > allCards.length) targetIndex = 1; // wrap around
+  if (frames && frames.length > 0) {
+    const curIdx = frames.indexOf(currentFullscreenContext.currentFrameNumber);
+    let newIdx = (curIdx !== -1 ? curIdx : 0) + direction;
+    if (newIdx < 0) newIdx = 0;
+    if (newIdx >= frames.length) newIdx = frames.length - 1;
 
-    const nextCard = allCards.find(c => parseInt(c.dataset.index) === targetIndex) || allCards[targetIndex - 1];
-    if (nextCard) {
-      currentFullscreenContext.currentIndex = targetIndex;
-      const nextImg = nextCard.querySelector('img');
-      const infoText = nextCard.querySelector('.infor')?.textContent || '';
-      const ocrText = nextCard.dataset.ocr || nextCard.querySelector('.ocr-text-tag')?.textContent || '';
+    const newFrameNumber = frames[newIdx];
+    currentFullscreenContext.currentFrameNumber = newFrameNumber;
 
-      if (nextImg) image.src = nextImg.src || nextImg.dataset.src;
-      if (titleEl) titleEl.textContent = `Kết quả #${targetIndex} | ${infoText}`;
-      
-      if (ocrBadge && ocrTextEl) {
-        if (ocrText) {
-          ocrTextEl.textContent = ocrText.replace('Văn bản nhận diện (OCR):', '').trim();
-          ocrBadge.style.display = 'inline-flex';
-        } else {
-          ocrBadge.style.display = 'none';
-        }
-      }
-    }
-  } else {
-    // Navigate along video frame strip
-    if (globalFrameList && globalFrameList.length > 0) {
-      const curIdx = globalFrameList.indexOf(currentFullscreenContext.currentFrameNumber);
-      let newIdx = (curIdx !== -1 ? curIdx : 0) + direction;
-      if (newIdx < 0) newIdx = globalFrameList.length - 1;
-      if (newIdx >= globalFrameList.length) newIdx = 0;
+    const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
+    const newSrc = `${keyframeBase}/${videoName}/keyframes/keyframe_${newFrameNumber}.webp`;
+    const secVal = timesMap[newFrameNumber] !== undefined ? timesMap[newFrameNumber] : (newFrameNumber / 25.0);
 
-      const newFrameNumber = globalFrameList[newIdx];
-      currentFullscreenContext.currentFrameNumber = newFrameNumber;
+    image.src = newSrc;
+    if (titleEl) titleEl.textContent = `Video: ${videoName} | Khung hình: ${newFrameNumber} (${secVal.toFixed(2)}s) [${newIdx + 1}/${frames.length}]`;
+    if (ocrBadge) ocrBadge.style.display = 'none';
 
-      const framesContainer = document.querySelector('.frames-container');
-      const directory = framesContainer ? framesContainer.dataset.directory : currentFullscreenContext.directory;
-      const newSrc = `${directory}keyframe_${newFrameNumber}.webp`;
-
-      image.src = newSrc;
-      if (titleEl) titleEl.textContent = `Khung hình: ${newFrameNumber}`;
-      if (ocrBadge) ocrBadge.style.display = 'none';
-
-      // Also sync right preview if function exists
-      if (typeof updateMainFrame === 'function') {
-        const videoName = typeof parseVideoNameFromDirOrInfo === 'function' ? parseVideoNameFromDirOrInfo(directory, '') : 'video';
-        updateMainFrame(newFrameNumber, directory, `${videoName}-${newFrameNumber}`);
-      }
-    }
+    // Flash border effect
+    image.style.boxShadow = '0 0 25px rgba(0, 242, 254, 0.8)';
+    setTimeout(() => {
+      image.style.boxShadow = '';
+    }, 200);
   }
 }
 
@@ -419,15 +415,33 @@ document.addEventListener('DOMContentLoaded', () => {
     addExportBtn.addEventListener('click', () => {
       const img = document.getElementById('fullscreen-image');
       if (img && img.src) {
-        const srcParts = img.src.split('/');
-        const lastPart = srcParts[srcParts.length - 1] || '';
-        const frameId = lastPart.includes('_') ? lastPart.split('_')[1].split('.')[0] : '0';
-        const titleText = document.getElementById('fullscreen-frame-title')?.textContent || '';
-        const info = titleText.includes('|') ? titleText.split('|')[1].trim() : `frame-${frameId}`;
+        let frameId = currentFullscreenContext.currentFrameNumber || 0;
+        if (!frameId || isNaN(frameId)) {
+          const match = img.src.match(/keyframe_(\d+)\./);
+          if (match) frameId = parseInt(match[1], 10);
+        }
+        let videoName = currentFullscreenContext.videoName || '';
+        if (videoName && (videoName.includes(':') || videoName.toLowerCase() === 'keyframes')) videoName = '';
+        if (!videoName) {
+          const match = img.src.match(/\/([^\/]+)\/keyframes\/keyframe_\d+/i) || img.src.match(/(L\d+_V\d+)/i);
+          if (match) videoName = match[1];
+          else {
+            const srcParts = img.src.split('/');
+            const kfIdx = srcParts.lastIndexOf('keyframes');
+            if (kfIdx > 0 && srcParts[kfIdx - 1] && !srcParts[kfIdx - 1].includes(':')) videoName = srcParts[kfIdx - 1];
+          }
+        }
+        videoName = (videoName || 'video').replace(/\.mp4$/i, '').trim();
+        const secVal = (currentFullscreenContext.timesMap && currentFullscreenContext.timesMap[frameId] !== undefined)
+          ? currentFullscreenContext.timesMap[frameId]
+          : (frameId / 25.0);
+        const info = `${videoName}-${secVal.toFixed(2)}`;
+        const tsMs = Math.round(secVal * 1000);
+
         if (typeof addImageToExportArea === 'function') {
-          addImageToExportArea(frameId, img.src, info);
+          addImageToExportArea(frameId, img.src, info, true, tsMs);
           if (typeof showNotification === 'function') {
-            showNotification('Đã thêm ảnh vào danh sách xuất / nộp bài!', 'success');
+            showNotification(`Đã thêm ${info} (Frame ${frameId}) vào danh sách nộp!`, 'success');
           }
         }
       }

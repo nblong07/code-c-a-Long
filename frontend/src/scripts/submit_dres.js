@@ -133,45 +133,60 @@ async function submit_to_dres_v2() {
             "answerSets": [{
                 "answers": [{
                     "mediaItemName": item,
-                    "start": frameMs,
-                    "end": frameMs
+                    "start": Math.max(0, frameMs - 2500), // Mở rộng 2.5 giây trước
+                    "end": frameMs + 2500                 // Mở rộng 2.5 giây sau
                 }]
             }]
         };
         console.log("🚀 Submitting KIS to DRES:", payload);
         await submitFrameInfo(contestURL, payload);
     } else {
-        // DẠNG 2: Q&A (Question & Answer)
+        // DẠNG 2: Q&A (Question & Answer) - Hỗ trợ nộp NHIỀU ĐÁP ÁN & NHIỀU FRAME khi phân vân
         const [targetImg, answer_vqa] = getFirstResultForVQA();
         if (!answer_vqa || !answer_vqa.trim()) {
             showTemporaryAlert("⚠️ Bạn chưa nhập đáp án Q&A! Vui lòng gõ đáp án vào ô màu Cyan trước khi nộp.", "error");
             return;
         }
 
+        // Tách các đáp án phân vân cách nhau bởi dấu gạch đứng (|), chấm phẩy (;), hoặc xuống dòng
+        const candidateAnswers = answer_vqa.split(/[|;\n]/).map(s => s.trim()).filter(Boolean);
         let payloadAnswers = [];
-        if (targetImg) {
-            let rawItem = (targetImg.frameInfo || '').split('-')[0] || (targetImg.videoFramePart || '').split('/')[0];
-            const item = rawItem.includes('/') ? rawItem.split('/').pop().replace(/\.mp4$/i, '') : rawItem.replace(/\.mp4$/i, '');
-            
-            let frameMs = 0;
-            if (targetImg.timestampMs !== undefined && targetImg.timestampMs !== null) {
-                frameMs = parseInt(targetImg.timestampMs);
-            } else {
-                const timeParts = (targetImg.frameInfo || '').split('-');
-                if (timeParts.length > 1 && !isNaN(parseFloat(timeParts[1])) && parseFloat(timeParts[1]) > 0) {
-                    frameMs = Math.round(parseFloat(timeParts[1]) * 1000.0);
-                } else if (targetImg.frameId !== undefined && !isNaN(parseFloat(targetImg.frameId))) {
-                    frameMs = Math.round(parseFloat(targetImg.frameId) * (1000.0 / 25.0));
+
+        if (exportedImages && exportedImages.length > 0) {
+            // Nộp tuần tự từng Frame: Xong tất cả đáp án của Frame 1 rồi mới tới Frame 2
+            for (let img of exportedImages) {
+                let rawItem = (img.frameInfo || '').split('-')[0] || (img.videoFramePart || '').split('/')[0];
+                const item = rawItem.includes('/') ? rawItem.split('/').pop().replace(/\.mp4$/i, '') : rawItem.replace(/\.mp4$/i, '');
+                
+                let frameMs = 0;
+                if (img.timestampMs !== undefined && img.timestampMs !== null) {
+                    frameMs = parseInt(img.timestampMs);
+                } else {
+                    const timeParts = (img.frameInfo || '').split('-');
+                    if (timeParts.length > 1 && !isNaN(parseFloat(timeParts[1])) && parseFloat(timeParts[1]) > 0) {
+                        frameMs = Math.round(parseFloat(timeParts[1]) * 1000.0);
+                    } else if (img.frameId !== undefined && !isNaN(parseFloat(img.frameId))) {
+                        frameMs = Math.round(parseFloat(img.frameId) * (1000.0 / 25.0));
+                    }
+                }
+
+                // Lấy đáp án riêng của frame nếu có, hoặc dùng danh sách candidateAnswers chung
+                const perFrameRaw = (img.frameId !== undefined && typeof vqaInputs !== 'undefined' ? vqaInputs[img.frameId] : '') || '';
+                const frameAnswers = perFrameRaw ? perFrameRaw.split(/[|;\n]/).map(s => s.trim()).filter(Boolean) : candidateAnswers;
+
+                for (let ans of frameAnswers) {
+                    payloadAnswers.push({
+                        "text": `${ans}-${item}-${frameMs}`
+                    });
                 }
             }
-            payloadAnswers.push({
-                "text": `${answer_vqa.trim()}-${item}-${frameMs}`
-            });
         } else {
-            // Nộp đáp án thuần văn bản / chữ số (Pure Text QA)
-            payloadAnswers.push({
-                "text": `${answer_vqa.trim()}`
-            });
+            // Nộp các đáp án thuần văn bản / chữ số (Pure Text QA)
+            for (let ans of candidateAnswers) {
+                payloadAnswers.push({
+                    "text": `${ans}`
+                });
+            }
         }
 
         const payload = {
@@ -179,7 +194,7 @@ async function submit_to_dres_v2() {
                 "answers": payloadAnswers
             }]
         };
-        console.log("🚀 Submitting Q&A to DRES:", payload);
+        console.log(`🚀 Submitting Q&A with ${payloadAnswers.length} candidate combinations to DRES:`, payload);
         await submitFrameInfo(contestURL, payload);
     }
 }

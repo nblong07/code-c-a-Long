@@ -306,6 +306,18 @@ def _safe_imread(path):
     return img
 
 
+def apply_clahe_enhancement(img_rgb):
+    """Ap dung CLAHE (Contrast Limited Adaptive Histogram Equalization) de lam noi ro chu bi mo/chay sang"""
+    if img_rgb is None or img_rgb.size == 0:
+        return img_rgb
+    lab = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2LAB)
+    l, a, b = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    cl = clahe.apply(l)
+    limg = cv2.merge((cl, a, b))
+    return cv2.cvtColor(limg, cv2.COLOR_LAB2RGB)
+
+
 def preprocess_cv2(img_path):
     img = _safe_imread(img_path)
     if img is None:
@@ -325,6 +337,7 @@ def preprocess_cv2(img_path):
     title_sig = make_signature(cropped[:ticker_top, :])
     ticker_sig = make_signature(cropped[ticker_top:, :])
     full_rgb = resize_for_ocr(cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB))
+    full_rgb = apply_clahe_enhancement(full_rgb)
     return full_rgb, title_sig, ticker_sig
 
 
@@ -1201,13 +1214,12 @@ def append_video_temp(temp_path):
     out = None
     acquired = False
     try:
-        if _worker_lock is None:
-            raise RuntimeError("Worker lock chưa được khởi tạo.")
-        acquired = bool(_worker_lock.acquire(timeout=LOCK_ACQUIRE_TIMEOUT))
-        if not acquired:
-            raise TimeoutError(
-                f"Không lấy được lock ghi OUTPUT_FILE sau {LOCK_ACQUIRE_TIMEOUT:.0f}s"
-            )
+        if _worker_lock is not None:
+            acquired = bool(_worker_lock.acquire(timeout=LOCK_ACQUIRE_TIMEOUT))
+            if not acquired:
+                raise TimeoutError(
+                    f"Không lấy được lock ghi OUTPUT_FILE sau {LOCK_ACQUIRE_TIMEOUT:.0f}s"
+                )
         try:
             out = open(OUTPUT_FILE, "ab")
             with open(temp_path, "rb") as src:
@@ -1219,7 +1231,7 @@ def append_video_temp(temp_path):
             out.flush()
         finally:
             # Release serialization lock before potentially slow fsync.
-            if acquired:
+            if acquired and _worker_lock is not None:
                 _worker_lock.release()
                 acquired = False
 

@@ -299,30 +299,27 @@
     box-shadow: 0 0 14px var(--secondary-glow);
 }
 
-.list .img-dis:hover .export_icon {
-    display: flex;
+.list .img-dis:hover .export_icon,
+.list .img-dis:hover .timeline_explorer,
+.list .img-dis:hover .fullscreen_zoom,
+.list .img-dis:hover .similarity_search {
+    display: flex !important;
 }
 
-.list .img-dis .export_icon:before {
-    content: '+';
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    height: 100%;
-    font-size: 16px;
-    font-weight: 500;
-}
-
-.list .img-dis .export_icon:hover {
-    background: var(--accent-green);
-    color: white;
-    border-color: var(--accent-green);
+.timeline_explorer:hover {
+    background: #00F2FE !important;
+    color: #0F172A !important;
+    border-color: #00F2FE !important;
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.6) !important;
     transform: scale(1.1);
 }
 
-.list .img-dis:hover .export_icon {
-    display: flex;
+.card-step-btn:hover {
+    background: #00F2FE !important;
+    color: #0F172A !important;
+    border-color: #00F2FE !important;
+    box-shadow: 0 0 12px rgba(0, 242, 254, 0.8) !important;
+    transform: translateY(-50%) scale(1.15) !important;
 }
 
 

@@ -1,0 +1,72 @@
+CHI?N LU?C NÂNG C?P H? TH?NG TRUY V?N VIDEO TOÀN DI?N
+T?i uu hóa ki?n trúc da phuong th?c (Multi-Modal Hybrid Search), Pipeline x? lý thích ?ng và T? d?ng hóa m?t c?a (One-Query Orchestration)
+M?C TIÊU T?NG QUAN: Tài li?u này t?ng h?p toàn b? gi?i pháp k? thu?t, danh sách mô hình SOTA, thu?t toán l?c frame thích ?ng, co ch? t? d?ng phân rã truy v?n và l? trình tài nguyên h?c t?p d? b?t phá di?m s? t? 9/13 lên nhóm d?n d?u trong các cu?c thi Video Retrieval / Video QA.
+
+1. Ki?n trúc H? Th?ng T? Ð?ng Hóa M?t C?a (One-Query Orchestration)
+Thay vì yêu c?u ngu?i dùng ph?i t? phân lo?i truy v?n (ch?n tìm theo hình ?nh, text hay gi?ng nói), h? th?ng áp d?ng mô hình di?u ph?i t? d?ng (Orchestration Pipeline). Ngu?i dùng ch? nh?p dúng m?t câu truy v?n duy nh?t, các tác v? phân rã, tìm ki?m song song, h?p nh?t di?m s? và tái x?p h?ng s? di?n ra ng?m hoàn toàn.
+Bu?c 1: Query Decomposition (Phân rã ng? nghia)	LLM nh? (Qwen2.5-7B) nh?n câu h?i g?c, bóc tách trong 0.2s thành 4 nhánh: Visual entities (d?i tu?ng, trang ph?c, b?i c?nh), Action (hành d?ng theo th?i gian), OCR (ch?, b?ng tên, slide), Audio transcript (l?i tho?i, tên riêng).
+Bu?c 2: Parallel Multi-modal Retrieval (Tìm ki?m song song)	H? th?ng kích ho?t d?ng th?i 3-4 lu?ng tìm ki?m: B?n Dense Visual Vector vào Vector DB (Qdrant/FAISS), b?n Sparse Keywords vào Elasticsearch/BM25 (cho ASR transcript và OCR text), b?n Action Vector vào Video Encoder.
+Bu?c 3: Reciprocal Rank Fusion - RRF (H?p nh?t di?m s?)	Áp d?ng công th?c RRF d? g?p th? h?ng t? t?t c? các nhánh Dense và Sparse, lo?i b? d? l?ch thang do (score calibration), trích xu?t Top 30 - 50 do?n video/keyframe ti?m nang nh?t.
+Bu?c 4: Cross-Encoder VLM Re-ranking (Tái x?p h?ng sâu)	Ðua Top 50 ?ng viên kèm câu query g?c vào Vision-Language Model m?nh (Qwen2.5-VL). VLM quan sát tr?c ti?p chu?i frame d? ch?m di?m tuong d?ng ng? nghia chi ti?t và l?c tri?t d? các k?t qu? duong tính gi? (false positives).
+Bu?c 5: Tr? v? k?t qu? & Timestamp chính xác	Hi?n th? Top 5 - 10 video segments chu?n xác nh?t kèm m?c th?i gian (start_time - end_time) và b?ng ch?ng tr?c quan (visual evidence highlight).
+
+2. Danh Sách Mô Hình Xu?t S?c Nh?t (SOTA Models) Cho T?ng Thành Ph?n
+Du?i dây là b?ng tuy?n ch?n các mô hình AI mã ngu?n m? hàng d?u th? gi?i tính d?n th?i di?m hi?n t?i, du?c t?i uu hóa cho d? chính xác cao và t?c d? ph?n h?i nhanh trong thi d?u:
+Thành ph?n (Module)	Mô hình d? xu?t (SOTA)	Vai trò & Ði?m m?nh vu?t tr?i
+Visual Embeddings (Keyframe tinh)	SigLIP 2 (SO400M / Giant)
+(Google)	Thay th? vu?t tr?i cho CLIP g?c nh? Sigmoid Loss. R?t m?nh v? phân bi?t chi ti?t th?c th? nh?, màu s?c trang ph?c và bi?u di?n da ngôn ng?.
+Video Spatio-Temporal Embeddings	InternVideo 2.5 / 3
+(OpenGVLab)	Chuyên x? lý video clip (chu?i frame liên ti?p). N?m b?t mu?t mà ng? c?nh d?ng: hành d?ng nhân v?t, tuong tác v?t th? và quan h? nhân qu? theo th?i gian.
+Audio Transcript / ASR	Whisper Large-v3 / Turbo
+(OpenAI / Faster-Whisper)	Trích xu?t toàn b? h?i tho?i, l?i tho?i kèm timestamp chính xác t?ng mili-giây. X? lý tri?t d? các câu h?i ch?a tên riêng nhân v?t ho?c ch? d? th?o lu?n.
+Text on Screen / OCR	PaddleOCR (PP-OCRv4) / Surya OCR	T?c d? quét c?c nhanh và chu?n xác. B?t tr?n ch? xu?t hi?n trên slide thuy?t trình, b?ng tên, bi?n báo giao thông, ph? d? ho?c logo thuong hi?u.
+Zero-shot VLM Re-ranker	Qwen2.5-VL (7B / 72B) / InternVL 2.5	Mô hình da phuong th?c hàng d?u hi?n nay. Nh?n di?n Dynamic Resolution, d?c hi?u video dài và dóng vai trò Cross-Encoder d? ch?m di?m kh?p chính xác tuy?t d?i.
+
+3. Thu?t Toán Trích Xu?t & L?c Frame Thích ?ng (Adaptive Pipeline)
+Trích xu?t frame c? d?nh theo th?i gian (Uniform sampling - ví d? m?i giây 1 frame) gây ra hai v?n d? chí m?ng: c?nh tinh lãng phí tài nguyên index nhi?u frame th?a, trong khi c?nh d?ng thay d?i nhanh l?i b? b? l? thông tin quan tr?ng. Pipeline thích ?ng 3 bu?c gi?i quy?t tri?t d? v?n d? này:
+Bu?c 1: Phân do?n c?nh quay (Shot Boundary Detection) b?ng TransNetV2
+TransNetV2 s? d?ng m?ng tích ch?p 3D CNN d? phát hi?n chu?n xác c? chuy?n c?nh d?t ng?t (Hard cuts) l?n hi?u ?ng m? d?n (Fades/Dissolves). Video dài du?c chia nh? thành danh sách các Shot d?c l?p [S1, S2, ..., Sn], m?i Shot ch?a d?ng m?t b?i c?nh quay li?n m?ch.
+Bu?c 2: L?c Frame rác & Frame nhòe m? (Trash & Motion Blur Filter)
+Tru?c khi tính toán embedding, áp d?ng 2 b? l?c toán h?c siêu nh? ch?y trên CPU:
+?L?c m? chuy?n d?ng (Motion Blur): Tính phuong sai toán t? Laplacian trên ?nh xám: Score = Var(?²I). N?u Score < 80 – 100, lo?i b? frame vì hình ?nh b? rung l?c/nhòe nét.
+?L?c khung hình don s?c / t?i / cháy sáng: Tính d? l?ch chu?n cu?ng d? sáng (Standard Deviation) và Entropy c?a histogram. N?u StdDev < 15, dây là frame den chuy?n c?nh ho?c tr?ng lóa -> b? qua.
+Bu?c 3: Trích xu?t Frame thích ?ng theo d? bi?n d?ng ng? nghia
+Trên t?ng Shot dã phân do?n, áp d?ng m?t trong hai thu?t toán sau d? t? d?ng quy?t d?nh s? frame c?n luu:
+Thu?t toán 1: Cosine Distance Thresholding (Khuyên dùng - R?t nhanh và chính xác): 1. Duy?t qua t?ng frame c?a Shot, trích xu?t vector d?c trung nhanh b?ng DINOv2-Small ho?c MobileCLIP.
+2. Luôn luu frame d?u tiên F0 c?a Shot.
+3. V?i frame Ft ti?p theo, tính Cosine Similarity gi?a Ft và Flast_kept.
+4. N?u Cosine Sim < 0.85 (t?c n?i dung hình ?nh dã có bi?n d?i dáng k?), luu Ft làm keyframe m?i và gán Flast_kept = Ft.
+-> K?t qu?: C?nh tinh (ngu?i ng?i nói chuy?n) ch? t?n 1-2 frame; c?nh hành d?ng ru?t du?i/d?i góc máy t? d?ng luu 10-15 frame.
+
+Thu?t toán 2: Motion-guided K-Means Clustering: 1. Tính cu?ng d? chuy?n d?ng trung bình c?a Shot qua Farneback Optical Flow.
+2. Xác d?nh s? c?m K = max(1, floor(Duration × a × Motion_Score)).
+3. Ch?y thu?t toán K-Means Clustering trên không gian embedding c?a Shot và ch?n frame g?n tâm c?m (centroid) nh?t d? làm d?i di?n.
+
+4. K? Thu?t Tìm Ki?m K?t H?p (Hybrid Search) & H?p Nh?t Ði?m (RRF)
+Ð? d?m b?o không b? sót b?t k? manh m?i nào, h? th?ng k?t h?p Dense Vector Search và Sparse Lexical Search. Ði?m s? c?a các danh sách k?t qu? du?c h?p nh?t b?ng công th?c Reciprocal Rank Fusion (RRF):
+CÔNG TH?C RRF: RRF_Score(d) = S [ 1 / ( k + Rank_i(d) ) ]
+Trong dó: Rank_i(d) là th? h?ng c?a tài li?u d trong danh sách tìm ki?m th? i (Visual, OCR, ASR); k là h?ng s? làm mu?t (thu?ng d?t k = 60).
+Uu di?m c?t lõi: RRF ch? quan tâm d?n th? h?ng tuong d?i, lo?i b? hoàn toàn hi?n tu?ng di?m s? vector l?n át di?m s? t? khóa ho?c ngu?c l?i.
+
+5. Ngu?n Tài Li?u, Khóa H?c Mi?n Phí & Repositories Chuyên Sâu
+Ngu?n / Kênh h?c	Tên khóa h?c / Tài li?u	M?c tiêu & Ki?n th?c thu nh?n
+K? y?u VBS & TRECVID
+(Hàng d?u th? gi?i)	Video Browser Showdown (VBS) & TRECVID AVS Papers	Ð?c các bài báo c?a các d?i vô d?ch (SOMHunter, VIREO, diveXplore). H?c cách thi?t k? giao di?n tuong tác, batch indexing và t?i uu th?i gian ph?n h?i th?c chi?n.
+DeepLearning.AI
+(Khóa h?c mi?n phí)	Building Multimodal Search Applications & Vector DBs	Th?c hành xây d?ng Hybrid Search (Dense + BM25), co ch? RRF, tích h?p Vector Databases chuyên nghi?p (Qdrant, Milvus).
+Hugging Face Audio & Multimodal	Hugging Face Audio Course & Transformers Docs	Làm ch? pipeline ASR v?i Whisper, fine-tuning các mô hình Vision-Language (SigLIP, Video-LLaVA, Qwen-VL).
+Stanford University	CS231n: Deep Learning for Computer Vision	Xây d?ng n?n t?ng v?ng ch?c v? x? lý ?nh s?, Vision Transformers (ViT) và trích xu?t d?c trung không gian.
+YouTube Chuyên Ngành	Kênh James Briggs	R?t nhi?u video th?c hành code chi ti?t v? Search Systems, Vector Search, Re-ranking và Multimodal RAG.
+GitHub Repositories
+(Code m?u th?c chi?n)	OpenGVLab/InternVideo
+soCzech/TransNetV2
+qdrant/fastembed	Tham kh?o tr?c ti?p mã ngu?n t?i uu inference, x? lý song song trên GPU và k? thu?t batch frame processing.
+
+6. K? Ho?ch Tri?n Khai & Checklist T?i Uu Cho Vòng Thi T?i
+?Nâng c?p Offline Indexing: Thay th? b? trích xu?t frame cu b?ng TransNetV2 k?t h?p b? l?c Laplacian Variance (l?c m?) và Cosine Distance (l?y frame thích ?ng).
+?Tích h?p ASR & OCR: Ch?y Whisper Large-v3 d? luu toàn b? audio transcript có g?n timestamp, và ch?y PaddleOCR d? trích xu?t text trên màn hình. Luu t?t c? vào BM25/Elasticsearch index.
+?Nâng c?p Visual Backbone: Chuy?n sang SigLIP 2 (SO400M) cho frame tinh và InternVideo cho các do?n hành d?ng d?ng.
+?Xây d?ng Prompt Phân Rã: C?u hình m?t LLM c?c b? (Qwen2.5-7B) d? t? d?ng phân tích query ngu?i dùng thành JSON g?m 4 tru?ng: visual_entities, actions, ocr_text, audio_cues.
+?Tri?n khai RRF & VLM Re-ranker: G?p Top 50 t? các nhánh b?ng RRF, sau dó dùng Qwen2.5-VL ki?m tra l?i 50 ?ng viên này tru?c khi hi?n th? cho thí sinh.
+
+K?T LU?N & K? V?NG: Khi áp d?ng hoàn ch?nh ki?n trúc này, toàn b? gánh n?ng phân tích và tìm ki?m da ngu?n s? du?c t? d?ng hóa. Trong phòng thi, b?n ch? c?n nh?p duy nh?t câu h?i t? nhiên và nh?n ngay k?t qu? chu?n xác nh?t trong vòng du?i 2 giây.

@@ -1,120 +1,120 @@
-//------------------------ Show videoframe ------------------------//
+//------------------------ Show videoframe & Timeline Explorer ------------------------//
 
-// Global variable to store the frame list
 let globalFrameList = [];
-let globalSecondList = [];
+let globalSecondList = {};
+let currentVideoName = '';
+let currentActiveFrame = 0;
 
 function parseVideoNameFromDirOrInfo(directory, frameInfo) {
   if (frameInfo && frameInfo.includes('-')) {
     const vName = frameInfo.split('-')[0].trim();
-    if (vName) return vName;
+    if (vName && !vName.includes(':') && vName.toLowerCase() !== 'video' && !vName.toLowerCase().includes('localhost')) {
+      return vName.replace(/\.mp4$/i, '');
+    }
   }
   if (directory) {
+    const match = directory.match(/\/([^\/]+)\/keyframes/i) || directory.match(/(L\d+_V\d+)/i);
+    if (match && match[1] && !match[1].includes(':') && match[1].toLowerCase() !== 'keyframes') {
+      return match[1].replace(/\.mp4$/i, '');
+    }
     const parts = directory.split('/').filter(Boolean);
-    const kfIdx = parts.indexOf('keyframes');
-    if (kfIdx > 0) {
-      return parts[kfIdx - 1];
+    const kfIdx = parts.lastIndexOf('keyframes');
+    if (kfIdx > 0 && parts[kfIdx - 1] && !parts[kfIdx - 1].includes(':') && parts[kfIdx - 1].toLowerCase() !== 'keyframes') {
+      return parts[kfIdx - 1].replace(/\.mp4$/i, '');
     }
     const lvPart = parts.find(part => part.startsWith('L') && part.includes('V'));
-    if (lvPart) return lvPart;
-    if (parts.length > 0) {
-      const last = parts[parts.length - 1];
-      if (last !== 'keyframes') return last;
-      if (parts.length > 1) return parts[parts.length - 2];
-    }
+    if (lvPart) return lvPart.replace(/\.mp4$/i, '');
   }
   return 'video';
 }
 
-// Display video frames and set up the UI
+// Display video frames timeline explorer
 async function showVideoFrames(imgDiv) {
-  // Get the container for video frames
   const divVideoFrames = document.getElementById('video-frames');
-  const leftPanel = document.querySelector('.left-panel');
-  const rightPanel = document.querySelector('.right-panel');
+  if (!divVideoFrames) return;
 
-  // Show the video frames
   divVideoFrames.style.display = 'flex';
 
-  // Let flexbox manage heights dynamically
-  leftPanel.style.height = '';
-  rightPanel.style.height = '';
-
-  // Add necessary child elements
+  // Render top toolbar and container
   divVideoFrames.innerHTML = `
-    <div class="frames-container"></div>
-    <div class="navigation-buttons">
-      <div class="nav-row">
-        <button class="nav-button" id="prev-button">←</button>
-        <button class="nav-button" id="next-button">→</button>
+    <div class="vf-header-bar">
+      <div class="vf-header-title">
+        <i class="fa-solid fa-film" style="color: #00F2FE;"></i>
+        <span>Video: <strong id="vf-cur-vid">Loading...</strong></span>
+        <span class="vf-header-badge" id="vf-cur-badge">Frame: ...</span>
       </div>
-      <div class="nav-row">
-        <button class="nav-button" id="show-preview-button">↑</button>
-        <button class="nav-button" id="hide-preview-button">↓</button>
+      <div class="vf-toolbar">
+        <button class="vf-tool-btn" id="vf-btn-prev" title="Frame kề trước (Phím ←)"><i class="fa-solid fa-chevron-left"></i> Trước</button>
+        <button class="vf-tool-btn" id="vf-btn-next" title="Frame kề sau (Phím →)">Sau <i class="fa-solid fa-chevron-right"></i></button>
+        <button class="vf-tool-btn primary-btn" id="vf-btn-add-cur" title="Thêm frame đang chọn vào bài thi (Phím Space hoặc +)"><i class="fa-solid fa-plus"></i> Chọn Frame Này</button>
+        <button class="vf-tool-btn refine-btn" id="vf-btn-refine-cur" title="Đưa frame đang chọn lên TOP 1 và tìm các ảnh tương tự (Phím R)"><i class="fa-solid fa-wand-magic-sparkles"></i> Đưa Lên Top 1</button>
+        <button class="vf-tool-btn" id="vf-btn-play-cur" title="Phát video từ khoảnh khắc này"><i class="fa-solid fa-play"></i> Xem Video</button>
+        <button class="vf-close-btn" id="vf-btn-close" title="Đóng thanh duyệt frame (Phím Esc)">×</button>
       </div>
-      <button class="close-button">×</button>
     </div>
+    <div class="frames-container"></div>
   `;
-  
+
   const framesContainer = divVideoFrames.querySelector('.frames-container');
 
-  const exportArea = document.getElementById('export-area');
-  exportArea.addEventListener('dragover', allowDrop);
-  exportArea.addEventListener('drop', drop);
-
-  
-  // Get the image from the clicked div
-  const img = imgDiv.querySelector('img');
+  const img = imgDiv.querySelector ? imgDiv.querySelector('img') : imgDiv;
   if (img) {
-    const imgPath = img.src;
-    const infoDiv = imgDiv.querySelector('.infor');
-    const imageInfo = infoDiv.textContent;
-    
+    const imgPath = img.src || img.dataset.src || '';
+    const infoDiv = imgDiv.querySelector ? imgDiv.querySelector('.infor') : null;
+    const imageInfo = infoDiv ? infoDiv.textContent : '';
+
     const lastSlashIndex = imgPath.lastIndexOf('/');
     const directory = imgPath.substring(0, lastSlashIndex + 1);
     const originalFrameName = imgPath.substring(lastSlashIndex + 1).split('.')[0];
-    const currentFrame = originalFrameName.split('_')[1];
+    const currentFrame = parseInt(originalFrameName.replace('keyframe_', '').replace(/\.[^.]+$/, ''), 10) || 0;
+
+    currentActiveFrame = currentFrame;
+    currentVideoName = parseVideoNameFromDirOrInfo(directory, imageInfo);
 
     framesContainer.dataset.currentFrame = currentFrame;
     framesContainer.dataset.directory = directory;
 
-    // Load the CSV file and populate the globalFrameList
     await loadFrameListFromCSV(directory, imageInfo);
-    
+    updateHeaderInfo(currentActiveFrame);
     await updateFrames(framesContainer, directory, currentFrame, imageInfo);
   }
 
-  // Add event listener for keyboard navigation
-  document.addEventListener('keydown', handleKeyPress);
-
-  // Add event listener to close the video-frames div when Escape key is pressed
-  document.addEventListener('keydown', escapeHandler);
-  
   setupNavigationButtons();
+  document.removeEventListener('keydown', handleKeyPress);
+  document.addEventListener('keydown', handleKeyPress);
+  document.removeEventListener('keydown', escapeHandler);
+  document.addEventListener('keydown', escapeHandler);
+}
+
+function updateHeaderInfo(frameNumber) {
+  const vidEl = document.getElementById('vf-cur-vid');
+  const badgeEl = document.getElementById('vf-cur-badge');
+  if (vidEl) vidEl.textContent = currentVideoName;
+  if (badgeEl) {
+    const sec = globalSecondList[frameNumber] !== undefined ? globalSecondList[frameNumber] : (frameNumber / 25.0);
+    const curIdx = globalFrameList.indexOf(parseInt(frameNumber, 10));
+    const totalCount = globalFrameList.length;
+    const posStr = curIdx !== -1 ? `[${curIdx + 1}/${totalCount}]` : '';
+    badgeEl.textContent = `Frame: ${frameNumber} (${sec.toFixed(2)}s) ${posStr}`;
+  }
 }
 
 function setupNavigationButtons() {
-  document.getElementById('prev-button').addEventListener('click', () => navigateFrames(-1));
-  document.getElementById('next-button').addEventListener('click', () => navigateFrames(1));
-  document.getElementById('show-preview-button').addEventListener('click', showCurrentFramePreview);
-  document.getElementById('hide-preview-button').addEventListener('click', hideCurrentFramePreview);
-  document.querySelector('.close-button').addEventListener('click', closeVideoFrames);
+  document.getElementById('vf-btn-prev')?.addEventListener('click', () => navigateFrames(-1));
+  document.getElementById('vf-btn-next')?.addEventListener('click', () => navigateFrames(1));
+  document.getElementById('vf-btn-add-cur')?.addEventListener('click', exportCurrentFrame);
+  document.getElementById('vf-btn-refine-cur')?.addEventListener('click', refineCurrentFrame);
+  document.getElementById('vf-btn-play-cur')?.addEventListener('click', () => {
+    const sec = globalSecondList[currentActiveFrame] !== undefined ? globalSecondList[currentActiveFrame] : (currentActiveFrame / 25.0);
+    if (typeof playVideoAtTime === 'function') {
+      playVideoAtTime(currentVideoName, sec);
+    }
+  });
+  document.getElementById('vf-btn-close')?.addEventListener('click', closeVideoFrames);
 }
 
 async function loadFrameListFromCSV(directory, imageInfo) {
-  let videoName = '';
-  if (imageInfo && imageInfo.includes('-')) {
-    videoName = imageInfo.split('-')[0];
-  } else {
-    const parts = directory.split('/').filter(Boolean);
-    const kfIdx = parts.indexOf('keyframes');
-    if (kfIdx > 0) {
-      videoName = parts[kfIdx - 1];
-    } else {
-      videoName = parts[parts.length - 1] || 'video';
-    }
-  }
-
+  let videoName = currentVideoName || parseVideoNameFromDirOrInfo(directory, imageInfo);
   const csvBase = window.CSV_BASE || 'http://localhost:8000/keyframes/maps';
   let csvFilePath = `${csvBase}/${videoName}_map.csv`;
 
@@ -137,7 +137,7 @@ async function loadFrameListFromCSV(directory, imageInfo) {
           const sec = parseFloat(parts[1].trim());
           if (!isNaN(fid)) {
             globalFrameList.push(fid);
-            globalSecondList[fid] = isNaN(sec) ? fid : sec;
+            globalSecondList[fid] = isNaN(sec) ? fid / 25.0 : sec;
           }
         }
       });
@@ -145,370 +145,272 @@ async function loadFrameListFromCSV(directory, imageInfo) {
   } catch (e) {
     console.warn("Could not load CSV mapping for", videoName, e);
   }
-  if (globalFrameList.length === 0) {
-    console.error('No valid frames found in CSV');
-  }
-}
-  
-
-// Create a container for a single frame
-function createFrameContainer(src, frameNumber, isCurrent, frameInfo) {
-  const frameContainer = document.createElement('div');
-  frameContainer.className = 'frame-container';
-
-  const frameElement = document.createElement('img');
-  frameElement.src = src;
-  frameElement.alt = 'Video Frame';
-  frameElement.className = 'video-frame' + (isCurrent ? ' current-frame' : '');
-  frameElement.dataset.frameNumber = frameNumber;
-
-  const frameNameDiv = document.createElement('div');
-  frameNameDiv.className = 'infor';
-
-  frameNameDiv.textContent = `${frameInfo}`;
-
-  const frameElements = document.querySelectorAll('.video-frame');
-  frameElements.forEach((frame) => {
-    frame.setAttribute('draggable', 'true');
-    frame.addEventListener('dragstart', drag);
-  });
-  
-
-  frameContainer.appendChild(frameElement);
-  frameContainer.appendChild(frameNameDiv);
-
-  frameContainer.addEventListener('click', () => {
-    const directory = src.substring(0, src.lastIndexOf('/') + 1);
-    const videoName = parseVideoNameFromDirOrInfo(directory, frameInfo);
-    updateMainFrame(frameNumber, directory, frameInfo);
-    const seconds = globalSecondList[`${frameNumber}`] !== undefined ? globalSecondList[`${frameNumber}`] : (frameNumber / 25.0);
-    playVideoAtTime(videoName, seconds);
-  });
-
-  console.log(frameContainer);
-  return frameContainer;
 }
 
-
-// Update the main frame and surrounding frames
 async function updateMainFrame(newFrameNumber, directory, frameInfo) {
   const framesContainer = document.querySelector('.frames-container');
-  framesContainer.dataset.currentFrame = newFrameNumber;
+  if (!framesContainer) return;
+
+  currentActiveFrame = parseInt(newFrameNumber, 10);
+  framesContainer.dataset.currentFrame = currentActiveFrame;
   framesContainer.dataset.directory = directory;
 
-  // Remove current-frame-container class from all frame containers
-  const allFrameContainers = framesContainer.querySelectorAll('.frame-container');
-  allFrameContainers.forEach(container => {
-    container.classList.remove('current-frame-container');
-  });
-
-  // Find the new current frame and update its classes
-  const newCurrentFrame = framesContainer.querySelector(`[data-frame-number="${newFrameNumber}"]`);
-  if (newCurrentFrame) {
-    const newCurrentContainer = newCurrentFrame.closest('.frame-container');
-    newCurrentContainer.classList.add('current-frame-container');
-    newCurrentFrame.classList.add('current-frame');
-  }
-
-  await updateFrames(framesContainer, directory, newFrameNumber, frameInfo);
+  updateHeaderInfo(currentActiveFrame);
+  await updateFrames(framesContainer, directory, currentActiveFrame, frameInfo);
 }
 
-
-// Update the frames in the container
 async function updateFrames(container, directory, currentFrame, currentFrameInfo) {
+  if (globalFrameList.length === 0) return;
 
-  if (globalFrameList.length === 0) {
-    console.error('Frame list is empty');
-    return;
-  }
-
-  const currentIndex = globalFrameList.indexOf(parseInt(currentFrame));
+  const curFid = parseInt(currentFrame, 10);
+  const currentIndex = globalFrameList.indexOf(curFid);
   const nearestIndex = currentIndex !== -1 ? currentIndex : globalFrameList.reduce((prev, curr, idx) => 
-    Math.abs(curr - currentFrame) < Math.abs(globalFrameList[prev] - currentFrame) ? idx : prev, 0);
+    Math.abs(curr - curFid) < Math.abs(globalFrameList[prev] - curFid) ? idx : prev, 0);
 
-  const start = Math.max(0, nearestIndex - 20);
-  const end = Math.min(globalFrameList.length, nearestIndex + 21);
+  // Show a generous sliding window of surrounding frames (±35 frames)
+  const start = Math.max(0, nearestIndex - 35);
+  const end = Math.min(globalFrameList.length, nearestIndex + 36);
   const framesToShow = globalFrameList.slice(start, end);
 
-  await updateFramesSmooth(container, directory, currentFrame, framesToShow);
+  await updateFramesSmooth(container, directory, curFid, framesToShow);
 }
 
 async function updateFramesSmooth(container, directory, currentFrame, framesToShow) {
   const fragment = document.createDocumentFragment();
 
   for (let frameNumber of framesToShow) {
+    const isCurrent = frameNumber.toString() === currentFrame.toString();
     const frameContainer = document.createElement('div');
-    frameContainer.className = 'frame-container';
-    if (frameNumber.toString() === currentFrame.toString()) {
-      frameContainer.classList.add('current-frame-container');
-    }
+    frameContainer.className = 'frame-container' + (isCurrent ? ' current-frame-container' : '');
+    frameContainer.dataset.frameNumber = frameNumber;
+
+    const sec = globalSecondList[frameNumber] !== undefined ? globalSecondList[frameNumber] : (frameNumber / 25.0);
+    const frameInfo = `${currentVideoName}-${sec.toFixed(2)}`;
+    const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
+    const framePath = `${keyframeBase}/${currentVideoName}/keyframes/keyframe_${frameNumber}.webp`;
+
     frameContainer.innerHTML = `
-      <img class="video-frame ${frameNumber.toString() === currentFrame.toString() ? 'current-frame' : ''}" data-frame-number="${frameNumber}" alt="Video Frame">
-      <div class="infor"></div>
+      <div class="frame-actions-overlay">
+        <button class="vf-action-btn add" title="Thêm frame này vào bài thi (+)"><i class="fa-solid fa-plus"></i></button>
+        <button class="vf-action-btn refine" title="Đưa frame này lên TOP 1 & Tìm tương tự"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+      </div>
+      <img class="video-frame ${isCurrent ? 'current-frame' : ''}" src="${framePath}" data-frame-number="${frameNumber}" alt="Video Frame">
+      <div class="infor">${frameInfo}</div>
+      ${isCurrent ? '<span class="current-indicator-badge">ĐANG CHỌN</span>' : ''}
     `;
+
+    // Click frame to select / focus
+    frameContainer.addEventListener('click', (e) => {
+      if (e.target.closest('.vf-action-btn')) return; // handled separately
+      updateMainFrame(frameNumber, directory, frameInfo);
+    });
+
+    // Button: Add to Export
+    const addBtn = frameContainer.querySelector('.vf-action-btn.add');
+    if (addBtn) {
+      addBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const tsMs = Math.round(sec * 1000);
+        if (typeof addImageToExportArea === 'function') {
+          addImageToExportArea(frameNumber, framePath, frameInfo, true, tsMs);
+          if (typeof showNotification === 'function') {
+            showNotification(`Đã thêm ${frameInfo} vào danh sách nộp!`, 'success');
+          }
+        }
+      });
+    }
+
+    // Button: Refine / Bring to Top 1
+    const refineBtn = frameContainer.querySelector('.vf-action-btn.refine');
+    if (refineBtn) {
+      refineBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const vectorId = `${currentVideoName}_${frameNumber}`;
+        const tsMs = Math.round(sec * 1000);
+        if (typeof addImageToExportArea === 'function') {
+          addImageToExportArea(frameNumber, framePath, frameInfo, true, tsMs);
+        }
+        if (typeof performRefineSearch === 'function') {
+          performRefineSearch([vectorId]);
+          if (typeof showNotification === 'function') {
+            showNotification(`✨ Đang đưa ${frameInfo} lên TOP 1 và tìm các cảnh liên quan!`, 'success');
+          }
+        } else if (typeof performSimilaritySearch === 'function') {
+          performSimilaritySearch(vectorId, framePath, currentVideoName, frameNumber);
+        }
+      });
+    }
+
     fragment.appendChild(frameContainer);
   }
 
   container.innerHTML = '';
   container.appendChild(fragment);
 
-  const updatePromises = Array.from(container.children).map((frameContainer, index) => {
-    const frameNumber = framesToShow[index].toString();
-    
-    return updateFrameContainer(frameContainer, frameNumber, directory, currentFrame.toString() === frameNumber);
-  });
-
-  await Promise.all(updatePromises);
-
-  const currentFrameElement = container.querySelector('.current-frame');
+  const currentFrameElement = container.querySelector('.current-frame-container');
   if (currentFrameElement) {
     currentFrameElement.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' });
   }
 }
 
-
-async function updateFrameContainer(frameContainer, frameNumber, directory, isCurrent) {
-  const frameElement = frameContainer.querySelector('img');
-  const frameNameDiv = frameContainer.querySelector('.infor');
-
-  const videoName = parseVideoNameFromDirOrInfo(directory, frameNameDiv ? frameNameDiv.textContent : '');
-  const framePath = `${window.KEYFRAME_BASE}/${videoName}/keyframes/keyframe_${frameNumber}.webp`;
-
-  frameElement.src = framePath;
-  frameElement.className = 'video-frame' + (isCurrent ? ' current-frame' : '');
-  frameElement.dataset.frameNumber = frameNumber;
-  const seconds_json = globalSecondList[`${frameNumber}`];
-  const frameInfo = `${videoName}-${seconds_json}`;
-  frameNameDiv.textContent = frameInfo;
-
-
-  frameContainer.className = 'frame-container' + (isCurrent ? ' current-frame-container' : '');
-
-  frameContainer.addEventListener('click', () => {
-    updateMainFrame(frameNumber, directory, frameInfo);
-    const seconds = globalSecondList[`${frameNumber}`] !== undefined ? globalSecondList[`${frameNumber}`] : (frameNumber / 25.0);
-    playVideoAtTime(videoName, seconds);
-  });
-
-  frameElement.setAttribute('draggable', 'true');
-  frameElement.addEventListener('dragstart', drag);
-  frameContainer.addEventListener('mousedown', handleMiddleClick);
-  frameContainer.addEventListener('contextmenu', handleRightClick);
-
-  await new Promise((resolve) => {
-    if (frameElement.complete) {
-      resolve();
-    } else {
-      frameElement.onload = resolve;
-      frameElement.onerror = resolve;
-    }
-  });
-}
-
-
-
-// Navigate between frames
+// Navigate between frames with direction
 function navigateFrames(direction) {
-  const framesContainer = document.querySelector('.frames-container');
-  const currentFrame = parseInt(framesContainer.dataset.currentFrame);
-  const directory = framesContainer.dataset.directory;
-  
-  const currentIndex = globalFrameList.indexOf(currentFrame);
-  
-  if (currentIndex === -1) {
-    console.error("Current frame not found in global frame list");
-    return;
-  }
+  if (globalFrameList.length === 0) return;
 
-  const newIndex = currentIndex + direction;
-  if (newIndex < 0 || newIndex >= globalFrameList.length) {
-    console.log("Reached the end of frame list");
-    return;
-  }
+  const currentIndex = globalFrameList.indexOf(currentActiveFrame);
+  let newIndex = (currentIndex !== -1 ? currentIndex : 0) + direction;
+  if (newIndex < 0) newIndex = 0;
+  if (newIndex >= globalFrameList.length) newIndex = globalFrameList.length - 1;
 
   const newFrame = globalFrameList[newIndex];
-  framesContainer.dataset.currentFrame = newFrame;
-
-  const videoName = framesContainer.querySelector('.infor').textContent.split('-')[0];
-  const frameInfo = `${videoName}-${newFrame}`;
+  const sec = globalSecondList[newFrame] !== undefined ? globalSecondList[newFrame] : (newFrame / 25.0);
+  const frameInfo = `${currentVideoName}-${sec.toFixed(2)}`;
+  const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
+  const directory = `${keyframeBase}/${currentVideoName}/keyframes/`;
 
   updateMainFrame(newFrame, directory, frameInfo);
-  updateCurrentPreview();
 }
 
-
-// Create an image element for a video frame
-function createFrameElement(src, className) {
-  const frame = document.createElement('img');
-  frame.src = src;
-  frame.alt = 'Video Frame';
-  frame.classList.add('video-frame', className);
-  return frame;
-}
-
-
-// Update the source and class of each frame in the container
-function updateSurroundingFrames(container, directory, currentFrame) {
-  const frames = container.querySelectorAll('.video-frame');
-  const data_batch= directory.split('/')[4]
-  const videoname=directory.split('/')[6]
-  frames.forEach((frame, index) => {
-    const frameNumber = currentFrame - 10 + index;
-    if (data_batch==='data-batch-1' || (videoname <"L18_V001" && videoname>="L12_V001")){
-      frame.src = `${directory}${frameNumber.toString().padStart(4, '0')}.webp`;
-      }
-      else{
-      frame.src = `${directory}${frameNumber.toString().padStart(3, '0')}.webp`;
-      }  
-    frame.dataset.frameNumber = frameNumber;
-    frame.className = 'video-frame' + (frameNumber === currentFrame ? ' current-frame' : ' other-frame');
-  });
-}
-
-
-// Handle keyboard navigation
-function handleKeyPress(event) {
-  const videoPlayer = document.getElementById('vid_details');
-  const isVideoPlaying = videoPlayer && !videoPlayer.paused;
-  const fullscreenImage = document.getElementById('fullscreen-image-container');
-  
-  if (fullscreenImage.style.display === 'flex') {
-    return; // Exit early if fullscreen image is displayed
-  }
-
-  if (isVideoPlaying) {
-    return; // Exit if video is playing
-  }
-
-  const isInputElement = event.target.tagName === 'TEXTAREA' || event.target.tagName === 'INPUT';
-
-  if (isInputElement) {
-    return; // Exit if user is typing in an input
-  }
-
-  switch(event.key) {
-    case 'ArrowLeft':
-      event.preventDefault();
-      navigateFrames(-1);
-      updateCurrentPreview();
-      break;
-    case 'ArrowRight':
-      event.preventDefault();
-      navigateFrames(1);
-      updateCurrentPreview();
-      break;
-    case 'ArrowUp':
-      event.preventDefault();
-      showCurrentFramePreview();
-      break;
-    case 'ArrowDown':
-      event.preventDefault();
-      // exportCurrentFrame();
-      hideCurrentFramePreview();
-      break;
-    case '=':
-      event.preventDefault();
-      exportCurrentFrame();
-      break;
-  }
-}
-
-
-// New function to export the current frame
+// Export current active frame
 function exportCurrentFrame() {
-  const currentFrameContainer = document.querySelector('.current-frame-container');
-  if (currentFrameContainer) {
-    const imgElement = currentFrameContainer.querySelector('img');
-    const inforElement = currentFrameContainer.querySelector('.infor');
-    
-    if (imgElement && inforElement) {
-      const frameId = inforElement.textContent.split('-')[1];
-      const imageSrc = imgElement.src;
-      const frameInfo = inforElement.textContent;
-      
-      addImageToExportArea(frameId, imageSrc, frameInfo);
+  if (!currentActiveFrame || !currentVideoName) return;
+  const sec = globalSecondList[currentActiveFrame] !== undefined ? globalSecondList[currentActiveFrame] : (currentActiveFrame / 25.0);
+  const frameInfo = `${currentVideoName}-${sec.toFixed(2)}`;
+  const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
+  const framePath = `${keyframeBase}/${currentVideoName}/keyframes/keyframe_${currentActiveFrame}.webp`;
+  const tsMs = Math.round(sec * 1000);
+
+  if (typeof addImageToExportArea === 'function') {
+    addImageToExportArea(currentActiveFrame, framePath, frameInfo, true, tsMs);
+    if (typeof showNotification === 'function') {
+      showNotification(`Đã thêm ${frameInfo} vào danh sách nộp!`, 'success');
     }
   }
 }
 
+// Refine search: Bring current active frame to Top 1
+function refineCurrentFrame() {
+  if (!currentActiveFrame || !currentVideoName) return;
+  const sec = globalSecondList[currentActiveFrame] !== undefined ? globalSecondList[currentActiveFrame] : (currentActiveFrame / 25.0);
+  const frameInfo = `${currentVideoName}-${sec.toFixed(2)}`;
+  const vectorId = `${currentVideoName}_${currentActiveFrame}`;
+  const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
+  const framePath = `${keyframeBase}/${currentVideoName}/keyframes/keyframe_${currentActiveFrame}.webp`;
+  const tsMs = Math.round(sec * 1000);
 
-// Close the video frames and reset UI
+  if (typeof addImageToExportArea === 'function') {
+    addImageToExportArea(currentActiveFrame, framePath, frameInfo, true, tsMs);
+  }
+
+  if (typeof performRefineSearch === 'function') {
+    performRefineSearch([vectorId]);
+    if (typeof showNotification === 'function') {
+      showNotification(`✨ Đang đưa ${frameInfo} lên TOP 1 và tìm các cảnh liên quan!`, 'success');
+    }
+  } else if (typeof performSimilaritySearch === 'function') {
+    performSimilaritySearch(vectorId, framePath, currentVideoName, currentActiveFrame);
+  }
+}
+
+function handleKeyPress(event) {
+  const activeEl = document.activeElement;
+  const target = event.target;
+  const isInput = (el) => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable || el.closest?.('input') || el.closest?.('textarea'));
+
+  if (isInput(activeEl) || isInput(target)) {
+    return; // Đang gõ chữ trong ô tìm kiếm / Q&A, không bao giờ can thiệp phím
+  }
+
+  // Khi cửa sổ xem Video đang mở, nhường quyền hoàn toàn cho trình phát video
+  const detailsDiv = document.getElementById('Details');
+  if (detailsDiv && detailsDiv.style.display !== 'none') {
+    return;
+  }
+
+  const divVideoFrames = document.getElementById('video-frames');
+  if (!divVideoFrames || divVideoFrames.style.display === 'none') return;
+
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault();
+    navigateFrames(event.shiftKey ? -10 : -1);
+  } else if (event.key === 'ArrowRight') {
+    event.preventDefault();
+    navigateFrames(event.shiftKey ? 10 : 1);
+  } else if (event.key === '+' || event.key === '=' || event.key === 'a' || event.key === 'A') {
+    event.preventDefault();
+    exportCurrentFrame();
+  } else if (event.key === 'r' || event.key === 'R') {
+    event.preventDefault();
+    refineCurrentFrame();
+  } else if (event.key === 'Escape') {
+    event.preventDefault();
+    closeVideoFrames();
+  }
+}
+
 function closeVideoFrames() {
   const divVideoFrames = document.getElementById('video-frames');
-  const leftPanel = document.querySelector('.left-panel');
-  const rightPanel = document.querySelector('.right-panel');
-  
-  divVideoFrames.style.display = 'none';
-  leftPanel.style.height = '';
-  rightPanel.style.height = '';
-  
-  // Remove the event listener for keyboard navigation
+  if (divVideoFrames) divVideoFrames.style.display = 'none';
   document.removeEventListener('keydown', handleKeyPress);
   document.removeEventListener('keydown', escapeHandler);
 }
 
 const escapeHandler = (event) => {
+  const activeEl = document.activeElement;
+  const target = event.target;
+  const isInput = (el) => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable || el.closest?.('input') || el.closest?.('textarea'));
+
+  if (isInput(activeEl) || isInput(target)) {
+    return;
+  }
   if (event.key === 'Escape') {
     closeVideoFrames();
   }
 };
 
-
-//---------------------------------------------------------------------------------------------//
-// Play video when right-click
-
-
-function handleRightClick(event) {
-  if (event.button === 2) { // Right mouse button
-    event.preventDefault();
-    const frameNumber = event.currentTarget.querySelector('.video-frame').dataset.frameNumber;
-    const videoName = event.currentTarget.querySelector('.infor').textContent.split('-')[0];
-    playVideoFromFrame(videoName, frameNumber);
-  }
-}
-
-
-
-// Update playVideoFromFrame to be more consistent with showVideo
-async function playVideoFromFrame(videoName, frameNumber) {
-  console.log("videoName: " + videoName);
-  console.log("frameNumber: " + frameNumber);
-  const detailsDiv = document.getElementById('Details');
-  const videoElement = document.getElementById('vid_details');
-  let player = null;
-
-  detailsDiv.style.display = 'block';
-
-  const videoSrc = await getVideo(videoName);
-
-  console.log("videoSrc: " + videoSrc);
-
-  if (!videoElement.playerInstance) {
-      videoElement.playerInstance = new VideoPlayer('vid_details', videoSrc);
-      player = videoElement.playerInstance;
-  } else {
-      player = videoElement.playerInstance;
-      player.videoSrc = videoSrc;
-      player.initPlayer();
-  }
-
-  // Convert frame number to seconds
-  // This conversion should match how frames are handled in your system
-  // You might need to adjust this calculation based on your video's actual frame rate
-
-  const timeInSeconds = globalSecondList[`${frameNumber}`]; // Assuming 25 fps
-
-  player.video.currentTime = timeInSeconds;
-  player.play();
-
-  console.log("currentTime 2: " + timeInSeconds);
-
-  // Ensure frame navigation still works
+async function showVideoFramesByInfo(videoName, frameId, imgSrc, frameInfo) {
   const divVideoFrames = document.getElementById('video-frames');
-  if (divVideoFrames.style.display === 'flex') {
-      setupNavigationButtons();
-      document.addEventListener('keydown', handleKeyPress);
-  }
+  if (!divVideoFrames) return;
+
+  divVideoFrames.style.display = 'flex';
+
+  divVideoFrames.innerHTML = `
+    <div class="vf-header-bar">
+      <div class="vf-header-title">
+        <i class="fa-solid fa-film" style="color: #00F2FE;"></i>
+        <span>Video: <strong id="vf-cur-vid">Loading...</strong></span>
+        <span class="vf-header-badge" id="vf-cur-badge">Frame: ...</span>
+      </div>
+      <div class="vf-toolbar">
+        <button class="vf-tool-btn" id="vf-btn-prev" title="Frame kề trước (Phím ←)"><i class="fa-solid fa-chevron-left"></i> Trước</button>
+        <button class="vf-tool-btn" id="vf-btn-next" title="Frame kề sau (Phím →)">Sau <i class="fa-solid fa-chevron-right"></i></button>
+        <button class="vf-tool-btn primary-btn" id="vf-btn-add-cur" title="Thêm frame đang chọn vào bài thi (Phím Space hoặc +)"><i class="fa-solid fa-plus"></i> Chọn Frame Này</button>
+        <button class="vf-tool-btn refine-btn" id="vf-btn-refine-cur" title="Đưa frame đang chọn lên TOP 1 và tìm các ảnh tương tự (Phím R)"><i class="fa-solid fa-wand-magic-sparkles"></i> Đưa Lên Top 1</button>
+        <button class="vf-tool-btn" id="vf-btn-play-cur" title="Phát video từ khoảnh khắc này"><i class="fa-solid fa-play"></i> Xem Video</button>
+        <button class="vf-close-btn" id="vf-btn-close" title="Đóng thanh duyệt frame (Phím Esc)">×</button>
+      </div>
+    </div>
+    <div class="frames-container"></div>
+  `;
+
+  const framesContainer = divVideoFrames.querySelector('.frames-container');
+  const currentFrame = parseInt(frameId, 10) || 0;
+  currentActiveFrame = currentFrame;
+  currentVideoName = videoName;
+
+  const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
+  const directory = imgSrc ? imgSrc.substring(0, imgSrc.lastIndexOf('/') + 1) : `${keyframeBase}/${videoName}/keyframes/`;
+
+  framesContainer.dataset.currentFrame = currentFrame;
+  framesContainer.dataset.directory = directory;
+
+  await loadFrameListFromCSV(directory, frameInfo);
+  updateHeaderInfo(currentActiveFrame);
+  await updateFrames(framesContainer, directory, currentFrame, frameInfo);
+
+  setupNavigationButtons();
+  document.removeEventListener('keydown', handleKeyPress);
+  document.addEventListener('keydown', handleKeyPress);
+  document.removeEventListener('keydown', escapeHandler);
+  document.addEventListener('keydown', escapeHandler);
 }
-
-

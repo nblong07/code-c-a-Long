@@ -10,16 +10,16 @@
     <link rel="apple-touch-icon" href="src/Img/favicon-robot.svg?v=5" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <link rel="stylesheet" href="src/styles/layout.css" />
-    <link rel="stylesheet" href="src/styles/left_panel.css" />
-    <link rel="stylesheet" href="src/styles/right_panel.css" />
-    <link rel="stylesheet" href="src/styles/notification.css" />
-    <link rel="stylesheet" href="src/styles/show_video.css" />
-    <link rel="stylesheet" href="src/styles/video_frame.css" />
-    <link rel="stylesheet" href="src/styles/utils.css" />
-    <link rel="stylesheet" href="src/styles/queries_history.css" />
-    <link rel="stylesheet" href="src/styles/export_area.css" />
-    <link rel="stylesheet" href="src/styles/preview.css" />
+    <link rel="stylesheet" href="src/styles/layout.css?v=20260821_v28" />
+    <link rel="stylesheet" href="src/styles/left_panel.css?v=20260821_v28" />
+    <link rel="stylesheet" href="src/styles/right_panel.css?v=20260821_v28" />
+    <link rel="stylesheet" href="src/styles/notification.css?v=20260821_v28" />
+    <link rel="stylesheet" href="src/styles/show_video.css?v=20260821_v28" />
+    <link rel="stylesheet" href="src/styles/video_frame.css?v=20260821_v28" />
+    <link rel="stylesheet" href="src/styles/utils.css?v=20260821_v28" />
+    <link rel="stylesheet" href="src/styles/queries_history.css?v=20260821_v28" />
+    <link rel="stylesheet" href="src/styles/export_area.css?v=20260821_v28" />
+    <link rel="stylesheet" href="src/styles/preview.css?v=20260821_v28" />
 
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
@@ -89,23 +89,21 @@
           <span class="traffic-light green" id="tl-green" title="Hệ thống: Sẵn sàng"></span>
         </div>
 
-        <label class="mode-option" title="Gạt để chuyển giữa chế độ xem danh sách dọc và xem phân nhóm theo video (Alt + W)">          
+        <label class="mode-option" title="Chuyển đổi chế độ hiển thị">          
           <input type="checkbox" id="mode-toggle" class="toggle-checkbox">
           <span class="slider"></span>
         </label>
 
         <div class="button-header-group">
-          <button type="button" id="export-button" title="Mở khay chọn ảnh / danh sách kết quả (Phím tắt Alt + A)">
-            <i class="fa-solid fa-list-check"></i> Khay Chọn
+          <button type="button" id="export-button" title="Khay nộp bài">
+            <i class="fa-solid fa-list-check"></i> Khay Nộp
           </button>
-          <button type="button" id="package-button" title="Quản lý Gói Bài Thi Sơ Tuyển & Nén Zip AIC 2026 (Phím tắt Alt + P hoặc Ctrl + S)">
-            <i class="fa-solid fa-box-archive"></i> Gói Nộp Bài & Nén ZIP <span id="package-badge" class="package-badge" style="display: none;">0</span>
+          <button type="button" id="package-button" title="Gói bài thi">
+            <i class="fa-solid fa-box-archive"></i> Gói Bài Thi <span id="package-badge" class="package-badge" style="display: none;">0</span>
           </button>
         </div>
     </div>
     </header>
-
-
 
     <div class="container">
 
@@ -114,52 +112,36 @@
         <div class="Box_Function">
           <div class="search-card">
 
-            <!-- AI Engine & Multi-modal Status Bar -->
-            <div class="model-option-bar">
-              <span class="model-bar-label"><i class="fa-solid fa-microchip"></i> AI Engine:</span>
-              <div class="model-option" id="model-option-1" style="display: flex; gap: 6px;">
-                <button class="clip active" data-model="clip" title="Google SigLIP SO400M — Mô hình AI thị giác & ngữ nghĩa chính xác nhất">⚡ SigLIP SO400M</button>
-                <button class="clip active" data-model="clip" title="Tự động bóc tách thành phần Ngữ cảnh, Chữ viết và Giọng nói bằng LLM">✨ LLM Omni-Parser</button>
-              </div>
-            </div>
-
             <!-- Competition Task Mode Selector -->
-            <div class="task-mode-bar" style="display: flex; gap: 8px; margin-top: 8px;">
-               <button class="task-mode-btn active" data-task="kis" title="Chế độ KIS: Tìm kiếm đoạn video theo văn bản mô tả" style="flex: 1; padding: 6px; font-size: 11.5px; font-weight: 700; border-radius: 6px; cursor: pointer; border: 1px solid #00F2FE; background-color: rgba(0, 242, 254, 0.15); color: #00F2FE; transition: all 0.2s;">Textual KIS</button>
-               <button class="task-mode-btn" data-task="qa" title="Chế độ Visual Q&A: Trả lời câu hỏi thị giác dựa trên video" style="flex: 1; padding: 6px; font-size: 11.5px; font-weight: 700; border-radius: 6px; cursor: pointer; border: 1px solid #334155; background-color: #0F172A; color: #94A3B8; transition: all 0.2s;">Visual Q&A</button>
-               <button class="task-mode-btn" data-task="trake" title="Chế độ TRAKE: Tìm kiếm chuỗi sự kiện xảy ra liên tiếp theo thời gian (Ctrl + H)" style="flex: 1; padding: 6px; font-size: 11.5px; font-weight: 700; border-radius: 6px; cursor: pointer; border: 1px solid #334155; background-color: #0F172A; color: #94A3B8; transition: all 0.2s;">TRAKE</button>
+            <div class="task-mode-bar" style="display: flex; gap: 6px;">
+               <button class="task-mode-btn active" data-task="kis" title="Chế độ KIS" style="flex: 1; padding: 6px 4px; font-size: 12px; font-weight: 700; border-radius: 6px; cursor: pointer; border: 1px solid #00F2FE; background-color: rgba(0, 242, 254, 0.15); color: #00F2FE; transition: all 0.2s;">KIS</button>
+               <button class="task-mode-btn" data-task="trake" title="Chế độ TRAKE" style="flex: 1; padding: 6px 4px; font-size: 12px; font-weight: 700; border-radius: 6px; cursor: pointer; border: 1px solid #334155; background-color: #0F172A; color: #94A3B8; transition: all 0.2s;">TRAKE</button>
             </div>
 
             <form id="Search">
 
-              <!-- Dynamic Scenes Container (Contains all sequential scenes) -->
+              <!-- Dynamic Scenes Container -->
               <div id="dynamic-scenes-container">
                 <div class="Search_Scene" id="search-scene-1">
-                  <div class="scene-header-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span id="scene-1-title" style="font-size: 12px; font-weight: 700; color: #00F2FE;"><i class="fa-solid fa-magnifying-glass"></i> Omni-Search</span>
-                    <button type="button" id="clear-all-query-btn" class="clear-query-icon-btn" title="Làm mới / Xóa (Ctrl + Q)">
+                  <div class="scene-header-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span id="scene-1-title" style="font-size: 11.5px; font-weight: 700; color: #00F2FE;"><i class="fa-solid fa-magnifying-glass"></i> Tìm kiếm</span>
+                    <button type="button" id="clear-all-query-btn" class="clear-query-icon-btn" title="Làm mới">
                       <i class="fa-solid fa-rotate-right"></i>
                     </button>
                   </div>
                   
                   <div class="query-group">
                     <div class="query-content-area">
-                      <!-- Omni Text Query -->
-                      <textarea name="Text_Query" id="Omni-Query-First" rows="4" placeholder="🔍 Nhập mô tả câu hỏi hoặc dán câu mô tả..."></textarea>
-                      
-                      <!-- Q&A Input (Hidden by default, shown for Visual Q&A) -->
-                      <div class="qa-container" id="qa-container-1" style="display: none; margin-top: 8px;">
-                        <textarea name="QA_Query" id="Question-Query" rows="2" placeholder="❓ Nhập câu hỏi (VD: Người đàn ông đang mặc áo màu gì?)"></textarea>
-                      </div>
-
+                      <!-- Text Query -->
+                      <textarea name="Text_Query" id="Omni-Query-First" rows="3" placeholder="🔍 Nhập mô tả cảnh / hành động / chữ viết..."></textarea>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <!-- Button Thêm Sự Kiện Tiếp Theo (LUÔN NẰM DƯỚI TẤT CẢ CÁC Ô MÔ TẢ) -->
-              <div id="add-more-scenes-container" style="display: none; margin-top: 10px;">
-                <button type="button" id="add-more-scenes-btn" style="width: 100%; padding: 9px; font-size: 12px; font-weight: 700; border-radius: 6px; cursor: pointer; border: 1px dashed #00F2FE; background: rgba(0, 242, 254, 0.08); color: #00F2FE; transition: all 0.2s;" title="Thêm Sự kiện tiếp theo theo chuỗi thời gian">
+              <!-- Button Thêm Sự Kiện Tiếp Theo -->
+              <div id="add-more-scenes-container" style="display: none; margin-top: 8px;">
+                <button type="button" id="add-more-scenes-btn" style="width: 100%; padding: 8px; font-size: 11.5px; font-weight: 700; border-radius: 6px; cursor: pointer; border: 1px dashed #00F2FE; background: rgba(0, 242, 254, 0.08); color: #00F2FE; transition: all 0.2s;" title="Thêm sự kiện">
                   <i class="fa-solid fa-plus"></i> + Thêm Sự Kiện Tiếp Theo
                 </button>
               </div>
@@ -169,7 +151,6 @@
             <script>
               document.addEventListener('DOMContentLoaded', function() {
                 const taskBtns = document.querySelectorAll('.task-mode-btn');
-                const qaContainer = document.getElementById('qa-container-1');
                 const scene1Title = document.getElementById('scene-1-title');
                 const addMoreScenesContainer = document.getElementById('add-more-scenes-container');
                 const addMoreScenesBtn = document.getElementById('add-more-scenes-btn');
@@ -193,7 +174,6 @@
 
                 taskBtns.forEach(btn => {
                   btn.addEventListener('click', function() {
-                    // Tự động làm sạch tất cả chữ và reset về 1 sự kiện khi đổi kiểu tìm kiếm
                     if (typeof resetAllQueries === 'function') {
                       resetAllQueries();
                     }
@@ -210,24 +190,13 @@
                     this.style.color = '#00F2FE';
                     
                     const task = this.getAttribute('data-task');
-                    const vqaQuickBar = document.getElementById('vqa-quick-answer-bar');
-                    if(task === 'qa') {
-                      qaContainer.style.display = 'block';
-                      if (scene1Title) scene1Title.innerHTML = '<i class="fa-solid fa-question-circle"></i> Visual Q&A';
-                      if (addMoreScenesContainer) addMoreScenesContainer.style.display = 'none';
-                      if (vqaQuickBar) vqaQuickBar.style.display = 'block';
-                      if (typeof toggleTask === 'function') toggleTask('vqa');
-                    } else if(task === 'trake') {
-                      qaContainer.style.display = 'none';
+                    if(task === 'trake') {
                       if (scene1Title) scene1Title.innerHTML = '<i class="fa-solid fa-clock"></i> Sự kiện 1';
                       if (addMoreScenesContainer) addMoreScenesContainer.style.display = 'block';
-                      if (vqaQuickBar) vqaQuickBar.style.display = 'none';
-                      if (typeof toggleTask === 'function') toggleTask('kis');
+                      if (typeof toggleTask === 'function') toggleTask('trake');
                     } else {
-                      qaContainer.style.display = 'none';
-                      if (scene1Title) scene1Title.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Omni-Search';
+                      if (scene1Title) scene1Title.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Tìm kiếm';
                       if (addMoreScenesContainer) addMoreScenesContainer.style.display = 'none';
-                      if (vqaQuickBar) vqaQuickBar.style.display = 'none';
                       if (typeof toggleTask === 'function') toggleTask('kis');
                     }
                   });
@@ -235,99 +204,12 @@
               });
             </script>
 
-            <div class="main-search-btn-container">
-              <button type="button" id="card-search-button" class="card-search-btn" title="Click để tìm kiếm (hoặc nhấn phím Enter trên bàn phím)">
-                <i class="fas fa-search"></i> TÌM KIẾM ↵
+            <div class="main-search-btn-container" style="margin-top: 6px;">
+              <button type="button" id="card-search-button" class="card-search-btn" title="Tìm kiếm" style="padding: 8px 12px; font-size: 13px;">
+                <i class="fas fa-search"></i> TÌM KIẾM ⚡
               </button>
             </div>
           </div>
-              
-            <form class="object-detail">
-              <div id="input-container"></div>
-              <datalist id="suggestions">
-                <option value="person">person</option>
-                <option value="bicycle">bicycle</option>
-                <option value="car">car</option>
-                <option value="motorcycle">motorcycle</option>
-                <option value="airplane">airplane</option>
-                <option value="bus">bus</option>
-                <option value="train">train</option>
-                <option value="truck">truck</option>
-                <option value="boat">boat</option>
-                <option value="traffic light">traffic light</option>
-                <option value="fire hydrant">fire hydrant</option>
-                <option value="stop sign">stop sign</option>
-                <option value="parking meter">parking meter</option>
-                <option value="bench">bench</option>
-                <option value="bird">bird</option>
-                <option value="cat">cat</option>
-                <option value="dog">dog</option>
-                <option value="horse">horse</option>
-                <option value="sheep">sheep</option>
-                <option value="cow">cow</option>
-                <option value="elephant">elephant</option>
-                <option value="bear">bear</option>
-                <option value="zebra">zebra</option>
-                <option value="giraffe">giraffe</option>
-                <option value="backpack">backpack</option>
-                <option value="umbrella">umbrella</option>
-                <option value="handbag">handbag</option>
-                <option value="tie">tie</option>
-                <option value="suitcase">suitcase</option>
-                <option value="frisbee">frisbee</option>
-                <option value="skis">skis</option>
-                <option value="snowboard">snowboard</option>
-                <option value="sports ball">sports ball</option>
-                <option value="kite">kite</option>
-                <option value="baseball bat">baseball bat</option>
-                <option value="baseball glove">baseball glove</option>
-                <option value="skateboard">skateboard</option>
-                <option value="surfboard">surfboard</option>
-                <option value="tennis racket">tennis racket</option>
-                <option value="bottle">bottle</option>
-                <option value="wine glass">wine glass</option>
-                <option value="cup">cup</option>
-                <option value="fork">fork</option>
-                <option value="knife">knife</option>
-                <option value="spoon">spoon</option>
-                <option value="bowl">bowl</option>
-                <option value="banana">banana</option>
-                <option value="apple">apple</option>
-                <option value="sandwich">sandwich</option>
-                <option value="orange">orange</option>
-                <option value="broccoli">broccoli</option>
-                <option value="carrot">carrot</option>
-                <option value="hot dog">hot dog</option>
-                <option value="pizza">pizza</option>
-                <option value="donut">donut</option>
-                <option value="cake">cake</option>
-                <option value="chair">chair</option>
-                <option value="couch">couch</option>
-                <option value="potted plant">potted plant</option>
-                <option value="bed">bed</option>
-                <option value="dining table">dining table</option>
-                <option value="toilet">toilet</option>
-                <option value="tv">tv</option>
-                <option value="laptop">laptop</option>
-                <option value="mouse">mouse</option>
-                <option value="remote">remote</option>
-                <option value="keyboard">keyboard</option>
-                <option value="cell phone">cell phone</option>
-                <option value="microwave">microwave</option>
-                <option value="oven">oven</option>
-                <option value="toaster">toaster</option>
-                <option value="sink">sink</option>
-                <option value="refrigerator">refrigerator</option>
-                <option value="book">book</option>
-                <option value="clock">clock</option>
-                <option value="vase">vase</option>
-                <option value="scissors">scissors</option>
-                <option value="teddy bear">teddy bear</option>
-                <option value="hair drier">hair drier</option>
-                <option value="toothbrush">toothbrush</option>
-      
-              </datalist>
-            </form>
         </div>
 
       </div>
@@ -407,51 +289,48 @@
       </div>
       
 
-        <!-- Show export area -->
         <div id="export-area" class="export-area">
           <div class="export-header">
            
             <div class="task-name">
-              <button class="task-button active" id="kis" title="Chế độ KIS (Known-Item Search)">
-                <i class="fa-solid fa-film"></i> KIS
+              <button class="task-button active" id="kis" title="KIS">
+                <i class="fa-solid fa-crosshairs"></i> KIS
               </button>
-              <button class="task-button" id="vqa" title="Chế độ Visual Q&A (Hỏi - Đáp)">
+              <button class="task-button" id="vqa" title="Q&A">
                 <i class="fa-solid fa-circle-question"></i> Q&A
               </button>
-              <button class="task-button" id="trake-task-btn" title="Chế độ TRAKE (Chuỗi sự kiện video theo thời gian)">
-                <i class="fa-solid fa-timeline"></i> TRAKE
+              <button class="task-button" id="trake-task-btn" title="TRAKE">
+                <i class="fa-solid fa-list-ol"></i> TRAKE
               </button>
             </div>
             
             <div class="export-action-toolbar">
-              <button class="toolbar-btn refine-btn" id="refine-search" title="Tinh chỉnh & Tìm kiếm lại theo các ảnh đã chọn (Phím tắt Alt + R)">
+              <button class="toolbar-btn refine-btn" id="refine-search" title="Tinh chỉnh tìm kiếm">
                 <i class="fa-solid fa-wand-magic-sparkles"></i> Tinh chỉnh
               </button>
-              <button class="toolbar-btn save-btn" id="add-to-package-btn" title="Lưu câu truy vấn hiện tại vào Gói Nộp Bài (Phím tắt Alt + S)">
-                <i class="fa-solid fa-plus"></i> Lưu Query
+              <button class="toolbar-btn save-btn" id="add-to-package-btn" title="Lưu vào Gói Bài Thi">
+                <i class="fa-solid fa-floppy-disk"></i> Lưu
               </button>
-              <button class="toolbar-btn reset-btn" id="reset-export" title="Xóa toàn bộ ảnh trong khay">
+              <button class="toolbar-btn reset-btn" id="reset-export" title="Xóa khay">
                 <i class="fa-solid fa-trash-can"></i>
               </button>
             </div>
             
           </div>
-          <div id="vqa-quick-answer-bar" class="vqa-quick-answer-bar" style="display: none; padding: 8px 10px; background: rgba(15, 23, 42, 0.95); border-bottom: 1px solid #00F2FE; border-top: 1px solid #334155;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-              <label for="vqa-common-answer" style="font-size: 11px; font-weight: 700; color: #00F2FE; display: flex; align-items: center; gap: 5px;">
-                <i class="fa-solid fa-pen-to-square"></i> ĐÁP ÁN Q&A:
-              </label>
-              <select id="vqa-row-limit" style="background: #0F172A; border: 1px solid #334155; color: #00F2FE; border-radius: 4px; font-size: 10.5px; padding: 2px 4px; font-weight: 700; outline: none;" title="Chọn số lượng dòng xuất">
-                <option value="100">Xuất 100 dòng (Khuyên dùng)</option>
-                <option value="30">Xuất 30 dòng</option>
-                <option value="selected">Chỉ xuất ảnh đã chọn</option>
-              </select>
+          <div id="vqa-quick-answer-bar" class="vqa-quick-answer-bar" style="display: none; padding: 5px 10px; background: rgba(15, 23, 42, 0.95); border-bottom: 1px solid #334155; border-top: 1px solid #334155;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 11px; font-weight: 700; color: #00F2FE; display: flex; align-items: center; gap: 5px;">
+                <i class="fa-solid fa-pen-to-square"></i> Đáp án theo từng frame:
+              </span>
+              <span style="font-size: 10.5px; color: #10B981; font-weight: 700;">
+                <i class="fa-solid fa-check"></i> Áp dụng tất cả
+              </span>
             </div>
-            <input type="text" id="vqa-common-answer" class="vqa-common-input" placeholder="Nhập đáp án nộp (VD: 5, Màu đỏ, Xe cứu thương)..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; background: #1E293B; border: 1px solid #00F2FE; border-radius: 6px; color: #FFFFFF; font-weight: 700; font-size: 13px; outline: none; box-shadow: 0 0 8px rgba(0,242,254,0.25);" />
+            <input type="hidden" id="vqa-common-answer" value="" />
           </div>
-          <div class="export-stats-bar" id="export-stats-bar" style="padding: 6px 10px; background: #0F172A; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: #94A3B8;">
+          <div class="export-stats-bar" id="export-stats-bar" style="padding: 5px 10px; background: #0F172A; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #94A3B8;">
             <span><i class="fa-solid fa-images" style="color: #00F2FE;"></i> Đã chọn: <strong id="export-selected-count" style="color: #00F2FE;">0</strong> ảnh</span>
-            <span><i class="fa-solid fa-list-ol" style="color: #10B981;"></i> Dự kiến xuất: <strong id="export-target-count" style="color: #10B981;">100</strong> dòng</span>
+            <span style="color: #475569; font-size: 10.5px;"><strong id="export-target-count">Chưa có</strong></span>
           </div>
           <div id="export-images"></div>
         </div>
@@ -532,14 +411,31 @@
     <!-- Show video  -->
     <div id="Details" class="Details">
       <div class="details_bg" id="details_bg">
-        <div class="draggable-bar" title="Kéo để di chuyển khung video"></div>
-        <span class="close" title="Đóng cửa sổ video (Phím Esc)">×</span>
-        <video id="vid_details" class="vid_details" controls preload="auto"></video>
+        <div class="draggable-bar" id="vid-draggable-bar" title="Nhấn giữ và kéo để di chuyển khung video đi bất cứ đâu trên màn hình">
+          <span id="vid-modal-title" style="font-size: 12px; color: #00F2FE; font-weight: 600; pointer-events: none;"><i class="fa-solid fa-play"></i> Trình phát Video</span>
+          <span class="close" id="close-vid-modal" title="Đóng cửa sổ video (Chỉ tắt khi bấm nút này)">×</span>
+        </div>
+        <div class="vid-wrapper" style="position: relative; width: 96%; margin: 0 auto; max-height: 280px;">
+          <video id="vid_details" class="vid_details" controls preload="auto" style="width: 100%; display: block;"></video>
+          <div id="vid-click-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: calc(100% - 46px); cursor: pointer; z-index: 2;" title="Nhấn vào màn hình video để Tạm dừng / Phát tiếp"></div>
+        </div>
         <div class="custom-controls">
           <button id="rewindBtn" title="Tua lùi 5 giây"><i class="fas fa-backward"></i></button>
+          <button id="togglePlayPauseBtn" class="action-btn-neon" title="Tạm dừng / Tiếp tục phát video" style="width: auto; border-radius: 6px; padding: 0 10px; font-size: 11px; font-weight: 600; background: rgba(245, 158, 11, 0.2); border: 1px solid #F59E0B; color: #FBBF24; cursor: pointer;">
+            <i class="fa-solid fa-pause" id="playPauseIcon"></i> <span id="playPauseText">Tạm Dừng</span>
+          </button>
           <button id="initialTimeBtn" title="Quay về thời điểm khung hình ban đầu"><i class="fas fa-redo"></i></button>
           <button id="forwardBtn" title="Tua tới 5 giây"><i class="fas fa-forward"></i></button>
-      </div>
+          <button id="addCurrentMomentBtn" class="action-btn-neon" title="Thêm khung hình tại thời điểm đang phát vào danh sách nộp bài (+)" style="width: auto; border-radius: 6px; padding: 0 12px; font-size: 11px; font-weight: 600; background: rgba(16, 185, 129, 0.2); border: 1px solid #10B981; color: #34D399; cursor: pointer;">
+            <i class="fa-solid fa-plus"></i> Chọn Frame Này
+          </button>
+          <button id="jumpToKeyframeBtn" class="action-btn-neon" title="Định vị và mở các frame lân cận tại thời điểm đang xem video" style="width: auto; border-radius: 6px; padding: 0 12px; font-size: 11px; font-weight: 600; background: rgba(56, 189, 248, 0.2); border: 1px solid #38BDF8; color: #38BDF8; cursor: pointer;">
+            <i class="fa-solid fa-timeline"></i> Duyệt Frame Tại Đây
+          </button>
+          <button id="refineFromCurrentVideoBtn" class="action-btn-neon" title="Đưa khoảnh khắc này cùng tất cả góc quay liên quan của video lên TOP đầu" style="width: auto; border-radius: 6px; padding: 0 12px; font-size: 11px; font-weight: 600; background: var(--cyber-gradient); color: #0F172A; border: none; cursor: pointer;">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Đưa Lên Top Đầu
+          </button>
+        </div>
       </div>
     </div>
 
@@ -564,30 +460,22 @@
       <button id="close-fullscreen-button" title="Đóng (Phím Esc)">×</button>
     </div>
 
-
-    <!-- Show the table of short-cut and its function -->
-    <div id="shortcut-card" class="shortcut-card" style="display: none;">
-      <h3>Keyboard Shortcuts</h3>
-      <ul id="shortcut-list"></ul>
-    </div>
-
-
     <div id="notification-container"></div>
     
-    <script src="src/scripts/config.js"></script>
-    <script src="src/scripts/filter_get_infor.js"></script>
-    <script src="src/scripts/short_cut.js"></script>
-    <script src="src/scripts/preview.js"></script>
-    <script src="src/scripts/web_socket.js"></script>
-    <script src="src/scripts/start_ui.js"></script>
-    <script src="src/scripts/update_result.js"></script>
-    <script src="src/scripts/show_video.js"></script>
-    <script src="src/scripts/show_videoframe.js"></script>
-    <script src="src/scripts/export.js"></script>
-    <script src="src/scripts/left_panel.js"></script>
-    <script src="src/scripts/queries_history.js"></script>
-    <script src="src/scripts/pagnition.js"></script>
-    <script src="src/scripts/submit_dres.js"></script>
+    <script src="src/scripts/config.js?v=20260821_v28"></script>
+    <script src="src/scripts/filter_get_infor.js?v=20260821_v28"></script>
+    <script src="src/scripts/short_cut.js?v=20260821_v28"></script>
+    <script src="src/scripts/preview.js?v=20260821_v28"></script>
+    <script src="src/scripts/web_socket.js?v=20260821_v28"></script>
+    <script src="src/scripts/start_ui.js?v=20260821_v28"></script>
+    <script src="src/scripts/update_result.js?v=20260821_v28"></script>
+    <script src="src/scripts/show_video.js?v=20260821_v28"></script>
+    <script src="src/scripts/show_videoframe.js?v=20260821_v28"></script>
+    <script src="src/scripts/export.js?v=20260821_v28"></script>
+    <script src="src/scripts/left_panel.js?v=20260821_v28"></script>
+    <script src="src/scripts/queries_history.js?v=20260821_v28"></script>
+    <script src="src/scripts/pagnition.js?v=20260821_v28"></script>
+    <script src="src/scripts/submit_dres.js?v=20260821_v28"></script>
     <script>
       // Tự động kết nối phiên thi đấu DRES ACTIVE (19-8)
       localStorage.setItem('dresBaseUrl', 'http://192.168.28.151:5000');

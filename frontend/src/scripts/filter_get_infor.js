@@ -92,6 +92,13 @@ async function handleFilterAction(event) {
             ? activeModelBtn.getAttribute('data-model') || activeModelBtn.className.split(' ').find(c => !['active', 'btn'].includes(c)) || 'clip'
             : 'clip';
 
+        const trakeTopic = (document.getElementById('Trake-Topic-Query')?.value || '').trim();
+
+        // Nếu người dùng chỉ nhập Chủ đề TRAKE mà chưa nhập Scene 1, lấy trực tiếp Chủ đề làm câu truy vấn
+        if (allTextQueries.length === 0 && trakeTopic) {
+            allTextQueries.push({ type: 'text', content: trakeTopic });
+        }
+
         const jsonString = JSON.stringify({
             model: activeModel,
             qaQueries: allQaQueries,
@@ -99,10 +106,12 @@ async function handleFilterAction(event) {
             textQueries: allTextQueries,
             ocrtext: allOcrQueries,
             asmtext: allAsrQueries,
-            imageQueries: allImageQueries
+            imageQueries: allImageQueries,
+            globalTopic: trakeTopic,
+            trakeTopic: trakeTopic
         });
 
-        console.log("🚀 Sending search request:", jsonString);
+        console.log("🚀 Sending search request with topic:", trakeTopic, jsonString);
 
         if (typeof filterSocket !== 'undefined' && filterSocket && filterSocket.readyState === WebSocket.OPEN) {
             filterSocket.send(jsonString);
@@ -114,6 +123,8 @@ async function handleFilterAction(event) {
                 firstQuery: firstQueryStr,
                 secondQuery: secondQueryStr,
                 qaQuery: allQaQueries[0] || "",
+                globalTopic: trakeTopic,
+                trakeTopic: trakeTopic,
                 model: activeModel
             }));
         } else {

@@ -20,15 +20,15 @@ if hasattr(sys.stderr, "reconfigure"):
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Extract CLIP feature vectors to numpy format.")
+    p = argparse.ArgumentParser(description="Extract SigLIP 2 Giant feature vectors to numpy format.")
     p.add_argument("--keyframes-dir", type=str, default="./data-keyframes",
                    help="Path to directory containing keyframe images.")
     p.add_argument("--output-features", type=str, default="features.npy",
                    help="Output path for feature array.")
     p.add_argument("--output-paths", type=str, default="image_paths.npy",
                    help="Output path for image paths array.")
-    p.add_argument("--model", type=str, default="ViT-SO400M-14-SigLIP-384",
-                   help="Model architecture name (default: ViT-SO400M-14-SigLIP-384).")
+    p.add_argument("--model", type=str, default="ViT-gopt-16-SigLIP2-384",
+                   help="Vision model (default: ViT-gopt-16-SigLIP2-384 Google SigLIP 2 Giant).")
     p.add_argument("--pretrained", type=str, default="webli",
                    help="Pretrained weights dataset (default: webli).")
     p.add_argument("--batch-size", type=int, default=16,
@@ -45,7 +45,7 @@ def extract_clip_main():
     print(f"Directory exists: {os.path.exists(keyframes_dir)}")
 
     if not os.path.exists(keyframes_dir):
-        print(f"âŒ Error: Path '{keyframes_dir}' does not exist.")
+        print(f"❌ Error: Path '{keyframes_dir}' does not exist.")
         return
 
     # Find all image paths
@@ -62,24 +62,16 @@ def extract_clip_main():
     print("--------------------------------------------------")
 
     if len(image_paths) == 0:
-        print("âŒ Error: No valid image files found!")
+        print("❌ Error: No valid image files found!")
         return
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"ðŸš€ Running feature extraction on device: {device}")
+    print(f"🚀 Running feature extraction on device: {device}")
 
-    if "dinov2" in args.model.lower():
-        from torchvision import transforms
-        model = torch.hub.load('facebookresearch/dinov2', args.model).to(device).eval()
-        preprocess = transforms.Compose([
-            transforms.Resize(256, interpolation=transforms.InterpolationMode.BICUBIC),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
-    else:
-        model, _, preprocess = open_clip.create_model_and_transforms(args.model, pretrained=args.pretrained)
-        model = model.to(device).eval()
+    # Load Visual Model (Google SigLIP 2 Giant)
+    print(f"📦 Loading Visual Backbone: {args.model} ({args.pretrained})...")
+    model, _, preprocess = open_clip.create_model_and_transforms(args.model, pretrained=args.pretrained)
+    model = model.to(device).eval()
 
     features = []
     valid_paths = []
@@ -129,7 +121,7 @@ def extract_clip_main():
     np.save(args.output_features, features)
     np.save(args.output_paths, np.array(valid_paths))
 
-    print(f"\nâœ… SUCCESS! Extracted {len(features)} vector features (dimension: {features.shape[1]}).")
+    print(f"\n✨ SUCCESS! Extracted {len(features)} vector features (dimension: {features.shape[1]}).")
     print(f"Saved features to '{args.output_features}' and paths to '{args.output_paths}'.")
 
 

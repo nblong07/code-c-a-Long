@@ -97,8 +97,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const toggleSwitch = document.getElementById('mode-toggle');
   toggleSwitch.addEventListener('change', togglePanelLayout);
   
-  // Initially hide the new-right-panel
+  // Initially hide the new-right-panel (default to Grid View for KIS/QA)
   document.querySelector('.show-image-1').style.display = 'block';
+  document.querySelector('.show-image-2').style.display = 'none';
   
   // Add event listener for the new-right-panel (images-rows)
   document.getElementById("images-rows").addEventListener('click', (event) => {
@@ -120,14 +121,34 @@ document.addEventListener('DOMContentLoaded', function() {
       const inforElement = imgDis ? imgDis.querySelector('.infor') : null;
       const imgElement = imgDis ? imgDis.querySelector('img') : null;
       const imgSrc = imgElement ? (imgElement.src || imgElement.dataset.src) : '';
-      if (inforElement) {
-        const parts = inforElement.textContent.split('-');
-        const videoName = parts[0];
-        const frameId = parts[1];
-        const vectorId = `${videoName}_${frameId}`;
-        if (typeof performSimilaritySearch === 'function') {
-          performSimilaritySearch(vectorId, imgSrc);
+      
+      let videoName = '';
+      let frameId = '';
+      if (imgSrc) {
+        const match = imgSrc.match(/\/([^\/]+)\/keyframes\/keyframe_(\d+)\./i) || 
+                      imgSrc.match(/(L\d+_V\d+).*?keyframe_(\d+)\./i);
+        if (match) {
+          videoName = match[1];
+          frameId = match[2];
+        } else {
+          const parts = imgSrc.split('/');
+          const kfIdx = parts.lastIndexOf('keyframes');
+          if (kfIdx > 0 && parts[kfIdx - 1] && !parts[kfIdx - 1].includes(':')) {
+            videoName = parts[kfIdx - 1];
+            const fn = parts[parts.length - 1];
+            frameId = fn.replace('keyframe_', '').replace(/\.[^.]+$/, '');
+          }
         }
+      }
+      if (!videoName && inforElement) {
+        const parts = inforElement.textContent.split('-');
+        videoName = parts[0].trim();
+        if (parts.length > 1) frameId = parts[1].trim();
+      }
+      videoName = (videoName || 'video').replace(/\.mp4$/i, '').trim();
+      const vectorId = `${videoName}_${frameId}`;
+      if (typeof performSimilaritySearch === 'function') {
+        performSimilaritySearch(vectorId, imgSrc, videoName, frameId);
       }
     }
   });
@@ -179,14 +200,40 @@ document.getElementById("list-photo").addEventListener('click', (event) => {
     const inforElement = imgDis ? imgDis.querySelector('.infor') : null;
     const imgElement = imgDis ? imgDis.querySelector('img') : null;
     const imgSrc = imgElement ? (imgElement.src || imgElement.dataset.src) : '';
-    if (inforElement) {
-      const parts = inforElement.textContent.split('-');
-      const videoName = parts[0];
-      const frameId = parts[1];
-      const vectorId = `${videoName}_${frameId}`;
-      if (typeof performSimilaritySearch === 'function') {
-        performSimilaritySearch(vectorId, imgSrc);
+    
+    let videoName = '';
+    let frameId = '';
+    if (imgSrc) {
+      const match = imgSrc.match(/\/([^\/]+)\/keyframes\/keyframe_(\d+)\./i) || 
+                    imgSrc.match(/(L\d+_V\d+).*?keyframe_(\d+)\./i);
+      if (match) {
+        videoName = match[1];
+        frameId = match[2];
+      } else {
+        const parts = imgSrc.split('/');
+        const kfIdx = parts.lastIndexOf('keyframes');
+        if (kfIdx > 0 && parts[kfIdx - 1] && !parts[kfIdx - 1].includes(':')) {
+          videoName = parts[kfIdx - 1];
+          const fn = parts[parts.length - 1];
+          frameId = fn.replace('keyframe_', '').replace(/\.[^.]+$/, '');
+        }
       }
+    }
+    if (!videoName && inforElement) {
+      const parts = inforElement.textContent.split('-');
+      videoName = parts[0].trim();
+      if (parts.length > 1) frameId = parts[1].trim();
+    }
+    videoName = (videoName || 'video').replace(/\.mp4$/i, '').trim();
+    const vectorId = `${videoName}_${frameId}`;
+    if (typeof performSimilaritySearch === 'function') {
+      performSimilaritySearch(vectorId, imgSrc, videoName, frameId);
+    }
+  } else if (event.target.closest('.timeline_explorer')) {
+    event.stopPropagation();
+    const imgDis = event.target.closest('.img-dis');
+    if (imgDis && typeof showVideoFrames === 'function') {
+      showVideoFrames(imgDis);
     }
   }
 });
@@ -251,6 +298,7 @@ document.addEventListener('DOMContentLoaded', function() {
   ];
 
   function populateShortcutList() {
+    if (!shortcutList) return;
     shortcutList.innerHTML = '';
     shortcuts.forEach(shortcut => {
       const li = document.createElement('li');
@@ -259,22 +307,24 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  shortcutIcon.addEventListener('click', function() {
-    if (shortcutCard.style.display === 'none') {
-      populateShortcutList();
-      shortcutCard.style.display = 'block';
-    } else {
-      shortcutCard.style.display = 'none';
-    }
-  });
+  if (shortcutIcon && shortcutCard) {
+    shortcutIcon.addEventListener('click', function() {
+      if (shortcutCard.style.display === 'none') {
+        populateShortcutList();
+        shortcutCard.style.display = 'block';
+      } else {
+        shortcutCard.style.display = 'none';
+      }
+    });
+  }
 
   function closeShortcutCard() {
-    shortcutCard.style.display = 'none';
+    if (shortcutCard) shortcutCard.style.display = 'none';
   }
 
   // Close the card when clicking outside of it
   document.addEventListener('click', function(event) {
-    if (!shortcutCard.contains(event.target) && event.target !== shortcutIcon) {
+    if (shortcutCard && !shortcutCard.contains(event.target) && event.target !== shortcutIcon) {
       shortcutCard.style.display = 'none';
     }
   });
@@ -286,3 +336,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 });
+
+

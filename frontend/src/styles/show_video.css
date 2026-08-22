@@ -1,62 +1,46 @@
 .Details {
     display: none;
     position: fixed;
-    z-index: 100;
-    right: 20px;
-    top: 68px;
-    height: 480px;
-    width: 680px;
-    overflow: hidden;
+    z-index: 10000;
+    right: 24px;
+    top: 72px;
+    height: 520px;
+    width: 660px;
+    min-width: 380px;
+    min-height: 300px;
+    max-width: 90vw;
+    max-height: 90vh;
     border-radius: 12px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 20px rgba(0, 242, 254, 0.15);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95), 0 0 25px rgba(0, 242, 254, 0.35);
+    background-color: #1E293B;
+    border: 2px solid #00F2FE;
+    box-sizing: border-box;
+    overflow: hidden;
+    resize: both;
 }
 
 .Details .details_bg {
     display: flex;
+    flex-direction: column;
     position: relative;
     background-color: #1E293B;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
     height: 100%;
     width: 100%;
-    justify-content: center;
-    align-items: center;
     box-sizing: border-box;
-    padding-top: 32px;
+    padding-top: 36px;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .Details .details_bg .vid_details {
     display: block;
-    width: 95%;
-    max-height: 78%;
+    width: 96%;
+    margin: 0 auto;
+    max-height: 280px;
     border-radius: 8px;
-    border: 1px solid var(--border-color);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     background-color: #000;
-}
-
-.Details .details_bg .close {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 36px;
-    height: 32px;
-    color: var(--text-muted);
-    font-size: 20px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    background-color: transparent;
-    border-bottom-left-radius: 8px;
-    user-select: none;
-    z-index: 10;
-}
-
-.Details .details_bg .close:hover {
-    color: white;
-    background-color: #EF4444;
+    flex-shrink: 0;
 }
 
 .draggable-bar {
@@ -64,33 +48,68 @@
     top: 0;
     left: 0;
     width: 100%;
-    height: 32px;
-    background-color: #0F172A;
-    border-bottom: 1px solid var(--border-color);
+    height: 36px;
+    background: linear-gradient(90deg, #0F172A, #1E293B);
+    border-bottom: 1px solid rgba(0, 242, 254, 0.3);
     cursor: move;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px;
+    box-sizing: border-box;
+    user-select: none;
+    z-index: 10;
+}
+
+.draggable-bar:active {
+    cursor: grabbing;
+    background: #0F172A;
+}
+
+.Details .details_bg .close {
+    width: 28px;
+    height: 28px;
+    color: #EF4444;
+    font-size: 20px;
+    font-weight: 700;
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    background-color: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: 6px;
+    user-select: none;
+}
+
+.Details .details_bg .close:hover {
+    color: white;
+    background-color: #EF4444;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
 }
 
 .Details .details_bg .custom-controls {
-    position: absolute;
-    bottom: 16px;
-    left: 50%;
-    transform: translateX(-50%);
     display: flex;
-    gap: 12px;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 12px 4px 12px;
+    flex-wrap: wrap;
 }
 
 .Details .details_bg .custom-controls button {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     background-color: #0F172A;
     border: 1px solid var(--border-color);
     color: var(--secondary-color);
-    border-radius: 50%;
+    border-radius: 6px;
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 13px;
+    font-size: 12px;
     transition: all 0.2s ease;
     box-shadow: var(--shadow-sm);
 }
@@ -99,6 +118,6 @@
     background: var(--cyber-gradient);
     border-color: var(--secondary-color);
     color: #0F172A;
-    transform: scale(1.08);
-    box-shadow: 0 0 15px var(--secondary-glow);
+    transform: scale(1.06);
+    box-shadow: 0 0 12px var(--secondary-glow);
 }

@@ -92,6 +92,22 @@ def validate_and_pack_submission(project_root: str = "D:\\code-c-a-Long", zip_na
                         ans = ans[:100]
                     ans = ans.replace('"', '""')
                     parts = [parts[0], parts[1], f'"{ans}"']
+            # Check TRAKE
+            elif "trake" in fname.lower():
+                if len(parts) < 2:
+                    errors.append(f"Dòng {row_idx}: Format TRAKE sai, cần ít nhất 1 frame (Cần: <video>,<frame_1>,<frame_2>...).")
+                else:
+                    f_nums = []
+                    for p in parts[1:]:
+                        if p.isdigit():
+                            f_nums.append(int(p))
+                        else:
+                            warnings.append(f"Dòng {row_idx}: Bỏ qua frame không hợp lệ '{p}'.")
+                    if f_nums:
+                        f_nums = sorted(list(set(f_nums)))
+                        parts = [parts[0]] + [str(x) for x in f_nums]
+                    else:
+                        errors.append(f"Dòng {row_idx}: Không có frame_id hợp lệ cho sự kiện TRAKE.")
                     
             clean_lines.append(",".join(parts))
             

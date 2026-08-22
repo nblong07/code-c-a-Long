@@ -1,13 +1,13 @@
 {
-  "// Cấu hình Cụm Mô hình AI (64GB RAM + 32GB VRAM GPU)": "Tối ưu hóa mô hình VLM, Object Grounding & Adaptive Router",
-  "clip_model_name": "ViT-SO400M-14-SigLIP-384",
+  "// Cau hinh Cum Mo hinh AI (Laptop RTX 3050 6GB + 16GB RAM)": "Toi uu Google SigLIP 2 Giant, GPU Tensor Cache & RRF Hybrid Search",
+  "clip_model_name": "ViT-gopt-16-SigLIP2-384",
   "clip_pretrained": "webli",
   "device": "cuda",
   "supported_models": {
-    "clip": "Google SigLIP SO400M - Primary Multimodal Model (1152d)"
+    "clip": "Google SigLIP 2 Giant - Primary Multimodal Model (1152d)"
   },
 
-  "// Cấu hình Cơ sở dữ liệu Vector Milvus (HNSW Index Tuning)": "Tối ưu bộ nhớ RAM 64GB",
+  "// Cau hinh Co so du lieu Vector & Memory Cache": "Toi uu RAM 16GB, GPU Tensor Matrix Multi",
   "milvus_uri": "http://localhost:19530",
   "milvus_host": "localhost",
   "milvus_port": 19530,
@@ -15,11 +15,11 @@
   "collection_name": "AIC25_fullbatch1",
   "search_limit": 1000,
   "replica_number": 1,
-  "hnsw_m": 32,
-  "hnsw_ef_construction": 250,
+  "hnsw_m": 16,
+  "hnsw_ef_construction": 128,
   "hnsw_ef_search": 64,
 
-  "// Cấu hình Máy chủ Backend FastAPI": "Cấu hình Server & Static File Mounts",
+  "// Cau hinh May chu Backend FastAPI": "Cau hinh Server & Static File Mounts",
   "cors_origins": "*",
   "max_workers": 8,
   "log_level": "INFO",
@@ -31,13 +31,12 @@
   ],
   "api_key": "aic_challenge_secure_token_2026",
 
-  "// Cấu hình Bộ Điều Hướng Adaptive Router & Heuristic Filters": "Tính năng tự chọn mô hình theo dữ liệu",
-  "enable_adaptive_router": true,
+  "// Cau hinh Heuristics Filter & RRF Search": "Loc mo & Loc nguong sang",
+  "enable_adaptive_router": false,
   "enable_heuristics_filter": true,
   "blur_threshold": 95.0,
   "min_luminance": 20.0,
   "max_luminance": 235.0,
   "cache_size": 2000,
-  "temporal_frame_threshold": 1500,
   "default_result_limit": 1000
 }

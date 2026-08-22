@@ -5,6 +5,7 @@ import json
 import time
 import subprocess
 import multiprocessing as mp
+import torch
 from faster_whisper import WhisperModel
 
 # ================= CẤU HÌNH =================
@@ -58,17 +59,27 @@ def is_junk_asr_segment(segment, text: str) -> bool:
 
 class FasterWhisperASR:
     def __init__(self):
-        print("🚀 Khởi tạo Faster-Whisper Large-v3 (int8_float16 GPU Tensor Cores) cho 6GB VRAM...")
-        try:
-            # int8_float16 uses RTX 3050 Tensor Cores, drops VRAM to ~1.8GB and boosts speed by 2.6x
-            self.model = WhisperModel("large-v3", device="cuda", compute_type="int8_float16", cpu_threads=4)
-        except Exception as e:
+        print("⚡ Khởi tạo Faster-Whisper Large-v3-Turbo / Large-v3 (int8_float16 GPU Tensor Cores) cho 6GB VRAM...")
+        model_candidates = ["deepdml/faster-whisper-large-v3-turbo", "large-v3-turbo", "large-v3"]
+        self.model = None
+        
+        for m_name in model_candidates:
             try:
-                print(f"⚠️ int8_float16 không khả dụng ({e}), dùng float16...")
-                self.model = WhisperModel("large-v3", device="cuda", compute_type="float16", cpu_threads=4)
-            except Exception as e2:
-                print(f"⚠️ CUDA lỗi ({e2}), rớt xuống CPU (int8)...")
-                self.model = WhisperModel("large-v3", device="cpu", compute_type="int8", cpu_threads=4)
+                print(f"🔄 Thử nạp model ASR: {m_name}...")
+                self.model = WhisperModel(m_name, device="cuda", compute_type="int8_float16", cpu_threads=4)
+                print(f"✅ Nạp thành công model: {m_name} trên CUDA Tensor Cores!")
+                break
+            except Exception as e:
+                try:
+                    self.model = WhisperModel(m_name, device="cuda", compute_type="float16", cpu_threads=4)
+                    print(f"✅ Nạp thành công model: {m_name} trên CUDA (float16)!")
+                    break
+                except Exception:
+                    continue
+        
+        if self.model is None:
+            print("⚠️ Chuyển sang nạp Whisper Large-v3 trên CPU (int8)...")
+            self.model = WhisperModel("large-v3", device="cpu", compute_type="int8", cpu_threads=4)
             
     def transcribe_video(self, video_path: str):
         start_time = time.time()

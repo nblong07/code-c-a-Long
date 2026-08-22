@@ -30,13 +30,10 @@ conda-env/
 .conda/
 
 # ------------------------------------------------------------------------------
-# 3. Dữ liệu trích xuất & Metadata (Dung lượng lớn > 100MB)
+# 3. Dữ liệu trích xuất & Metadata Runtime (Dung lượng lớn > 100MB)
 # ------------------------------------------------------------------------------
 *.npy
 *.npz
-*.csv
-*.json
-*.jsonl
 *.issues.jsonl
 ocr_asr_metadata.json
 ocr_results.jsonl
@@ -45,7 +42,7 @@ features.npy
 image_paths.npy
 fail_load.txt
 
-# --- Ngoại lệ: Giữ lại các file cấu hình JSON cốt lõi ---
+# --- Ngoại lệ: Giữ lại các file cấu hình JSON và Maps cốt lõi ---
 !backend/config.json
 !backend/dres_openapi.json
 !package.json
@@ -70,30 +67,33 @@ models/
 # ------------------------------------------------------------------------------
 data-keyframes/
 output-keyframes/
-Keyframes_L21/
+Keyframes_*/
 videos/
 video_test/
-*.webp
-*.jpg
-*.jpeg
-*.png
 *.mp4
 *.m3u8
 *.ts
 *.avi
 *.mkv
-*.zip
-*.tar
-*.tar.gz
-*.rar
-*.7z
 
 # --- Ngoại lệ: Giữ lại toàn bộ hình ảnh, biểu tượng Icon UI của Frontend ---
 !frontend/src/Img/
 !frontend/src/Img/**
 
 # ------------------------------------------------------------------------------
-# 6. CSDL Vector Milvus & Docker Volumes
+# 6. Submission Packages & Archive Files (Chống rác nộp bài)
+# ------------------------------------------------------------------------------
+submission/
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+submission.zip
+test_submission.zip
+
+# ------------------------------------------------------------------------------
+# 7. CSDL Vector Milvus & Docker Volumes
 # ------------------------------------------------------------------------------
 volumes/
 **/volumes/
@@ -101,16 +101,18 @@ data_pipeline/volumes/
 database/volumes/
 
 # ------------------------------------------------------------------------------
-# 7. Frontend Config & Node Modules
+# 8. Node Modules & Logs
 # ------------------------------------------------------------------------------
-frontend/src/scripts/config.js
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
+logs/
+.system_generated/
 
 # ------------------------------------------------------------------------------
-# 8. IDE, OS & Temp Files
+# 9. IDE, OS & Temp Files
 # ------------------------------------------------------------------------------
 .vscode/
 .idea/
@@ -124,13 +126,6 @@ desktop.ini
 .ocr_*.tmp
 
 # ------------------------------------------------------------------------------
-# 9. Logs & Runtime
-# ------------------------------------------------------------------------------
-*.log
-logs/
-.system_generated/
-
-# ------------------------------------------------------------------------------
 # 10. Environment & Private Variables
 # ------------------------------------------------------------------------------
 .env.local
@@ -138,11 +133,7 @@ logs/
 backend/.env
 
 # ------------------------------------------------------------------------------
-# 11. Jupyter Notebooks & PDF Docs
+# 11. Jupyter Notebooks Checkpoints
 # ------------------------------------------------------------------------------
-docs/
-*.ipynb
 .ipynb_checkpoints/
 **/.ipynb_checkpoints/
-*.pdf
-

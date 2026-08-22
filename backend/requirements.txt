@@ -1,42 +1,41 @@
 # ============================================================
-# Backend Requirements — Video Retrieval System
-# Install: pip install -r requirements.txt
+# Requirements — Multimodal Video Retrieval System (AIC 2026)
+# Install: pip install -r backend/requirements.txt
 # ============================================================
 
-# Web Framework
+# Web Server & API Framework
 fastapi>=0.110.0
 uvicorn[standard]>=0.28.0
 pydantic>=2.6.0
 python-multipart>=0.0.9
+websockets>=12.0
 
-# ML / AI & Data
+# Deep Learning & Vision (CUDA Tensor Cores)
 torch>=2.0.0
 torchvision>=0.15.0
 open_clip_torch>=2.24.0
+transformers>=4.38.0
+timm>=0.9.0
 numpy>=1.24.0,<2.0.0
-huggingface-hub<1.0
 Pillow>=9.0.0
+opencv-python>=4.8.0
+huggingface-hub>=0.20.0
 
-# Vector Database
+# Speech-to-Text (ASR) & Voice Activity Detection (VAD)
+faster-whisper>=1.0.0
+
+# Optical Character Recognition (OCR)
+paddleocr>=2.7.3
+paddlepaddle-gpu>=2.6.0
+protobuf>=3.20.0
+
+# Keyframe Extraction & Scene Boundary Detection
+tensorflow>=2.15.0
+transnetv2>=1.0.0
+ffmpeg-python>=0.2.0
+
+# Vector Search Database & Utilities
 pymilvus>=2.4.0
-
-# Utilities
 python-dotenv>=1.0.0
 requests>=2.28.0
 tqdm>=4.65.0
-opencv-python>=4.8.0
-
-# OCR & ASR (Multimodal Extraction)
-paddleocr>=2.7.3
-paddlepaddle-gpu>=2.6.0
-faster-whisper>=1.0.0
-sherpa-onnx>=1.10.0
-
-# Advanced Models (Added based on other teams)
-vietocr>=0.3.12
-# TransNetV2 requires tensorflow and is installed via github
-tensorflow
-git+https://github.com/soCzech/TransNetV2.git
-# PaddlePaddle requires older protobuf to prevent conflicts with tensorflow
-protobuf<=3.20.2
-FlagEmbedding>=1.2.0

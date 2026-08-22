@@ -72,7 +72,73 @@ function connectWebSocket() {
         
         try {
             data = JSON.parse(event.data);
+
+            // Cập nhật ngầm Banner AI gợi ý đáp án nếu có gói tin qa_update
+            if (data.qa_update && data.qa_answer) {
+                const qaBanner = document.getElementById('qa-answer-banner');
+                const qaText = document.getElementById('qa-banner-answer-text');
+                const qaSource = document.getElementById('qa-banner-source');
+                const commonInput = document.getElementById('vqa-common-answer');
+
+                if (qaBanner) qaBanner.style.display = 'block';
+                if (qaText) qaText.textContent = data.qa_answer;
+                if (qaSource) qaSource.textContent = data.qa_source ? `Nguồn: ${data.qa_source}` : 'Nguồn: Phân tích Lời thoại (ASR) & Chữ viết (OCR)';
+                if (commonInput && !commonInput.value) commonInput.value = data.qa_answer;
+                return;
+            }
+
             if (data.kq) {
+                // Hiển thị banner AI gợi ý đáp án Q&A nếu có
+                const qaBanner = document.getElementById('qa-answer-banner');
+                const qaText = document.getElementById('qa-banner-answer-text');
+                const qaSource = document.getElementById('qa-banner-source');
+                const qaUseBtn = document.getElementById('qa-use-answer-btn');
+
+                if (data.qa_answer && data.qa_answer.trim()) {
+                    if (qaBanner) qaBanner.style.display = 'block';
+                    if (qaText) qaText.textContent = data.qa_answer;
+                    if (qaSource) qaSource.textContent = data.qa_source ? `Nguồn: ${data.qa_source}` : 'Nguồn: Phân tích Lời thoại (ASR) & Chữ viết (OCR)';
+                    
+                    const commonInput = document.getElementById('vqa-common-answer');
+                    if (commonInput && !commonInput.value) {
+                        commonInput.value = data.qa_answer;
+                    }
+                    
+                    const qaWatchBtn = document.getElementById('qa-watch-moment-btn');
+                    if (qaWatchBtn) {
+                        qaWatchBtn.onclick = async () => {
+                            if (data.kq && data.kq.length > 0) {
+                                const topItem = data.kq[0];
+                                const ent = topItem.entity || {};
+                                const vName = ent.video_id || ent.video || '';
+                                const tSec = ent.time || 0;
+                                if (typeof playVideoAtTime === 'function') {
+                                    await playVideoAtTime(vName, tSec);
+                                }
+                            }
+                        };
+                    }
+
+                    if (qaUseBtn) {
+                        qaUseBtn.onclick = () => {
+                            if (typeof toggleTask === 'function') toggleTask('vqa');
+                            if (typeof applyVqaAnswerToCards === 'function') {
+                                applyVqaAnswerToCards(data.qa_answer);
+                            } else {
+                                if (commonInput) commonInput.value = data.qa_answer;
+                                document.querySelectorAll('.vqa-input').forEach(inp => {
+                                    inp.value = data.qa_answer;
+                                });
+                            }
+                            if (typeof showNotification === 'function') {
+                                showNotification(`🎯 Đã tự động gán đáp án "${data.qa_answer}" vào bài nộp!`, 'success');
+                            }
+                        };
+                    }
+                } else {
+                    if (qaBanner) qaBanner.style.display = 'none';
+                }
+
                 // Cập nhật giao diện với kết quả tìm kiếm
                 updateUIWithSearchResults(data.kq);
                 const updateCompleteTime = performance.now();
@@ -173,11 +239,18 @@ function connectSimilaritySearchWebSocket() {
  * @param {string} vectorId - ID của vector/frame cần tìm
  * @param {string} imageSrc - Đường dẫn URL hoặc file của hình ảnh
  */
-function performSimilaritySearch(vectorId, imageSrc = '') {
+function performSimilaritySearch(vectorId, imageSrc = '', videoName = '', frameId = '') {
+    const payload = {
+        vector: vectorId,
+        image_src: imageSrc,
+        video_name: videoName,
+        frame_id: frameId,
+        top_k: 100
+    };
     if (similaritySearchSocket && similaritySearchSocket.readyState === WebSocket.OPEN) {
         requestTime = performance.now();
         toggleLoadingIndicator(true);
-        similaritySearchSocket.send(JSON.stringify({ vector: vectorId, image_src: imageSrc }));
+        similaritySearchSocket.send(JSON.stringify(payload));
     } else {
         console.warn('Similarity Search WebSocket chưa sẵn sàng, đang thử kết nối lại...');
         connectSimilaritySearchWebSocket();
@@ -185,7 +258,7 @@ function performSimilaritySearch(vectorId, imageSrc = '') {
             if (similaritySearchSocket && similaritySearchSocket.readyState === WebSocket.OPEN) {
                 requestTime = performance.now();
                 toggleLoadingIndicator(true);
-                similaritySearchSocket.send(JSON.stringify({ vector: vectorId, image_src: imageSrc }));
+                similaritySearchSocket.send(JSON.stringify(payload));
             } else {
                 toggleLoadingIndicator(false);
                 if (typeof showNotification === 'function') {
@@ -515,22 +588,11 @@ async function getQueryContent(searchScene) {
 
     if (textArea && textArea.style.display !== 'none') { 
         const originalText = textArea.value;
-        const translateCheckbox = document.getElementById('translate-checkbox');
-        if (translateCheckbox && translateCheckbox.checked && typeof translateText === 'function') {
-            const translatedText = await translateText(originalText);
-            const translatedDetailText = detailsTextArea ? await translateText(detailsTextArea.value) : "";
-            textArea.value = translatedText;
-            if (detailsTextArea) detailsTextArea.value = translatedDetailText;
-            return { type: 'text', content: translatedText, detail: translatedDetailText };
-        } else {
-            return { type: 'text', content: originalText };
-        }
+        return { type: 'text', content: originalText, detail: detailsTextArea ? detailsTextArea.value : "" };
     } else if (imageDropArea && imageDropArea.style.display === 'flex') {
         const img = imageDropArea.querySelector('img');
-        const translatedDetailText = (detailsTextArea && typeof translateText === 'function') ? await translateText(detailsTextArea.value) : "";
-        if (detailsTextArea) detailsTextArea.value = translatedDetailText;
         if (img) {
-            return { type: 'image', content: img.src, detail: translatedDetailText };
+            return { type: 'image', content: img.src, detail: detailsTextArea ? detailsTextArea.value : "" };
         }
     } else if (soundTextArea && soundTextArea.style.display !== 'none') {
         return { type: 'sound', content: soundTextArea.value };
@@ -573,8 +635,27 @@ async function performCombinedSearch() {
             }))
         };
 
+        // Auto-switch UI layout based on search mode
+        const toggleSwitch = document.getElementById('mode-toggle');
+        
         requestTime = performance.now();
         socket.send(JSON.stringify(message));
+
+        if (toggleSwitch) {
+            if (queries.length > 1) {
+                // TRAKE (Nhiều ô nhập): Bật chế độ Phân nhóm theo video
+                if (!toggleSwitch.checked) {
+                    toggleSwitch.checked = true;
+                    toggleSwitch.dispatchEvent(new Event('change'));
+                }
+            } else {
+                // KIS / Q&A (1 ô nhập): Trả về chế độ Lưới (Grid)
+                if (toggleSwitch.checked) {
+                    toggleSwitch.checked = false;
+                    toggleSwitch.dispatchEvent(new Event('change'));
+                }
+            }
+        }
     } else {
         console.error('WebSocket is not open. ReadyState:', socket ? socket.readyState : 'null');
         connectWebSocket();

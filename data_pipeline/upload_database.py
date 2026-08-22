@@ -237,11 +237,11 @@ def parse_args():
     p.add_argument("--build-index", action="store_true", help="Build HNSW index and load collection after upload.")
 
     # Model params
-    p.add_argument("--model", type=str, default="ViT-SO400M-14-SigLIP-384",
-                   help="Model architecture (default: ViT-SO400M-14-SigLIP-384).")
+    p.add_argument("--model", type=str, default="ViT-gopt-16-SigLIP2-384",
+                   help="Model architecture (default: ViT-gopt-16-SigLIP2-384 Google SigLIP 2 Giant).")
     p.add_argument("--pretrained", type=str, default="webli",
                    help="Pretrained weights dataset (default: webli).")
-    p.add_argument("--dimension", type=int, default=1152, help="Vector dimension. Default 1152 for ViT-SO400M-14-SigLIP-384. Use -1 to auto-detect.")
+    p.add_argument("--dimension", type=int, default=1152, help="Vector dimension. Default 1152 for ViT-gopt-16-SigLIP2-384. Use -1 to auto-detect.")
 
     # Performance params
     p.add_argument("--batch-size", type=int, default=32, help="Batch size for image encoding.")

@@ -49,6 +49,104 @@ function getEntityInfo(result) {
   return { video, frameId, timeVal, timestampMs, imgSrc, frameInfo: `${video}-${timeVal}`, scoreVal, ocrText, asrText };
 }
 
+// Video frame list cache for instant stepping
+const videoMapCache = new Map();
+
+async function getVideoFrameMap(videoName) {
+  if (!videoName) return { frames: [], times: {} };
+  if (videoMapCache.has(videoName)) {
+    return videoMapCache.get(videoName);
+  }
+  const csvBase = window.CSV_BASE || 'http://localhost:8000/keyframes/maps';
+  const frames = [];
+  const times = {};
+  try {
+    let res = await fetch(`${csvBase}/${videoName}_map.csv`);
+    if (!res.ok) {
+      res = await fetch(`${csvBase}/${videoName}.csv`);
+    }
+    if (res.ok) {
+      const text = await res.text();
+      const lines = text.trim().split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (i === 0 && line.toLowerCase().includes('frameid')) continue;
+        const parts = line.split(',');
+        if (parts.length >= 2) {
+          const fid = parseInt(parts[0].trim(), 10);
+          const sec = parseFloat(parts[1].trim());
+          if (!isNaN(fid)) {
+            frames.push(fid);
+            times[fid] = isNaN(sec) ? fid / 25.0 : sec;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Could not load video map:", videoName, e);
+  }
+  const result = { frames, times };
+  videoMapCache.set(videoName, result);
+  return result;
+}
+
+async function stepCardFrame(imgDis, direction, event) {
+  if (event) event.stopPropagation();
+  const img = imgDis.querySelector('img');
+  const inforEl = imgDis.querySelector('.infor');
+  if (!img) return;
+
+  const currentSrc = img.src || img.dataset.src;
+  let videoName = '';
+  let currentFid = 0;
+  
+  if (currentSrc) {
+    const match = currentSrc.match(/\/([^\/]+)\/keyframes\/keyframe_(\d+)\./i) || 
+                  currentSrc.match(/(L\d+_V\d+).*?keyframe_(\d+)\./i);
+    if (match) {
+      videoName = match[1];
+      currentFid = parseInt(match[2], 10) || 0;
+    } else {
+      const parts = currentSrc.split('/');
+      const kfIdx = parts.lastIndexOf('keyframes');
+      if (kfIdx > 0 && parts[kfIdx - 1] && !parts[kfIdx - 1].includes(':')) {
+        videoName = parts[kfIdx - 1];
+        const fn = parts[parts.length - 1];
+        currentFid = parseInt(fn.replace('keyframe_', '').replace(/\.[^.]+$/, ''), 10) || 0;
+      }
+    }
+  }
+  if (!videoName && inforEl) {
+    videoName = inforEl.textContent.split('-')[0].trim();
+  }
+  videoName = (videoName || 'video').replace(/\.mp4$/i, '').trim();
+
+  const mapData = await getVideoFrameMap(videoName);
+  if (!mapData.frames || mapData.frames.length === 0) return;
+
+  const curIdx = mapData.frames.indexOf(currentFid);
+  let newIdx = (curIdx !== -1 ? curIdx : 0) + direction;
+  if (newIdx < 0) newIdx = 0;
+  if (newIdx >= mapData.frames.length) newIdx = mapData.frames.length - 1;
+
+  const newFid = mapData.frames[newIdx];
+  const newSec = mapData.times[newFid] !== undefined ? mapData.times[newFid] : (newFid / 25.0);
+  const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
+  const newSrc = `${keyframeBase}/${videoName}/keyframes/keyframe_${newFid}.webp`;
+  const newFrameInfo = `${videoName}-${newSec.toFixed(2)}`;
+
+  img.src = newSrc;
+  img.dataset.src = newSrc;
+  if (inforEl) inforEl.textContent = newFrameInfo;
+  imgDis.dataset.timestampMs = Math.round(newSec * 1000);
+  imgDis.dataset.frameId = newFid;
+
+  imgDis.style.boxShadow = '0 0 16px #00F2FE';
+  setTimeout(() => {
+    imgDis.style.boxShadow = '';
+  }, 220);
+}
+
 function createImageDiv(result, index) {
   const info = getEntityInfo(result);
 
@@ -73,38 +171,68 @@ function createImageDiv(result, index) {
     asrHtml = `<div class="ocr-text-tag" style="background: rgba(14, 165, 233, 0.4); border-color: rgba(56, 189, 248, 0.5); color: #bae6fd;" title="Giọng nói nhận diện (ASR): ${info.asrText}"><i class="fa-solid fa-microphone"></i> ${info.asrText}</div>`;
   }
 
+  let trakeHtml = '';
+  if (result.trake_stage) {
+    const stageColors = ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
+    const color = stageColors[(result.trake_stage - 1) % stageColors.length];
+    trakeHtml = `<div class="trake-stage-badge" title="Sự kiện ${result.trake_stage}" style="position: absolute; top: 30px; left: 6px; background: ${color}; color: white; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 800; z-index: 10; border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 2px 6px rgba(0,0,0,0.4);"><i class="fa-solid fa-clock"></i> Sự kiện ${result.trake_stage}</div>`;
+  }
+
   const div = document.createElement('div');
   div.className = 'img-dis';
   div.dataset.index = index;
+  div.dataset.video = info.video;
+  div.dataset.frameId = info.frameId;
+  div.dataset.timeSec = info.timeVal;
+  div.dataset.timestampMs = info.timestampMs;
   div.dataset.ocr = info.ocrText;
   div.dataset.asr = info.asrText;
-  div.dataset.timestampMs = info.timestampMs;
+  const isTopView = index <= 30;
   div.innerHTML = `
     <span class="rank-badge ${topClass}" title="Thứ tự ưu tiên #${index}">#${index}</span>
     ${scoreHtml}
     ${ocrHtml}
     ${asrHtml}
-    <img alt="${info.frameInfo}" class="result" loading="lazy" id="${index}"
+    ${trakeHtml}
+    <img alt="${info.frameInfo}" class="result" loading="${isTopView ? 'eager' : 'lazy'}" decoding="async" id="${index}"
       src="${info.imgSrc}" data-src="${info.imgSrc}">
     <div class="infor">${info.frameInfo}</div>
+    <div class="card-step-btn prev-step" title="Frame kề trước trong video (←)" style="position: absolute; left: 4px; top: 50%; transform: translateY(-50%); width: 22px; height: 28px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(0, 242, 254, 0.4); border-radius: 4px; color: #00F2FE; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 10; font-size: 11px; opacity: 0.85; transition: all 0.2s ease;"><i class="fa-solid fa-chevron-left"></i></div>
+    <div class="card-step-btn next-step" title="Frame kề sau trong video (→)" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 22px; height: 28px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(0, 242, 254, 0.4); border-radius: 4px; color: #00F2FE; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 10; font-size: 11px; opacity: 0.85; transition: all 0.2s ease;"><i class="fa-solid fa-chevron-right"></i></div>
     <div class="export_icon" title="Thêm vào danh sách xuất file / Nộp bài (+)" style="display: flex; justify-content: center; align-items: center; width: 24px; height: 24px; position: absolute; right: 5px; top: 5px; cursor: pointer; z-index: 10; background-color: rgba(16, 185, 129, 0.85); border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; color: white;"><i class="fa-solid fa-plus" style="font-size: 13px;"></i></div>
     <div name="similarity_search" class="similarity_search" title="Tìm kiếm tương tự (Similarity Search)" style="display: flex; justify-content: center; align-items: center; width: 24px; height: 24px; position: absolute; right: 5px; top: 33px; cursor: pointer; z-index: 10; background-color: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; color: white;"><i class="fa-solid fa-camera" style="font-size: 12px;"></i></div>
     <div name="fullscreen_zoom" class="fullscreen_zoom" title="Phóng to hình ảnh (Xem chi tiết)" style="display: flex; justify-content: center; align-items: center; width: 24px; height: 24px; position: absolute; right: 5px; top: 61px; cursor: pointer; z-index: 10; background-color: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; color: white;"><i class="fa-solid fa-expand" style="font-size: 12px;"></i></div>
+    <div name="timeline_explorer" class="timeline_explorer" title="Mở toàn bộ chuỗi frame của video này (Timeline Explorer)" style="display: flex; justify-content: center; align-items: center; width: 24px; height: 24px; position: absolute; right: 5px; top: 89px; cursor: pointer; z-index: 10; background-color: rgba(30, 41, 59, 0.85); border: 1px solid rgba(0, 242, 254, 0.5); border-radius: 4px; color: #00F2FE;"><i class="fa-solid fa-film" style="font-size: 11px;"></i></div>
   `;
 
   const img = div.querySelector('img');
   img.setAttribute('draggable', 'true');
   img.addEventListener('dragstart', drag);
   
+  const prevStepBtn = div.querySelector('.prev-step');
+  const nextStepBtn = div.querySelector('.next-step');
+  if (prevStepBtn) prevStepBtn.addEventListener('click', (e) => stepCardFrame(div, -1, e));
+  if (nextStepBtn) nextStepBtn.addEventListener('click', (e) => stepCardFrame(div, 1, e));
+
+  const timelineBtn = div.querySelector('.timeline_explorer');
+  if (timelineBtn) {
+    timelineBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (typeof showVideoFrames === 'function') {
+        showVideoFrames(div);
+      }
+    });
+  }
+
   const exportIcon = div.querySelector('.export_icon');
   if (exportIcon) {
     exportIcon.addEventListener('click', (e) => {
       e.stopPropagation();
       const imagePath = img.src || img.dataset.src;
-      addImageToExportArea(info.frameId, imagePath, info.frameInfo, true, info.timestampMs);
-      if (typeof showNotification === 'function') {
-        showNotification(`Đã thêm #${index} (${info.frameInfo}) vào danh sách xuất!`, 'success');
-      }
+      const inforText = div.querySelector('.infor')?.textContent || info.frameInfo;
+      const currentFid = div.dataset.frameId || info.frameId;
+      const currentMs = div.dataset.timestampMs || info.timestampMs;
+      addImageToExportArea(currentFid, imagePath, inforText, true, currentMs);
     });
   }
 
@@ -129,6 +257,12 @@ function updateRightPanel_list(results) {
           div = existingDivs[index];
           div.style.display = 'block';
           div.dataset.index = rankIndex;
+          div.dataset.video = info.video;
+          div.dataset.frameId = info.frameId;
+          div.dataset.timeSec = info.timeVal;
+          div.dataset.timestampMs = info.timestampMs;
+          div.dataset.ocr = info.ocrText;
+          div.dataset.asr = info.asrText;
 
           // Update rank badge
           let rankBadge = div.querySelector('.rank-badge');
@@ -169,6 +303,8 @@ function updateRightPanel_list(results) {
           const infor = div.querySelector('.infor');
           if (img) {
               img.id = rankIndex;
+              img.loading = rankIndex <= 30 ? 'eager' : 'lazy';
+              img.decoding = 'async';
               img.dataset.src = info.imgSrc;
               img.src = info.imgSrc;
           }
@@ -200,14 +336,52 @@ function updateRightPanel_list(results) {
 
 // Get current results from the right panel
 function getCurrentResults() {
-  return Array.from(document.querySelectorAll('.img-dis')).map(div => ({
-    entity: {
-      path: div.querySelector('img').dataset.src,
-      video: div.querySelector('.infor').textContent.split('-')[0],
-      frame_id: div.querySelector('.infor').textContent.split('-')[1]
-    },
-    id: div.querySelector('img').id
-  }));
+  return Array.from(document.querySelectorAll('.img-dis')).map(div => {
+    const img = div.querySelector('img');
+    const imgSrc = img ? (img.dataset.src || img.src || '') : '';
+    
+    // 1. Trích xuất Frame ID chuẩn xác từ dataset hoặc tên file keyframe_X.webp
+    let frameId = 0;
+    if (div.dataset.frameId !== undefined && div.dataset.frameId !== '') {
+      frameId = parseInt(div.dataset.frameId, 10);
+    } else if (imgSrc) {
+      const match = imgSrc.match(/keyframe_(\d+)\./);
+      if (match) frameId = parseInt(match[1], 10);
+    }
+
+    // 2. Trích xuất Video ID chuẩn xác
+    let video = div.dataset.video || '';
+    if (video && (video.includes(':') || video.toLowerCase() === 'keyframes')) video = '';
+    if (!video && imgSrc) {
+      const match = imgSrc.match(/\/([^\/]+)\/keyframes\/keyframe_\d+/i) || imgSrc.match(/(L\d+_V\d+)/i);
+      if (match) video = match[1];
+      else {
+        const parts = imgSrc.split('/');
+        const kfIdx = parts.lastIndexOf('keyframes');
+        if (kfIdx > 0 && parts[kfIdx - 1] && !parts[kfIdx - 1].includes(':')) video = parts[kfIdx - 1];
+      }
+    }
+    if (!video) {
+      const inforText = div.querySelector('.infor')?.textContent || '';
+      video = inforText.split('-')[0] || 'video';
+    }
+    video = video.replace(/\.mp4$/i, '').trim();
+
+    return {
+      entity: {
+        path: imgSrc,
+        video: video,
+        video_id: video,
+        frame_id: frameId,
+        time: parseFloat(div.dataset.timeSec || 0)
+      },
+      frameId: frameId,
+      videoName: video,
+      src: imgSrc,
+      score: parseFloat(div.querySelector('.score-badge')?.textContent || 0),
+      id: img ? img.id : ''
+    };
+  });
 }
 
 
@@ -258,11 +432,19 @@ function updateRightPanel_rows(results) {
   imagesRows.scrollTop = 0;
 }
 
-// Update both panels (hiển thị Top 100 kết quả tìm kiếm có độ chính xác cao nhất khớp với file nộp)
+// Update both panels (hiển thị kết quả tìm kiếm)
 function updateUIWithSearchResults(results) {
-  const top100Results = Array.isArray(results) ? results.slice(0, 100) : [];
-  updateRightPanel_list(top100Results);
-  updateRightPanel_rows(top100Results);
+  if (!Array.isArray(results)) return;
+  
+  // Phát hiện xem đây có phải là kết quả của thuật toán TRAKE không
+  const isTrake = results.length > 0 && results[0].trake_stage;
+  
+  // KIS & Q&A lay 80 frame. TRAKE lay 200 frame theo dung yeu cau
+  const limit = isTrake ? 200 : 80;
+  
+  const slicedResults = results.slice(0, limit);
+  updateRightPanel_list(slicedResults);
+  updateRightPanel_rows(slicedResults);
 
 
   document.querySelector('.show-image-1').scrollTop = 0;

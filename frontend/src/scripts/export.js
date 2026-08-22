@@ -106,6 +106,22 @@ function toggleTask(task) {
     if (vqaQuickBar) vqaQuickBar.style.display = 'none';
   }
 
+  // Tự động chuyển đổi layout tương ứng với Task
+  const toggleSwitch = document.getElementById('mode-toggle');
+  if (toggleSwitch) {
+    if (task === 'trake') {
+      if (!toggleSwitch.checked) {
+        toggleSwitch.checked = true;
+        toggleSwitch.dispatchEvent(new Event('change'));
+      }
+    } else {
+      if (toggleSwitch.checked) {
+        toggleSwitch.checked = false;
+        toggleSwitch.dispatchEvent(new Event('change'));
+      }
+    }
+  }
+
   updateExportArea();
 }
 
@@ -113,6 +129,8 @@ function toggleTask(task) {
 function resetExportArea() {
   exportedImages = [];
   vqaInputs = {};
+  activeTrakeCandidate = 1;
+  trakeCandidateTabs = [1];
   const commonInput = document.getElementById('vqa-common-answer');
   if (commonInput) commonInput.value = '';
   updateExportArea();
@@ -120,6 +138,79 @@ function resetExportArea() {
 
 function allowDrop(ev) {
   ev.preventDefault();
+}
+
+let activeTrakeCandidate = 1;
+let trakeCandidateTabs = [1];
+
+function selectTrakeCandidate(cId) {
+  activeTrakeCandidate = cId;
+  if (!trakeCandidateTabs.includes(cId)) {
+    trakeCandidateTabs.push(cId);
+    trakeCandidateTabs.sort((a, b) => a - b);
+  }
+  updateExportArea();
+  if (typeof showNotification === 'function') {
+    showNotification(`🎯 Đang chọn: Phương Án ${cId}. Bấm [+] để thêm sự kiện vào Phương Án ${cId}!`, 'info');
+  }
+}
+
+function addNewTrakeCandidate() {
+  const nextCId = trakeCandidateTabs.length > 0 ? Math.max(...trakeCandidateTabs) + 1 : 1;
+  trakeCandidateTabs.push(nextCId);
+  trakeCandidateTabs.sort((a, b) => a - b);
+  activeTrakeCandidate = nextCId;
+  updateExportArea();
+  if (typeof showNotification === 'function') {
+    showNotification(`✨ Đã mở Phương Án ${nextCId}! Bấm dấu [+] trên kết quả tìm kiếm để thêm sự kiện.`, 'success');
+  }
+}
+
+function deleteTrakeCandidate(cId) {
+  // 1. Xóa tất cả ảnh thuộc candidate này
+  exportedImages = exportedImages.filter(img => (img.candidateId || 1) !== cId);
+  
+  // 2. Lấy danh sách các candidate ID còn lại theo thứ tự tăng dần
+  const remainingTabs = trakeCandidateTabs.filter(id => id !== cId).sort((a, b) => a - b);
+  
+  // 3. Tự động đánh số lại liên tục (Renumber: 2 -> 1, 3 -> 2...)
+  if (remainingTabs.length > 0) {
+    const idMapping = {};
+    const newTabs = [];
+    remainingTabs.forEach((oldId, idx) => {
+      const newId = idx + 1;
+      idMapping[oldId] = newId;
+      newTabs.push(newId);
+    });
+
+    // Cập nhật lại candidateId cho tất cả các ảnh còn lại trong khay
+    exportedImages.forEach(img => {
+      const oldCandId = img.candidateId || 1;
+      if (idMapping[oldCandId]) {
+        img.candidateId = idMapping[oldCandId];
+      }
+    });
+
+    // Cập nhật lại danh sách tabs
+    trakeCandidateTabs = newTabs;
+
+    // Cập nhật lại tab đang chọn
+    if (activeTrakeCandidate === cId) {
+      activeTrakeCandidate = 1;
+    } else if (idMapping[activeTrakeCandidate]) {
+      activeTrakeCandidate = idMapping[activeTrakeCandidate];
+    } else {
+      activeTrakeCandidate = 1;
+    }
+  } else {
+    trakeCandidateTabs = [1];
+    activeTrakeCandidate = 1;
+  }
+
+  updateExportArea();
+  if (typeof showNotification === 'function') {
+    showNotification(`🗑️ Đã xóa Phương Án ${cId} & tự động đánh số lại danh sách (1, 2...)!`, 'info');
+  }
 }
 
 // Render các thẻ ảnh trong Export Area và cập nhật thanh thống kê
@@ -130,44 +221,241 @@ function updateExportArea() {
 
   if (selectedCountEl) selectedCountEl.textContent = exportedImages.length;
   if (targetCountEl) {
-    if (activeTask === 'kis') {
-      targetCountEl.textContent = '100 dòng (Top AI)';
+    const count = exportedImages.length;
+    if (activeTask === 'trake') {
+      targetCountEl.textContent = count > 0 ? `${count} frame` : 'Chưa có';
+      targetCountEl.style.color = '#94A3B8';
+    } else if (count === 0) {
+      targetCountEl.textContent = 'Chưa có';
+      targetCountEl.style.color = '#475569';
+    } else if (count === 1) {
+      targetCountEl.textContent = `${count} frame ✓ Tốt nhất`;
+      targetCountEl.style.color = '#10B981';
+    } else if (count <= 3) {
+      targetCountEl.textContent = `${count} frame — OK`;
+      targetCountEl.style.color = '#F59E0B';
+    } else if (count <= 5) {
+      targetCountEl.textContent = `${count} frame ⚠ Nhiều`;
+      targetCountEl.style.color = '#F97316';
     } else {
-      targetCountEl.textContent = `${exportedImages.length} dòng`;
+      targetCountEl.textContent = `${count} frame ⛔ Quá nhiều`;
+      targetCountEl.style.color = '#EF4444';
     }
   }
 
   if (!exportImages) return;
-  
+
+  // CHẾ ĐỘ TRAKE: HIỂN THỊ CÁC PHƯƠNG ÁN DỰ PHÒNG RÕ RÀNG VỚI NÚT THÊM PHƯƠNG ÁN 1, 2, 3...
+  if (activeTask === 'trake') {
+    // Đảm bảo các candidateId trong exportedImages có trong trakeCandidateTabs
+    exportedImages.forEach(img => {
+      const cId = img.candidateId || 1;
+      if (!trakeCandidateTabs.includes(cId)) {
+        trakeCandidateTabs.push(cId);
+      }
+    });
+    trakeCandidateTabs.sort((a, b) => a - b);
+    if (trakeCandidateTabs.length === 0) trakeCandidateTabs = [1];
+
+    const tabsHtml = `
+      <div class="trake-candidate-selector-bar" style="background: rgba(15, 23, 42, 0.95); border: 1.5px solid #38BDF8; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; box-shadow: 0 0 12px rgba(56, 189, 248, 0.15);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-size: 11.5px; font-weight: 700; color: #38BDF8; display: flex; align-items: center; gap: 5px;">
+            <i class="fa-solid fa-layer-group"></i> CÁC PHƯƠNG ÁN (TRAKE):
+          </span>
+          <button type="button" onclick="addNewTrakeCandidate()" style="background: linear-gradient(135deg, #00F2FE, #4FACFE); border: none; color: #0F172A; font-weight: 800; font-size: 10.5px; padding: 4px 10px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+            <i class="fa-solid fa-plus"></i> Thêm Phương Án
+          </button>
+        </div>
+        <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+          ${trakeCandidateTabs.map(cId => {
+            const count = exportedImages.filter(img => (img.candidateId || 1) === cId).length;
+            const isActive = (cId === activeTrakeCandidate);
+            const bg = isActive ? 'linear-gradient(135deg, rgba(0,242,254,0.35), rgba(168,85,247,0.35))' : 'rgba(30,41,59,0.8)';
+            const border = isActive ? '1.5px solid #00F2FE' : '1px solid #475569';
+            const color = isActive ? '#00F2FE' : '#94A3B8';
+            return `
+              <button type="button" onclick="selectTrakeCandidate(${cId})" style="background: ${bg}; border: ${border}; color: ${color}; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                ${isActive ? '🟢' : '⚪'} PA ${cId} <span style="font-size: 10px; opacity: 0.85;">(${count})</span>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    const candidateCardsHtml = trakeCandidateTabs.map(cId => {
+      const cFrames = exportedImages.map((img, origIdx) => ({ ...img, origIdx })).filter(img => (img.candidateId || 1) === cId);
+      cFrames.sort((a, b) => a.frameId - b.frameId);
+      const isActive = (cId === activeTrakeCandidate);
+      const vName = cFrames.length > 0 ? (cFrames[0].videoName || 'Video') : '';
+
+      const framesHtml = cFrames.length > 0 ? cFrames.map((fItem, seqIdx) => `
+        <div class="export-image-container" style="position: relative; flex: 0 0 100px; margin: 0;">
+          <div style="position: absolute; top: 3px; left: 3px; z-index: 2; background: rgba(0, 242, 254, 0.95); color: #0F172A; font-weight: 800; font-size: 9.5px; padding: 1px 5px; border-radius: 4px;">
+            #${seqIdx + 1}
+          </div>
+          <img src="${fItem.src}" class="export-image" title="PA ${cId} - Sự kiện ${seqIdx + 1} (Frame ${fItem.frameId})" style="height: 70px; object-fit: cover;">
+          <button class="delete-button" title="Xóa" onclick="deleteExportImage(${fItem.origIdx})">×</button>
+          <div class="infor" style="font-size: 9.5px; padding: 2px 4px;">Frame ${fItem.frameId}</div>
+        </div>
+      `).join('') : `
+        <div style="padding: 10px; text-align: center; color: #64748B; font-size: 11px; width: 100%; border: 1px dashed #334155; border-radius: 6px;">
+          Phương Án ${cId} đang trống. Nhấp <strong>[+]</strong> trên kết quả tìm kiếm để thêm sự kiện vào đây.
+        </div>
+      `;
+
+      return `
+        <div class="trake-candidate-card" style="background: rgba(15, 23, 42, 0.9); border: ${isActive ? '2px solid #00F2FE' : '1.5px solid #475569'}; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; width: 100%; box-sizing: border-box;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 4px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 11.5px; font-weight: 700; color: ${isActive ? '#00F2FE' : '#C084FC'};">
+                🎯 Phương Án ${cId}: <strong>${vName || '(Chưa chọn)'}</strong> <span style="font-size: 10.5px; color: #94A3B8; font-weight: normal;">(${cFrames.length} frame)</span>
+              </span>
+              ${isActive ? '<span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10B981; color: #34D399; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px;">🟢 ĐANG CHỌN</span>' : ''}
+            </div>
+            <div style="display: flex; gap: 4px; align-items: center;">
+              ${!isActive ? `
+                <button type="button" onclick="selectTrakeCandidate(${cId})" style="background: rgba(56, 189, 248, 0.15); border: 1px solid #38BDF8; color: #38BDF8; font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; cursor: pointer;">
+                  👉 Chọn
+                </button>
+              ` : ''}
+              <button type="button" onclick="deleteTrakeCandidate(${cId})" title="Xóa Phương Án ${cId}" style="background: rgba(239, 68, 68, 0.2); border: 1px solid #EF4444; color: #FCA5A5; font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;">
+                <i class="fa-solid fa-trash"></i> Xóa
+              </button>
+            </div>
+          </div>
+          <div class="trake-frames-row" style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px;">
+            ${framesHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    exportImages.innerHTML = `
+      ${tabsHtml}
+      ${candidateCardsHtml}
+    `;
+    return;
+  }
+
   if (exportedImages.length === 0) {
     exportImages.innerHTML = `
-      <div style="text-align: center; color: #64748B; padding: 40px 10px; font-size: 12px;">
-        <i class="fa-solid fa-cloud-arrow-up" style="font-size: 28px; margin-bottom: 10px; opacity: 0.4; display: block;"></i>
-        Chưa có ảnh nào được chọn.<br>Bấm dấu <strong>[+]</strong> trên kết quả tìm kiếm hoặc kéo thả vào đây!
+      <div style="text-align: center; color: #64748B; padding: 32px 10px; font-size: 11.5px;">
+        <i class="fa-solid fa-photo-film" style="font-size: 24px; margin-bottom: 8px; opacity: 0.35; display: block;"></i>
+        Chưa có ảnh nào. Bấm <strong>[+]</strong> trên kết quả để thêm vào khay.
       </div>
     `;
     return;
   }
 
-  const htmlContent = exportedImages.map((img, index) => `
+  const htmlContent = exportedImages.map((img, index) => {
+    const frameAns = vqaInputs[img.frameId] || '';
+    return `
     <div class="export-image-container">
-      <img src="${img.src}" class="export-image" title="Frame ID: ${img.frameId}">
-      <button class="delete-button" title="Xóa ảnh này khỏi danh sách" onclick="deleteExportImage(${index})">×</button>
+      <img src="${img.src}" class="export-image" title="${img.frameInfo || img.frameId}">
+      <button class="delete-button" title="Xóa" onclick="deleteExportImage(${index})">×</button>
       <div class="infor">${img.frameInfo}</div>
       ${activeTask === 'vqa' ? `
-        <input 
-          type="text" 
-          class="vqa-input" 
-          value="${vqaInputs[img.frameId] || ''}" 
-          placeholder="Đáp án Q&A..." 
-          title="Nhập đáp án cho frame này"
-          oninput="updateVqaInput(${img.frameId}, this.value)"
-        >
+        <div class="vqa-card-box" style="margin-top: 5px; display: flex; flex-direction: column; gap: 3px; width: 100%;">
+          <textarea 
+            class="vqa-input" 
+            id="vqa-input-${img.frameId}"
+            placeholder="Đáp án 1 | Đáp án 2 | ..." 
+            title="Nhập đáp án, cách nhau bởi dấu |"
+            oninput="handleVqaCardInput(${img.frameId}, this.value, this)"
+            rows="2"
+            style="width: 100%; box-sizing: border-box; font-size: 12px; line-height: 1.45; padding: 6px 8px; background: #0B1120; border: 1.5px solid #38BDF8; border-radius: 6px; color: #FFFFFF; font-weight: 600; resize: vertical; min-height: 48px; word-wrap: break-word; white-space: pre-wrap;"
+          >${frameAns}</textarea>
+          <div id="vqa-chips-${img.frameId}" class="vqa-chips-container" style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 2px;">
+            ${renderVqaChipsHtml(img.frameId, frameAns)}
+          </div>
+        </div>
       ` : ''}
     </div>
-  `).join('');
+  `;
+  }).join('');
   
   exportImages.innerHTML = htmlContent;
+}
+
+function renderVqaChipsHtml(frameId, rawText) {
+  if (!rawText || !rawText.trim()) return '';
+  const parts = rawText.split(/[|;\n]/).map(s => s.trim()).filter(Boolean);
+  if (parts.length === 0) return '';
+  
+  return parts.map((ans, idx) => {
+    const isTop1 = (idx === 0);
+    const bg = isTop1 ? 'linear-gradient(135deg, rgba(0,242,254,0.3), rgba(16,185,129,0.3))' : 'rgba(30,41,59,0.8)';
+    const border = isTop1 ? '1px solid #00F2FE' : '1px solid #475569';
+    const color = isTop1 ? '#00F2FE' : '#94A3B8';
+    const star = isTop1 ? '★ #1' : `#${idx + 1}`;
+    
+    return `
+      <span 
+        class="vqa-priority-chip" 
+        title="Đặt '${ans}' làm đáp án #1"
+        onclick="setVqaTopPriority(${frameId}, ${idx})"
+        style="display: inline-flex; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: ${bg}; border: ${border}; color: ${color}; cursor: pointer; transition: all 0.2s ease;"
+      >
+        <span>${star}:</span> <strong>${ans}</strong>
+      </span>
+    `;
+  }).join('');
+}
+
+function setVqaTopPriority(frameId, clickedIdx) {
+  const currentVal = vqaInputs[frameId] || (document.getElementById('vqa-common-answer')?.value || '');
+  const parts = currentVal.split(/[|;\n]/).map(s => s.trim()).filter(Boolean);
+  if (clickedIdx >= 0 && clickedIdx < parts.length) {
+    const selected = parts.splice(clickedIdx, 1)[0];
+    parts.unshift(selected); // Đưa lên đầu làm Ưu tiên 1
+    const newVal = parts.join(' | ');
+    vqaInputs[frameId] = newVal;
+    
+    const inp = document.getElementById(`vqa-input-${frameId}`);
+    if (inp) {
+      inp.value = newVal;
+      inp.style.height = 'auto';
+      inp.style.height = Math.max(48, inp.scrollHeight) + 'px';
+    }
+    
+    const chipsDiv = document.getElementById(`vqa-chips-${frameId}`);
+    if (chipsDiv) chipsDiv.innerHTML = renderVqaChipsHtml(frameId, newVal);
+
+    if (typeof showNotification === 'function') {
+      showNotification(`🎯 Đã chọn '${selected}' làm Ưu Tiên 1 cho Frame ${frameId}!`, 'success');
+    }
+  }
+}
+
+function handleVqaCardInput(frameId, val, textareaEl) {
+  vqaInputs[frameId] = val;
+  if (textareaEl) {
+    textareaEl.style.height = 'auto';
+    textareaEl.style.height = Math.max(48, textareaEl.scrollHeight) + 'px';
+  }
+  const chipsDiv = document.getElementById(`vqa-chips-${frameId}`);
+  if (chipsDiv) {
+    chipsDiv.innerHTML = renderVqaChipsHtml(frameId, val);
+  }
+}
+
+function applyVqaAnswerToCards(ans) {
+  if (!ans) return;
+  exportedImages.forEach(img => {
+    vqaInputs[img.frameId] = ans;
+    const inp = document.getElementById(`vqa-input-${img.frameId}`);
+    if (inp) {
+      inp.value = ans;
+      inp.style.height = 'auto';
+      inp.style.height = Math.max(48, inp.scrollHeight) + 'px';
+    }
+    const chipsDiv = document.getElementById(`vqa-chips-${img.frameId}`);
+    if (chipsDiv) chipsDiv.innerHTML = renderVqaChipsHtml(img.frameId, ans);
+  });
+  const commonInput = document.getElementById('vqa-common-answer');
+  if (commonInput) commonInput.value = ans;
 }
 
 function updateVqaInput(frameId, vqaInput) {
@@ -179,13 +467,85 @@ function deleteExportImage(index) {
   updateExportArea();
 }
 
+function deleteTrakeVideoGroup(videoName) {
+  exportedImages = exportedImages.filter(img => {
+    const { videoName: vName } = extractVideoAndFrameId(img);
+    return (vName || '').toLowerCase() !== (videoName || '').toLowerCase();
+  });
+  updateExportArea();
+}
+
 function addImageToExportArea(frameId, imageSrc, frameInfo, shouldBroadcast = true, timestampMs = null) {
-  frameId = parseInt(frameId, 10);
+  let fid = parseInt(frameId, 10);
+  if (isNaN(fid) || fid <= 0) {
+    if (imageSrc) {
+      const match = imageSrc.match(/keyframe_(\d+)\./);
+      if (match) fid = parseInt(match[1], 10);
+    }
+  }
+  if (isNaN(fid)) fid = 0;
 
-  const pathParts = imageSrc.split('/');
-  const videoFramePart = `${pathParts[pathParts.length - 2]}/${pathParts[pathParts.length - 1].split('.')[0]}`;
+  let videoName = '';
+  if (frameInfo && typeof frameInfo === 'string') {
+    const v = frameInfo.split('-')[0].trim();
+    if (v && !v.includes(':') && v.toLowerCase() !== 'video' && !v.toLowerCase().includes('localhost')) {
+      videoName = v;
+    }
+  }
+  if (!videoName && imageSrc) {
+    const match = imageSrc.match(/\/([^\/]+)\/keyframes\/keyframe_\d+/i) || 
+                  imageSrc.match(/(L\d+_V\d+)/i) || 
+                  imageSrc.match(/\/([^\/]+)\/keyframe_\d+/i);
+    if (match && match[1] && !match[1].includes(':') && match[1].toLowerCase() !== 'keyframes') {
+      videoName = match[1];
+    } else {
+      const parts = imageSrc.split('/');
+      const kfIdx = parts.lastIndexOf('keyframes');
+      if (kfIdx > 0 && parts[kfIdx - 1] && !parts[kfIdx - 1].includes(':') && parts[kfIdx - 1].toLowerCase() !== 'keyframes') {
+        videoName = parts[kfIdx - 1];
+      } else {
+        videoName = parts[parts.length - 3] || '';
+      }
+    }
+  }
+  videoName = (videoName || 'video').replace(new RegExp('\\.mp4$', 'i'), '').trim();
 
-  const existingImageIndex = exportedImages.findIndex(img => img.frameId === frameId && img.videoFramePart === videoFramePart);
+  const pathParts = (imageSrc || '').split('/');
+  const videoFramePart = pathParts.length >= 2
+    ? `${pathParts[pathParts.length - 2]}/${pathParts[pathParts.length - 1].split('.')[0]}`
+    : `${videoName}/keyframe_${fid}`;
+
+  const candidateId = (activeTask === 'trake') ? (activeTrakeCandidate || 1) : 1;
+
+  // --- Giới hạn số frame cho KIS / Q&A (không áp dụng cho TRAKE) ---
+  if (activeTask !== 'trake') {
+    const currentCount = exportedImages.filter(img => (img.candidateId || 1) === 1).length;
+    const KIS_WARN_LIMIT = 5;   // Cảnh báo khi > 5 frame
+    const KIS_HARD_LIMIT = 10;  // Chặn cứng khi > 10 frame
+
+    if (currentCount >= KIS_HARD_LIMIT) {
+      if (typeof showNotification === 'function') {
+        showNotification(`🚫 Giới hạn ${KIS_HARD_LIMIT} frame cho KIS/Q&A! Xóa bớt frame trước khi thêm mới.`, 'error');
+      }
+      return false;
+    }
+
+    if (currentCount >= KIS_WARN_LIMIT) {
+      if (typeof showNotification === 'function') {
+        showNotification(`⚠️ Đã có ${currentCount} frame — điểm cao nhất khi chỉ chọn frame đúng nhất!`, 'info');
+      }
+    }
+  }
+
+  // Kiểm tra xem frame này của cùng video đã có trong danh sách/candidate này chưa
+  const existingImageIndex = exportedImages.findIndex(img => {
+    const imgVid = (img.videoName || (img.frameInfo || '').split('-')[0]).replace(new RegExp('\\.mp4$', 'i'), '').trim();
+    const imgCand = img.candidateId || 1;
+    if (activeTask === 'trake') {
+      return imgCand === candidateId && img.frameId === fid && (imgVid.toLowerCase() === videoName.toLowerCase());
+    }
+    return img.frameId === fid && (imgVid.toLowerCase() === videoName.toLowerCase());
+  });
 
   if (existingImageIndex === -1) {
     if (timestampMs === null || timestampMs === undefined) {
@@ -193,121 +553,171 @@ function addImageToExportArea(frameId, imageSrc, frameInfo, shouldBroadcast = tr
       if (timeParts.length > 1 && !isNaN(parseFloat(timeParts[1])) && parseFloat(timeParts[1]) > 0) {
         timestampMs = Math.round(parseFloat(timeParts[1]) * 1000.0);
       } else {
-        timestampMs = Math.round((frameId / 25.0) * 1000.0);
+        timestampMs = Math.round((fid / 25.0) * 1000.0);
       }
     }
-    exportedImages.push({ frameId, videoFramePart, src: imageSrc, frameInfo, timestampMs });
+    exportedImages.push({ frameId: fid, videoFramePart, videoName, src: imageSrc, frameInfo, timestampMs, candidateId });
     openExportAreaIfClosed();
     updateExportArea();
+    if (typeof showNotification === 'function') {
+      const totalNow = exportedImages.filter(img => (img.candidateId || 1) === candidateId).length;
+      const candMsg = (activeTask === 'trake') ? ` [PA ${candidateId}]` : ` (${totalNow} frame trong khay)`;
+      showNotification(`✅ Đã thêm ${videoName} / Frame ${fid}${candMsg}`, 'success');
+    }
+    return true;
+  } else {
+    if (typeof showNotification === 'function') {
+      showNotification(`Frame ${fid} (${videoName}) đã có trong khay rồi!`, 'info');
+    }
+    return false;
   }
 }
 
 //---------------------------------------------------------------------------------------------//
-// CSV GENERATION ENGINES (CHUẨN QUY ĐỊNH BTC AIC 2026)
+// CSV GENERATION ENGINES (CHỈ XUẤT CÁC ẢNH & ĐÁP ÁN NGƯỜI DÙNG ĐÃ CHỌN)
 //---------------------------------------------------------------------------------------------//
 
 /**
- * 1. Sinh nội dung CSV cho Textual KIS:
- * Format: <video_name>,<frame_id> (tối đa 100 dòng, không header)
+ * Helper: Trích xuất chuẩn xác VideoName và FrameID từ bất kỳ item (result hoặc exportImage)
  */
-function generateKisCSV() {
-  const currentResults = typeof getCurrentResults === 'function' ? getCurrentResults() : [];
-  const sortedResults = [...currentResults].sort((a, b) => (b.score || 0) - (a.score || 0));
-  
-  const exportData = [...exportedImages];
-  
-  // Nếu người dùng chọn chưa đủ 100 ảnh, tự động bổ sung từ top kết quả tìm kiếm hiện tại
-  if (exportData.length < 100 && sortedResults.length > 0) {
-    const remainingCount = 100 - exportData.length;
-    const additionalImages = sortedResults
-      .filter(res => {
-        const fid = parseInt(res.entity.frame_id);
-        return !exportData.some(img => img.frameId === fid);
-      })
-      .slice(0, remainingCount)
-      .map(res => ({
-        frameId: parseInt(res.entity.frame_id),
-        src: res.entity.path || '',
-        frameInfo: `${res.entity.video || 'video'}-${res.entity.frame_id}`
-      }));
-    exportData.push(...additionalImages);
+function extractVideoAndFrameId(item) {
+  let videoName = item.videoName || (item.entity ? (item.entity.video_id || item.entity.video) : '');
+  if (videoName && (videoName.includes(':') || videoName.toLowerCase() === 'keyframes' || videoName.toLowerCase().includes('localhost'))) {
+    videoName = '';
   }
 
-  const cleanData = exportData.slice(0, 100);
-  const rows = cleanData.map(item => {
-    let videoName = (item.frameInfo || '').split('-')[0];
-    if (!videoName && item.src) {
-      const parts = item.src.split('/');
-      videoName = parts[parts.length - 3] || 'video';
-    }
-    videoName = videoName.replace(new RegExp('\\.mp4$', 'i'), '').trim();
-    const frameId = parseInt(item.frameId, 10) || 0;
-    return videoName + ',' + frameId;
-  });
+  let frameId = item.frameId !== undefined ? parseInt(item.frameId, 10) : (item.entity ? parseInt(item.entity.frame_id, 10) : 0);
 
-  return rows.join('\n');
+  // Fallback nếu frameId là NaN hoặc <= 0
+  if ((isNaN(frameId) || frameId <= 0) && item.src) {
+    const match = item.src.match(/keyframe_(\d+)\./);
+    if (match) frameId = parseInt(match[1], 10);
+  }
+  if ((isNaN(frameId) || frameId <= 0) && item.entity && item.entity.path) {
+    const match = item.entity.path.match(/keyframe_(\d+)\./);
+    if (match) frameId = parseInt(match[1], 10);
+  }
+
+  // Fallback videoName
+  if (!videoName && item.frameInfo) {
+    const v = item.frameInfo.split('-')[0].trim();
+    if (v && !v.includes(':') && v.toLowerCase() !== 'video' && !v.toLowerCase().includes('localhost')) {
+      videoName = v;
+    }
+  }
+  if (!videoName && item.src) {
+    const match = item.src.match(/\/([^\/]+)\/keyframes\/keyframe_\d+/i) || 
+                  item.src.match(/(L\d+_V\d+)/i) || 
+                  item.src.match(/\/([^\/]+)\/keyframe_\d+/i);
+    if (match && match[1] && !match[1].includes(':') && match[1].toLowerCase() !== 'keyframes') {
+      videoName = match[1];
+    } else {
+      const parts = item.src.split('/');
+      const kfIdx = parts.lastIndexOf('keyframes');
+      if (kfIdx > 0 && parts[kfIdx - 1] && !parts[kfIdx - 1].includes(':') && parts[kfIdx - 1].toLowerCase() !== 'keyframes') {
+        videoName = parts[kfIdx - 1];
+      } else {
+        videoName = parts[parts.length - 3] || '';
+      }
+    }
+  }
+  if (!videoName && item.entity && item.entity.path) {
+    const match = item.entity.path.match(/\/([^\/]+)\/keyframes\/keyframe_\d+/i) || 
+                  item.entity.path.match(/(L\d+_V\d+)/i);
+    if (match && match[1]) {
+      videoName = match[1];
+    }
+  }
+
+  videoName = (videoName || 'video').replace(new RegExp('\\.mp4$', 'i'), '').trim();
+  if (isNaN(frameId)) frameId = 0;
+
+  return { videoName, frameId };
+}
+
+/**
+ * 1. Sinh nội dung CSV cho Textual KIS:
+ * Format: <video_name>,<frame_id> (Chỉ xuất các ảnh người dùng đã chọn bằng tay)
+ */
+function generateKisCSV() {
+  if (exportedImages.length === 0) {
+    alert("⚠️ Bạn chưa chọn ảnh nào trong khay nộp bài! Hãy bấm dấu [+] trên các ảnh kết quả để chọn.");
+    return "";
+  }
+
+  const seen = new Set();
+  const uniqueRows = [];
+
+  function parseItemToRow(item) {
+    const { videoName, frameId } = extractVideoAndFrameId(item);
+    const key = `${videoName.toLowerCase()}_${frameId}`;
+    return { key, row: `${videoName},${frameId}` };
+  }
+
+  // CHỈ NỘP CÁC ẢNH NGƯỜI DÙNG ĐÃ CHỌN
+  for (const img of exportedImages) {
+    const { key, row } = parseItemToRow(img);
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueRows.push(row);
+    }
+  }
+
+  return uniqueRows.join('\n');
 }
 
 /**
  * 2. Sinh nội dung CSV cho Visual Q&A:
- * Format: <video_name>,<frame_id>,"<answer>"
+ * Format: <video_name>,<frame_id>,"<answer>" (Chỉ xuất các ảnh người dùng đã chọn kết hợp với các biến thể đáp án)
  */
 function generateVqaCSV() {
-  const commonAnswer = (document.getElementById('vqa-common-answer')?.value || '').trim();
-  const limitChoice = document.getElementById('vqa-row-limit')?.value || '100';
-  let targetLimit = 100;
-  if (limitChoice === '30') targetLimit = 30;
-  else if (limitChoice === 'selected') targetLimit = Math.max(1, exportedImages.length);
-
-  const currentResults = typeof getCurrentResults === 'function' ? getCurrentResults() : [];
-  const sortedResults = [...currentResults].sort((a, b) => (b.score || 0) - (a.score || 0));
-  
-  const exportData = [...exportedImages];
-  
-  // Tự động bổ sung đủ số dòng ứng viên (30 hoặc 100 dòng) với đáp án chung
-  if (exportData.length < targetLimit && sortedResults.length > 0 && commonAnswer) {
-    const remainingCount = targetLimit - exportData.length;
-    const additionalImages = sortedResults
-      .filter(res => {
-        const fid = parseInt(res.entity.frame_id);
-        return !exportData.some(img => img.frameId === fid);
-      })
-      .slice(0, remainingCount)
-      .map(res => ({
-        frameId: parseInt(res.entity.frame_id),
-        src: res.entity.path || '',
-        frameInfo: `${res.entity.video || 'video'}-${res.entity.frame_id}`
-      }));
-    exportData.push(...additionalImages);
-  }
-
-  if (exportData.length === 0) {
-    alert("⚠️ Bạn chưa chọn frame nào để xuất Q&A! Hãy bấm dấu [+] trên ảnh kết quả hoặc nhập đáp án chung.");
+  if (exportedImages.length === 0) {
+    alert("⚠️ Bạn chưa chọn frame nào để xuất Q&A! Hãy bấm dấu [+] trên ảnh kết quả.");
     return "";
   }
 
-  const cleanData = exportData.slice(0, targetLimit);
-  const rows = cleanData.map(item => {
-    let videoName = (item.frameInfo || '').split('-')[0];
-    if (!videoName && item.src) {
-      const parts = item.src.split('/');
-      videoName = parts[parts.length - 3] || 'video';
-    }
-    videoName = videoName.replace(new RegExp('\\.mp4$', 'i'), '').trim();
-    const frameId = parseInt(item.frameId, 10) || 0;
-    
-    let ans = vqaInputs[item.frameId] || commonAnswer || "0";
-    ans = ans.substring(0, 100).replaceAll('"', '""');
-    
-    return videoName + ',' + frameId + ',"' + ans + '"';
-  });
+  const commonAnswerRaw = (document.getElementById('vqa-common-answer')?.value || '').trim();
+  const seen = new Set();
+  const uniqueRows = [];
 
-  return rows.join('\n');
+  function splitAnswers(rawText) {
+    if (!rawText) return [];
+    return rawText.split(/[|;\n]/).map(s => s.trim()).filter(Boolean);
+  }
+
+  function getCommonAnswers() {
+    const arr = splitAnswers(commonAnswerRaw);
+    return arr.length > 0 ? arr : ["0"];
+  }
+
+  function getItemAnswers(item) {
+    const perFrameRaw = (item.frameId !== undefined ? vqaInputs[item.frameId] : '') || '';
+    const perFrameArr = splitAnswers(perFrameRaw);
+    if (perFrameArr.length > 0) return perFrameArr;
+    return getCommonAnswers();
+  }
+
+  // XUẤT TUẦN TỰ THEO TỪNG FRAME: XONG HẾT ĐÁP ÁN FRAME 1 RỒI MỚI TỚI FRAME 2
+  for (const img of exportedImages) {
+    const { videoName, frameId } = extractVideoAndFrameId(img);
+    const candidateAnswers = getItemAnswers(img);
+
+    for (let ans of candidateAnswers) {
+      ans = ans.substring(0, 100).replaceAll('"', '""');
+      const key = `${videoName.toLowerCase()}_${frameId}_${ans.toLowerCase()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueRows.push(`${videoName},${frameId},"${ans}"`);
+      }
+    }
+  }
+
+  return uniqueRows.join('\n');
 }
 
 /**
  * 3. Sinh nội dung CSV cho TRAKE:
- * Format: <video_name>,<frame_1>,<frame_2>,...,<frame_N>
+ * Format: <video_name>,<frame_1>,<frame_2>,...,<frame_N> (Chỉ xuất các chuỗi frame thuộc các video mà người dùng đã chọn)
  */
 function generateTrakeCSV() {
   if (exportedImages.length === 0) {
@@ -315,30 +725,28 @@ function generateTrakeCSV() {
     return "";
   }
 
-  // Nhóm các frame theo video và sắp xếp thứ tự thời gian
-  const videoGroups = {};
-  exportedImages.forEach(item => {
-    let videoName = (item.frameInfo || '').split('-')[0];
-    if (!videoName && item.src) {
-      const parts = item.src.split('/');
-      videoName = parts[parts.length - 3] || 'video';
-    }
-    videoName = videoName.replace(new RegExp('\\.mp4$', 'i'), '').trim();
-    const frameId = parseInt(item.frameId, 10) || 0;
-    
-    if (!videoGroups[videoName]) {
-      videoGroups[videoName] = [];
-    }
-    videoGroups[videoName].push(frameId);
-  });
-
   const rows = [];
-  Object.entries(videoGroups).forEach(([videoName, frames]) => {
-    frames.sort((a, b) => a - b); // Đảm bảo đúng thứ tự thời gian Frame 1 < Frame 2 < Frame N
-    rows.push(videoName + ',' + frames.join(','));
+  const processedCIds = Array.from(new Set(exportedImages.map(img => img.candidateId || 1))).sort((a, b) => a - b);
+  
+  processedCIds.forEach(cId => {
+    const cFrames = exportedImages.filter(img => (img.candidateId || 1) === cId);
+    if (cFrames.length > 0) {
+      const { videoName } = extractVideoAndFrameId(cFrames[0]);
+      const frames = Array.from(new Set(cFrames.map(f => extractVideoAndFrameId(f).frameId).filter(f => f > 0))).sort((a, b) => a - b);
+      if (videoName && frames.length > 0) {
+        if (frames.length < 2) {
+          alert(`⚠️ Cảnh báo: Video ${videoName} chỉ có ${frames.length} frame được chọn! TRAKE yêu cầu số frame bằng ĐÚNG số sự kiện (ví dụ 4 sự kiện cần đúng 4 frame). Vui lòng chọn thêm ảnh!`);
+        }
+        rows.push(videoName + ',' + frames.join(','));
+      }
+    }
   });
 
-  return rows.slice(0, 100).join('\n');
+  if (rows.length === 0) {
+    return generateKisCSV();
+  }
+
+  return rows.join('\n');
 }
 
 //---------------------------------------------------------------------------------------------//
@@ -483,6 +891,9 @@ function renderSubmissionPackageUI() {
           </div>
         </div>
         <div class="pkg-query-actions">
+          <button class="pkg-action-btn edit" title="Đổi tên câu truy vấn này" onclick="renameQueryInPackage('${item.filename}')">
+            <i class="fa-solid fa-pen-to-square"></i> Đổi tên
+          </button>
           <button class="pkg-action-btn" title="Xem trước file CSV" onclick="previewQueryCSV('${item.filename}')">
             <i class="fa-solid fa-eye"></i> Xem
           </button>
@@ -496,6 +907,51 @@ function renderSubmissionPackageUI() {
       </div>
     `;
   }).join('');
+}
+
+/**
+ * Đổi tên câu truy vấn đã lưu trong Gói Nộp Bài
+ */
+function renameQueryInPackage(oldFilename) {
+  const pkg = getStoredSubmissionPackage();
+  const item = pkg[oldFilename];
+  if (!item) return;
+
+  const currentBaseName = oldFilename.replace(new RegExp('\\.csv$', 'i'), '');
+  const newNameRaw = prompt(`Nhập tên mới cho file truy vấn (Hiện tại: ${currentBaseName}):\nVí dụ: query-p1-1-kis`, currentBaseName);
+  
+  if (!newNameRaw || !newNameRaw.trim()) return;
+
+  let newFilename = newNameRaw.trim();
+  if (!newFilename.toLowerCase().endsWith('.csv')) {
+    newFilename += '.csv';
+  }
+
+  if (newFilename === oldFilename) return;
+
+  if (pkg[newFilename]) {
+    if (!confirm(`⚠️ File "${newFilename}" đã tồn tại trong gói nộp bài. Bạn có muốn ghi đè lên file đó không?`)) {
+      return;
+    }
+  }
+
+  // Cập nhật thuộc tính
+  delete pkg[oldFilename];
+  item.filename = newFilename;
+  
+  // Tự động nhận diện loại task theo hậu tố tên file
+  const lowerName = newFilename.toLowerCase();
+  if (lowerName.includes('-kis')) item.type = 'kis';
+  else if (lowerName.includes('-qa') || lowerName.includes('-vqa')) item.type = 'qa';
+  else if (lowerName.includes('-trake')) item.type = 'trake';
+
+  pkg[newFilename] = item;
+  saveStoredSubmissionPackage(pkg);
+  renderSubmissionPackageUI();
+
+  if (typeof showNotification === 'function') {
+    showNotification(`✏️ Đã đổi tên thành công: ${oldFilename} ➔ ${newFilename}`, 'success');
+  }
 }
 
 function previewQueryCSV(filename) {
@@ -707,8 +1163,13 @@ function drop(ev) {
   if (imgElement) {
     const imgDis = imgElement.closest('.img-dis, .frame-container');
     const infor = imgDis ? imgDis.querySelector('.infor')?.textContent : '';
-    const frameId = infor ? infor.split('-')[1] : imgElement.id;
-    addImageToExportArea(frameId, imgElement.src, infor);
+    let frameId = imgDis?.dataset?.frameId || '';
+    if (!frameId && imgElement.src) {
+      const match = imgElement.src.match(/keyframe_(\d+)\./);
+      if (match) frameId = match[1];
+    }
+    const tsMs = imgDis?.dataset?.timestampMs || null;
+    addImageToExportArea(frameId, imgElement.src, infor, true, tsMs);
   }
 }
 
@@ -722,11 +1183,16 @@ function handleMiddleClick(event) {
     const target = event.currentTarget;
     const img = target.querySelector('img');
     const infor = target.querySelector('.infor')?.textContent;
+    let frameId = target.dataset?.frameId || '';
+    if (!frameId && img?.src) {
+      const match = img.src.match(/keyframe_(\d+)\./);
+      if (match) frameId = match[1];
+    }
+    const tsMs = target.dataset?.timestampMs || null;
     if (img && infor) {
-      const frameId = infor.split('-')[1];
-      addImageToExportArea(frameId, img.src, infor);
+      addImageToExportArea(frameId, img.src, infor, true, tsMs);
       if (typeof showNotification === 'function') {
-        showNotification(`Đã thêm ${infor} vào danh sách xuất!`, 'success');
+        showNotification(`Đã thêm ${infor} (Frame ${frameId}) vào danh sách xuất!`, 'success');
       }
     }
   }

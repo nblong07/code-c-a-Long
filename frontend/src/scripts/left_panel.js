@@ -61,7 +61,7 @@ function cycleThroughTextboxes() {
 
 // AI Engine Status Bar: Both SigLIP and LLM Omni-Parser are always active in parallel
 function switchModel(model) {
-    console.log(`Active model engine: Google SigLIP SO400M + LLM Omni-Parser`);
+    console.log(`Active model engine: Google SigLIP 2 Giant`);
 }
 
 //------------------------------------------------------------------------//
@@ -465,11 +465,11 @@ function addNewSearchScene() {
     newSceneElement.style.cssText = 'margin-top: 10px; border: 1px solid #334155; border-radius: 8px; padding: 10px; background: #0F172A; transition: all 0.2s ease;';
 
     newSceneElement.innerHTML = `
-        <div class="scene-header-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span class="scene-title-text" style="font-size: 12px; font-weight: 700; color: #00F2FE;">
-                <i class="fa-solid fa-clock-rotate-left"></i> Sự kiện ${newSceneNumber}
+        <div class="scene-header-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span class="scene-title-text" style="font-size: 11.5px; font-weight: 700; color: #00F2FE;">
+                <i class="fa-solid fa-clock"></i> Sự kiện ${newSceneNumber}
             </span>
-            <button type="button" class="close-scene2-btn" style="background: none; border: none; color: #EF4444; font-size: 18px; font-weight: 700; cursor: pointer; padding: 0 4px; line-height: 1;" title="Xóa Sự kiện ${newSceneNumber}">&times;</button>
+            <button type="button" class="close-scene2-btn" style="background: none; border: none; color: #EF4444; font-size: 16px; font-weight: 700; cursor: pointer; padding: 0 4px; line-height: 1;" title="Xóa Sự kiện ${newSceneNumber}">&times;</button>
         </div>
         <div class="query-group">
             <div class="query-content-area">

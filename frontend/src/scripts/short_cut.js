@@ -8,8 +8,18 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('keydown', async function(event) {
         if (event.key === "Enter" && !event.shiftKey) {
             const activeElement = document.activeElement;
+            if (!activeElement) return;
+
+            const isTopicQuery = activeElement.matches('#Trake-Topic-Query') || activeElement.id === 'Trake-Topic-Query';
+            if (isTopicQuery) {
+                event.preventDefault();
+                if (typeof handleFilterAction === 'function') {
+                    handleFilterAction(event);
+                }
+                return;
+            }
+
             const searchScene = activeElement.closest('.Search_Scene') || activeElement.closest('#Search');
-    
             if (searchScene) {
                 const isTextInput = activeElement.matches('textarea[name="Text_Query"]') ||
                                     activeElement.matches('textarea[name="Ocr_Query"]') ||
@@ -162,6 +172,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Event listener for keyboard shortcuts
     document.addEventListener('keydown', function(event) {
+        const activeEl = document.activeElement;
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
+            return; // Không chặn phím khi người dùng đang nhập liệu trong ô văn bản
+        }
         // Slash (/): Focus on the first textbox in search-scene-1
         if (event.key === '/' && !event.shiftKey) {
             event.preventDefault();
@@ -201,20 +215,40 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Alt + s: Reset images in export area
+    // Alt + r: Refine Search (Cây đũa phép tinh chỉnh kết quả theo ảnh đã chọn)
+    document.addEventListener('keydown', function(event) {
+        if (event.altKey && (event.key === 'r' || event.key === 'R')) {
+            event.preventDefault();
+            const refineBtn = document.getElementById('refine-search');
+            if (refineBtn) refineBtn.click();
+        }
+    });
+
+    // Alt + s: Save Current Query to Submission Package (Lưu câu truy vấn hiện tại)
     document.addEventListener('keydown', function(event) {
         if (event.altKey && (event.key === 's' || event.key === 'S')) {
+            event.preventDefault();
+            const addPkgBtn = document.getElementById('add-to-package-btn');
+            if (addPkgBtn) addPkgBtn.click();
+        }
+    });
+
+    // Alt + c / Alt + x: Reset images in export area (Xóa ảnh trong khay)
+    document.addEventListener('keydown', function(event) {
+        if (event.altKey && (event.key === 'c' || event.key === 'C' || event.key === 'x' || event.key === 'X')) {
             event.preventDefault();
             const resetBtn = document.getElementById('reset-export');
             if (resetBtn) resetBtn.click();
         }
     });
 
-    // Ctrl + s: Trigger Pack & Zip Submission
+    // Ctrl + s: Open Submission Package Modal / Pack & Zip
     document.addEventListener('keydown', function(event) {
         if (event.ctrlKey && (event.key === 's' || event.key === 'S')) {
             event.preventDefault();
-            if (typeof packAndZipSubmission === 'function') {
+            if (typeof openSubmissionPackageModal === 'function') {
+                openSubmissionPackageModal();
+            } else if (typeof packAndZipSubmission === 'function') {
                 packAndZipSubmission();
             }
         }

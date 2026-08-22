@@ -1,0 +1,217 @@
+Hu?ng d?n n?p bài so tuy?n
+Các lo?i truy v?n
+Vòng so tuy?n bao g?m 3 d?ng truy v?n chính:
+1.Textual Known Item Search (Textual KIS): Tìm ki?m chính xác theo van b?n
+2.Visual Question Answering (Q&A): Truy v?n d?ng H?i-Ðáp
+3.Temporal Retrieval and Alignment of Key Events (TRAKE): Truy xu?t và can ch?nh s? ki?n video theo th?i gian
+Các gói truy v?n
+Trong vòng so tuy?n BTC s? cung c?p l?n lu?t các gói câu truy v?n theo nhi?u d?t. V?i m?i gói câu truy v?n, d?i thi c?n tr? v? k?t qu? tuong ?ng và n?p tr?c ti?p trên h? th?ng thi này b?ng tài kho?n BTC dã c?p.
+V?i m?i gói câu truy v?n, BTC s? cung c?p m?t danh sách các câu truy v?n trong t?ng file text. Ví d? trong d?t 1, BTC cung c?p gói g?m 4 câu truy v?n query-1-kis, query-2-kis, query-3-qa, query-4-trake tuong ?ng v?i n?i dung trong 4 file query-1-kis.txt, query-2-kis.txt, query-3-qa.txt, query-4-trake.txt.
+Quy u?c tên file truy v?n:
+- H?u t? "kis": Câu truy v?n d?ng Textual KIS
+- H?u t? "qa": Câu truy v?n d?ng Q&A
+- H?u t? "trake": Câu truy v?n d?ng TRAKE
+Yêu c?u k?t qu?
+Ð?i v?i m?i câu truy v?n, d?i thi c?n n?p tuong ?ng m?t file .csv (comma-separated values file) v?i m?i dòng tuong ?ng v?i m?t l?n d?i d? doán k?t qu?. Ð?i thi có th? n?p file t?i da 100 dòng. K?t qu? trên m?i dòng c?a d?i có format theo t?ng lo?i truy v?n:
+1. Textual Known Item Search (Textual KIS)
+Format: <Tên file video>, <Frame Idx>
+Ví d?:
+L00_V000, 1234
+L00_V055, 5555
+L01_V028, 25300
+2. Question Answering (Q&A)
+Format: <Tên file video>, <Frame Idx>, <Answer>
+Quy d?nh cho Answer:
+- Ð? dài t?i da: 100 ký t?
+- Có th? b?ng ti?ng Vi?t ho?c ti?ng Anh
+- Ðu?c so sánh chính xác v? m?t ng? nghia v?i dáp án
+Ví d?:
+L01_V028, 3450, "5"
+L02_V011, 1200, "Nam ngu?i"
+L03_V005, 2800, "Màu d?"
+3. Temporal Retrieval and Alignment of Key Events (TRAKE)
+Format: <Tên file video>, <Frame ID_1>, <Frame ID_2>, ..., <Frame ID_N>
+Trong dó:
+- Frame ID_1, Frame ID_2, ..., Frame ID_N là các keyframe tuong ?ng v?i N events trong chu?i s? ki?n
+- S? lu?ng Frame ID ph?i kh?p v?i s? events du?c yêu c?u trong truy v?n
+- Th? t? các Frame ID ph?i tuân theo th? t? th?i gian c?a các events
+Ví d? (chu?i 4 events):
+L10_V001, 1200, 1850, 2100, 2450
+L10_V001, 1180, 1820, 2080, 2420
+L11_V003, 5100, 5700, 6200, 6800
+Quy chu?n d?nh d?ng CSV
+?? Luu Ý QUAN TR?NG cho h?c sinh THPT:
+CSV ? Excel: Ðây là hai d?nh d?ng file hoàn toàn khác nhau!
+?File CSV (.csv): Là file van b?n thu?n túy, ch? ch?a d? li?u du?c phân cách b?ng d?u ph?y
+?File Excel (.xlsx/.xls): Là file nh? phân ph?c t?p c?a Microsoft Excel
+PH?I N?P FILE .CSV, KHÔNG PH?I FILE EXCEL!
+Cách t?o file CSV dúng:
+1. T? Excel: File ? Save As ? ch?n "CSV (Comma delimited) (.csv)"
+2. T? Google Sheets: File ? Download ? Comma Separated Values (.csv)
+3. T? Notepad: Gõ tr?c ti?p theo format và luu v?i duôi .csv
+4. T? các text editor*: VS Code, Sublime Text, Notepad++
+Ki?m tra file CSV:
+- Có th? m? b?ng Notepad và th?y d? li?u d?ng text thu?n túy
+- Kích thu?c file nh? hon nhi?u so v?i Excel
+- Ðuôi file ph?i là .csv (KHÔNG ph?i .xlsx ho?c .xls)
+Quy t?c chung:
+1.Encoding: UTF-8
+2.Delimiter: D?u ph?y (,)
+3.Line ending: CRLF (\r\n) ho?c LF (\n)
+4.Không có header row: File CSV b?t d?u tr?c ti?p b?ng d? li?u
+X? lý ký t? d?c bi?t:
+Luu ý quan tr?ng: D?u ngo?c kép ch? B?T BU?C khi answer ch?a các ký t? d?c bi?t. N?u answer don gi?n không có ký t? d?c bi?t, có th? b? qua d?u ngo?c kép.
+1.
+D?u ph?y trong answer: B?T BU?C bao quanh b?ng d?u ngo?c kép
+csv L01_V028, 3450, "Có 3 ngu?i, bao g?m nam và n?"
+2.
+3.
+D?u ngo?c kép trong answer: B?T BU?C escape b?ng double quotes
+csv L01_V028, 3450, "Anh ?y nói ""Xin chào"""
+4.
+5.
+Xu?ng dòng trong answer: B?T BU?C bao quanh b?ng d?u ngo?c kép
+csv L01_V028, 3450, "Dòng 1 Dòng 2"
+6.
+7.
+Answer don gi?n: KHÔNG B?T BU?C d?u ngo?c kép
+csv L01_V028, 3450, 5 L02_V011, 1200, Nam ngu?i L03_V005, 2800, Màu d?
+8.
+9.
+Kho?ng tr?ng d?u/cu?i: Ðu?c gi? nguyên, không t? d?ng trim
+10.
+Ví d? CSV chu?n cho t?ng lo?i:
+Textual KIS (query-1-kis.csv):
+L00_V000,1234
+L00_V055,5555
+L01_V028,25300
+Q&A (query-2-qa.csv) - C? hai cách d?u dúng:
+L01_V028,3450,5
+L02_V011,1200,Nam ngu?i
+L03_V005,2800,"Màu d?, r?t d?p"
+L04_V012,4100,"Anh ?y nói ""Tuy?t v?i"""
+HO?C (v?i d?u ngo?c kép cho t?t c?):
+L01_V028,3450,"5"
+L02_V011,1200,"Nam ngu?i"
+L03_V005,2800,"Màu d?, r?t d?p"
+L04_V012,4100,"Anh ?y nói ""Tuy?t v?i"""
+TRAKE (query-3-trake.csv - 4 events):
+L10_V001,1200,1850,2100,2450
+L10_V001,1180,1820,2080,2420
+L11_V003,5100,5700,6200,6800
+Quy t?c d?u ngo?c kép trong CSV
+KHÔNG c?n ngo?c kép:
+?Answer don gi?n: 5, Nam ngu?i, Màu d?, Ba
+?Ch? ch?a ch? cái, s?, kho?ng tr?ng thông thu?ng
+?Không có d?u ph?y, ngo?c kép, xu?ng dòng
+B?T BU?C có ngo?c kép:
+?Answer có d?u ph?y: "Có 3 ngu?i, bao g?m nam và n?"
+?Answer có ngo?c kép: "Anh ?y nói ""Xin chào"""
+?Answer có xu?ng dòng: "Dòng 1\nDòng 2"
+An toàn nh?t:
+Ð? tránh nh?m l?n, có th? luôn d?t d?u ngo?c kép cho t?t c? answer trong Q&A. C? hai cách d?u du?c h? th?ng ch?p nh?n.
+Hu?ng d?n t?o file CSV cho h?c sinh THPT
+Phuong pháp 1: S? d?ng Microsoft Excel
+1.M? Excel và nh?p d? li?u theo dúng format
+2.File ? Save As
+3.Ch?n v? trí luu file
+4.Trong m?c "Save as type" ? ch?n "CSV (Comma delimited) (*.csv)"
+5.Ð?t tên file theo quy d?nh (ví d?: query-1-kis.csv)
+6.Click Save
+7.N?u Excel h?i v? compatibility ? click Yes
+Phuong pháp 2: S? d?ng Google Sheets
+1.M? Google Sheets và nh?p d? li?u
+2.File ? Download ? Comma Separated Values (.csv)
+3.File s? du?c t?i v? máy v?i duôi .csv
+Phuong pháp 3: S? d?ng Notepad (cho ngu?i hi?u k? thu?t)
+1.M? Notepad
+2.Gõ d? li?u theo dúng format (ví d?: L00_V000,1234)
+3.File ? Save As
+4.Trong m?c "Save as type" ? ch?n "All Files (.)"
+5.Ð?t tên file v?i duôi .csv (ví d?: query-1-kis.csv)
+6.Trong m?c Encoding ? ch?n UTF-8
+Ki?m tra file CSV dã dúng chua:
+1.Click chu?t ph?i vào file ? Open with ? Notepad
+2.N?u th?y d? li?u d?ng text thu?n túy v?i d?u ph?y phân cách ? ? ÐÚNG
+3.N?u th?y ký t? l? ho?c không d?c du?c ? ? SAI (có th? v?n là Excel format)
+L?i thu?ng g?p:
+?Luu nh?m file Excel: File có duôi .xlsx/.xls thay vì .csv
+?Encoding sai: File hi?n th? ký t? l? khi m? b?ng Notepad
+?Delimiter sai: S? d?ng d?u ch?m ph?y (;) thay vì d?u ph?y (,)
+?Có header: Dòng d?u ch?a tiêu d? thay vì d? li?u
+N?p k?t qu? cho gói truy v?n
+M?i d?i thi dang nh?p b?ng tài kho?n BTC dã c?p (theo thông tin d?i dã dang ký tru?c dó v?i BTC), vào dúng vòng thi tuong ?ng và n?p file .zip tr?c ti?p trên h? th?ng — không c?n dang ký thêm ? dâu khác.
+Cách chu?n b? file n?p:
+Bu?c 1: T?o thu m?c có tên submission
+Bu?c 2: Ð?t t?t c? file CSV k?t qu? vào trong thu m?c submission
+Bu?c 3: Nén thu m?c submission thành file .zip
+Bu?c 4 (Tùy ch?n): Ð?i tên file zip thành tên phù h?p (ví d?: team_ABC_round1.zip)
+C?u trúc thu m?c yêu c?u:
+submission/
++-- query-1-kis.csv
++-- query-2-kis.csv  
++-- query-3-qa.csv
++-- query-4-trake.csv
++-- ... (các file CSV khác)
+Ví d? file n?p cu?i cùng: team_ABC_round1.zip ch?a:
+submission/
++-- query-1-kis.csv
++-- query-2-kis.csv
++-- query-3-qa.csv
++-- query-4-trake.csv
+Luu ý quan tr?ng:
+* PH?I có thu m?c submission bên trong file zip
+* KHÔNG nén tr?c ti?p các file CSV - ph?i nén thu m?c submission
+* Cách tính di?m du?c mô t? trong d? bài c?a t?ng vòng thi trên h? th?ng
+* Tên file video không có ph?n duôi (.mp4)
+* Frame ID s? du?c so sánh du?i d?ng s? nguyên
+* Answer (Q&A) s? du?c so sánh du?i d?ng chu?i chính xác
+* Answer (Q&A) có d? dài t?i da 100 ký t?
+* Ð?i v?i TRAKE: S? lu?ng Frame ID ph?i kh?p chính xác v?i s? events yêu c?u
+* Ch? ch?p nh?n file nén d?nh d?ng .zip
+* Khuy?n cáo: Tên file zip ch? nên bao g?m các ký t? ch? ho?c s?
+Ðánh giá và x?p h?ng
+K?t qu? dánh giá trên Public Leaderboard ch? tính d?a trên 50% dáp án c?a BTC. K?t qu? cu?i cùng c?a d?i n?p s? du?c tính trên 100% dáp án và dùng d? x?p h?ng vòng so tuy?n t?i Private Leaderboard.
+Phuong pháp tính di?m:
+M?i gói truy v?n, các d?i du?c phép n?p k?t qu? t?i da 3 l?n. K?t qu? du?c dùng d? x?p h?ng là k?t qu? d?i n?p l?n cu?i cùng.
+Luu ý cu?i cùng:
+* M?i d?i ch? du?c dùng duy nh?t m?t tài kho?n d? n?p bài
+* Khi n?p sai d?nh d?ng v?n tính là 01 l?n n?p
+* Ð?i c?n luu ý ch?n l?a k?t qu? nào d? n?p l?n cu?i cùng
+* Khuy?n ngh? ki?m tra k? format CSV tru?c khi n?p d? tránh l?i parse
+
+?? B?NG TÓM T?T - NH?NG ÐI?U QUAN TR?NG NH?T
+TIÊU CHÍ	YÊU C?U	VÍ D?
+?? Ð?nh d?ng file n?p	? File .csv thu?n túy
+? KHÔNG ph?i Excel (.xlsx/.xls)	query-1-kis.csv
+?? Cách dóng gói	File .zip ch?a t?t c? file CSV	submission.zip
+?? Format KIS	<video_name>, <frame_id>	L01_V028, 25300
+? Format Q&A	<video_name>, <frame_id>, "<answer>"	L01_V028, 3450, "5"
+?? Format TRAKE	<video_name>, <frame_1>, <frame_2>, ...	L10_V001, 1200, 1850, 2100
+?? Câu tr? l?i Q&A	T?i da 100 ký t?, ti?ng Vi?t/Anh	"Nam ngu?i"
+?? S? dòng t?i da	100 dòng cho m?i file CSV	-
+?? S? l?n n?p	T?i da 3 l?n cho m?i gói truy v?n	-
+?? K?t qu? x?p h?ng	L?n n?p cu?i cùng du?c tính di?m	-
+?? Tên file video	KHÔNG có duôi .mp4	L01_V028 ?
+L01_V028.mp4 ?
+?? Frame ID	S? nguyên, không có kho?ng tr?ng th?a	25300 ?
+25 300 ?
+Text Editor an toàn	Notepad, VS Code, Google Sheets	Excel c?n Save As ? CSV
+?? 5 L?I THU?NG G?P NH?T:
+L?I	NGUYÊN NHÂN	CÁCH S?A
+?? File không du?c ch?p nh?n	N?p file Excel thay vì CSV	Save As ? CSV trong Excel
+?? Thi?u thu m?c submission	Nén tr?c ti?p file CSV thay vì thu m?c	T?o thu m?c submission r?i nén
+?? D? li?u hi?n th? l?	Encoding không ph?i UTF-8	Ch?n UTF-8 khi Save
+?? Answer b? c?t	Answer có d?u ph?y nhung thi?u ngo?c kép	"Nam ngu?i, g?m nam và n?"
+?? TRAKE sai s? frame	Thi?u/th?a frame cho các events	Ki?m tra dúng N events
+? CHECKLIST TRU?C KHI N?P:
+?[ ] File có duôi .csv (không ph?i .xlsx hay .xls)
+?[ ] M? file b?ng Notepad th?y d? li?u text thu?n túy
+?[ ] Tên file kh?p v?i tên truy v?n (ví d?: query-1-kis.csv)
+?[ ] Format dúng theo lo?i truy v?n (KIS/Q&A/TRAKE)
+?[ ] Answer Q&A không quá 100 ký t?
+?[ ] TRAKE có dúng s? frame theo yêu c?u
+?[ ] Tên video không có duôi .mp4
+?[ ] Ðã t?o thu m?c submission và d?t t?t c? CSV vào dó
+?[ ] File du?c nén t? thu m?c submission (không nén tr?c ti?p CSV)
+?[ ] Ðã ki?m tra s? l?n n?p còn l?i
