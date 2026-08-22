@@ -3,146 +3,136 @@
 
 ---
 
-## 📌 1. TỔNG QUAN KIẾN TRÚC & MÔ HÌNH CHÍNH THỨC
+## 📌 1. TỔNG QUAN 6 TRỤ CỘT TÍNH NĂNG CỦA HỆ THỐNG
 
-Hệ thống sử dụng bộ mô hình AI chuẩn SOTA:
-* **Visual Backbone (Thị giác):** Google OpenCLIP `ViT-gopt-16-SigLIP2-384` (**Google SigLIP 2 Giant** ~1 tỷ tham số, vector 1152 chiều, Pretrained WebLI).
-* **ASR Backbone (Âm thanh & Lời thoại):** `Faster-Whisper Large-v3-Turbo` tích hợp **Silero VAD** chạy trên CUDA Tensor Cores (nhanh gấp 4 lần, lọc sạch 100% tạp âm/nhạc nền).
-* **OCR Backbone (Văn bản trên màn hình):** `PaddleOCR PP-OCRv4` kết hợp bộ cân bằng sáng thích ứng **CLAHE (Contrast Limited Adaptive Histogram Equalization)**.
-* **Keyframe Selection (Trích xuất thích ứng):** `TransNetV2` chia shot tự động + Bộ lọc mờ **Laplacian Variance** ($\text{Var} \ge 95.0$) + Bộ lọc ánh sáng LAB, tự động chọn frame nét nhất trong từng phân đoạn.
-* **Hybrid Search & Fusion Engine:** Bộ tìm kiếm kết hợp **Reciprocal Rank Fusion (RRF)** dung hợp điểm số giữa Dense Vector Search (GPU CUDA) và Sparse Lexical Search (BM25 Inverted Index trên CPU RAM).
-* **Quản lý Nộp bài & Nén ZIP:** Quản lý toàn bộ 3 dạng bài KIS, Q&A, TRAKE và đóng gói `submission.zip` 1-click chuẩn 100% quy định BTC (`Ctrl + S`).
+Hệ thống được thiết kế theo mô hình khép kín 6 phần tương tác hoàn chỉnh:
 
----
-
-## 🧹 BƯỚC 1: DỌN DẸP DỮ LIỆU CŨ (CLEAN SLATE)
-
-Trước khi nạp bộ video mới, hãy xóa sạch các file chỉ mục cũ để tránh xung đột dữ liệu:
-
-Mở **PowerShell** và chạy đoạn lệnh sau:
-```powershell
-# 1. Xóa thư mục keyframe cũ
-Remove-Item -Recurse -Force "D:\code-c-a-Long\data-keyframes\*" -ErrorAction SilentlyContinue
-
-# 2. Xóa các file chỉ mục vector và metadata cũ
-Remove-Item "D:\code-c-a-Long\features.npy", "D:\code-c-a-Long\image_paths.npy", "D:\code-c-a-Long\ocr_results.jsonl", "D:\code-c-a-Long\asr_results.jsonl", "D:\code-c-a-Long\ocr_asr_metadata.json" -ErrorAction SilentlyContinue
-
-# 3. Xóa các gói nộp bài cũ
-Remove-Item -Recurse -Force "D:\code-c-a-Long\submission\*", "D:\code-c-a-Long\submission.zip" -ErrorAction SilentlyContinue
+```
+[Phần 1: Offline Indexing] ──▶ [Phần 3: Search Engine Core] ◀──▶ [Phần 2: Frontend & UI]
+                                       │                                 ▲
+                                       ▼                                 │
+                            [Phần 6: Pack & Submit] ◀── [Phần 5: Session & Bảng Ghim] ◀── [Phần 4: Relevance Feedback]
 ```
 
----
-
-## 📦 BƯỚC 2: KIỂM TRA & CÀI ĐẶT MÔI TRƯỜNG (NẾU CẦN)
-
-Mở **Anaconda Prompt (Miniconda3)**:
-```cmd
-# 1. Kích hoạt môi trường
-conda activate video_ai
-cd /d D:\code-c-a-Long
-
-# 2. Cài đặt / cập nhật thư viện từ file chuẩn (nếu máy mới hoặc chưa cài đủ)
-pip install -r backend/requirements.txt
-```
+* **Phần 1: Tiền Xử Lý Dữ Liệu Thô (Offline Indexing 5 bước):** TransNetV2 Adaptive Sampling + Whisper Large-v3 + Paddle/VietOCR + Bisect Metadata Alignment + Google SigLIP 2 Giant (1152d).
+* **Phần 2: Giao Diện Gõ Truy Vấn & Tương Tác Người - Máy:** Tìm kiếm đa kênh (Text/OCR/ASR), hiển thị mốc thời gian `MM:SS`, phím tắt thần tốc.
+* **Phần 3: Search Engine Core & Hybrid Ranking:** Reciprocal Rank Fusion (RRF k=60), BM25 Inverted Index ($< 1\text{ms}$), từ điển đồng nghĩa Tiếng Việt, Temporal Event Matcher.
+* **Phần 4: Relevance Feedback & Tương Tác Phản Hồi Vòng Lặp:** Tìm kiếm theo ảnh tương tự (Image-to-Image), Timeline Explorer duyệt toàn bộ video, lướt frame kề cận ($\pm 1$), Dual Preview Mode.
+* **Phần 5: Quản Trị Phiên Thi Đấu & Bảng Ghim (Pinboard):** LocalStorage chống mất dữ liệu khi F5, khay ghim ảnh tách biệt 3 task (KIS/VQA/TRAKE), lịch sử 60 query 1-click restore.
+* **Phần 6: Đóng Gói, Kiểm Duyệt & Nộp Bài (Validator & DRES Submit):** Tự động sửa lỗi format (xóa `.mp4`, xóa header, escape `"`, giới hạn 100 dòng), nén `submission.zip` 1-click chuẩn BTC và nộp API DRES trực tiếp.
 
 ---
 
-## 🚀 BƯỚC 3: NẠP TẬP VIDEO MỚI (MASTER OFFLINE PIPELINE)
+## 🛠️ HƯỚNG DẪN CHI TIẾT CÁCH SỬ DỤNG TỪNG PHẦN
 
-Khi nhận được thư mục video mới từ Ban tổ chức (ví dụ đặt tại `D:\video_moi` hoặc `C:\video_test`), bạn chỉ cần chạy **1 dòng lệnh duy nhất**:
-
-```cmd
-conda activate video_ai
-cd /d D:\code-c-a-Long
-
-# Chạy Master Pipeline tự động 5 bước:
-python data_pipeline/run_master_offline_pipeline.py --videos-dir "D:/video_moi"
-```
-*(Thay `"D:/video_moi"` bằng đường dẫn thực tế chứa các file `.mp4` của bạn)*
-
-### ⚙️ Quy trình 5 bước tự động diễn ra ngầm:
-1. **Bước 1/5 (Trích xuất Frame Thích ứng):** `TransNetV2` chia shot + Lọc mờ Laplacian $\to$ Lưu ảnh nét vào `data-keyframes/` và tạo các file `_map.csv`.
-2. **Bước 2/5 (Trích xuất Lời thoại ASR):** `Faster-Whisper Large-v3-Turbo + Silero VAD` $\to$ Xuất `asr_results.jsonl`.
-3. **Bước 3/5 (Trích xuất Chữ viết OCR):** `PaddleOCR PP-OCRv4 + CLAHE` $\to$ Xuất `ocr_results.jsonl`.
-4. **Bước 4/5 (Đồng bộ Metadata):** Gộp toàn bộ OCR & ASR vào `ocr_asr_metadata.json`.
-5. **Bước 5/5 (Trích xuất Vector Thị giác):** `Google SigLIP 2 Giant` $\to$ Xuất ma trận vector vào `features.npy` và `image_paths.npy`.
-
-> Khi màn hình hiện thông báo **`🎉 TẤT CẢ DỮ LIỆU ĐÃ ĐƯỢC INDEX XONG!`** là hoàn tất 100%.
+### 🔹 PHẦN 1: Tiền Xử Lý Dữ Liệu Thô (Offline Pipeline)
+Khi nhận tập video mới từ Ban tổ chức:
+1. **Dọn dẹp dữ liệu cũ (Clean Slate):**
+   ```powershell
+   Remove-Item -Recurse -Force "D:\code-c-a-Long\data-keyframes\*" -ErrorAction SilentlyContinue
+   Remove-Item "D:\code-c-a-Long\features.npy", "D:\code-c-a-Long\image_paths.npy", "D:\code-c-a-Long\ocr_results.jsonl", "D:\code-c-a-Long\asr_results.jsonl", "D:\code-c-a-Long\ocr_asr_metadata.json" -ErrorAction SilentlyContinue
+   Remove-Item -Recurse -Force "D:\code-c-a-Long\submission\*", "D:\code-c-a-Long\submission.zip" -ErrorAction SilentlyContinue
+   ```
+2. **Chạy Master Pipeline 1 dòng lệnh:**
+   ```cmd
+   conda activate video_ai
+   cd /d D:\code-c-a-Long
+   python data_pipeline/run_master_offline_pipeline.py --videos-dir "D:/video_moi"
+   ```
+   * Hệ thống tự động: Cắt frame nét $\to$ Bóc băng ASR $\to$ Đọc chữ OCR $\to$ Gộp metadata `ocr_asr_metadata.json` $\to$ Trích xuất vector SigLIP 2 `features.npy`.
 
 ---
 
-## 🌐 BƯỚC 4: KHỞI ĐỘNG SERVER & MỞ GIAO DIỆN
-
-1. **Khởi động Backend AI Server:**
+### 🔹 PHẦN 2 & 3: Khởi Động Server & Tìm Kiếm Đa Phương Thức (Search Engine)
+1. **Khởi động Backend:**
    ```cmd
    conda activate video_ai
    cd /d D:\code-c-a-Long
    python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
    ```
-2. **Truy cập Giao diện Web:**
-   Mở trình duyệt Web tại: 👉 **`http://localhost:8000/frontend/`**
+2. **Mở Trình Duyệt Web:** 👉 **`http://localhost:8000/frontend/`**
+3. **Cách Gõ Query Thông Minh:**
+   * **Mô tả cảnh/hành động:** Nhập vào ô `Text Query` (ví dụ: *"người phụ nữ áo đỏ lái xe máy qua ngã tư"*). Hệ thống tự mở rộng từ đồng nghĩa Tiếng Việt.
+   * **Chữ trên màn hình/biển hiệu:** Nhấn `Ctrl + I` $\to$ Gõ chữ vào ô `OCR Query` (ví dụ: *"THCS Chu Văn An"*, *"51F-123.45"*).
+   * **Lời thoại giọng nói:** Nhấn `Ctrl + K` $\to$ Gõ lời thoại vào ô `ASR Query` (ví dụ: *"bản tin dự báo thời tiết"*).
+   * Bấm **`Enter`** $\to$ Hệ thống tự động chạy **RRF Hybrid Fusion** trả kết quả ngay sau $0.05$ giây!
 
 ---
 
-## 🎮 BƯỚC 5: HƯỚNG DẪN THAO TÁC THI ĐẤU THỰC CHIẾN
-
-### 🎯 1. Dạng Bài KIS (Mô tả đơn)
-* **Giao diện:** Chọn tab **`KIS`** ở góc trái.
-* **Thao tác:**
-  1. Nhập câu mô tả (tiếng Việt hoặc tiếng Anh) $\to$ Bấm **`Enter`** (Hệ thống trả về **80 frame**).
-  2. Bấm vào ảnh để xem chi tiết, hoặc dùng nút **`<` / `>`** trên thẻ để lùi/tiến frame.
-  3. Bấm **`Chuột giữa`** (hoặc dấu **`+`**) để chọn 1 đến 3 frame chuẩn xác nhất vào khay bên phải.
-  4. Bấm **`Alt + S`** (hoặc nút **`Lưu`**) $\to$ Nhập tên file: `query-1-kis.csv` $\to$ Bấm Lưu.
-
----
-
-### ❓ 2. Dạng Bài Q&A (Câu hỏi video)
-* **Giao diện:** Tìm kiếm bằng tab **`KIS`**, sau đó nộp bài ở tab **`Q&A`** ở khay bên phải.
-* **Thao tác:**
-  1. Nhập mô tả để tìm video chứa khoảnh khắc trả lời $\to$ Bấm **`Enter`**.
-  2. Click đúp vào frame kết quả để **mở Video Player lên xem trực tiếp** khoảnh khắc đó để tìm câu trả lời.
-  3. Chọn frame đúng vào Khay Nộp $\to$ Chuyển tab Khay Nộp sang **`Q&A`** $\to$ Điền câu trả lời ngắn vào ô đáp án.
-  4. Bấm **`Alt + S`** $\to$ Nhập tên file: `query-2-qa.csv` $\to$ Bấm Lưu.
+### 🔹 PHẦN 4: Tinh Chỉnh Kết Quả Bằng Relevance Feedback & Timeline Explorer
+Khi thấy một frame gần đúng trên màn hình:
+1. 📷 **Tìm các frame tương tự:** Bấm vào **icon Camera** (`similarity_search`) trên góc thẻ ảnh để tìm toàn bộ các góc quay tương đồng.
+2. ⬅️ / ➡️ **Nhảy frame tức thì:** Bấm nút mũi tên trái/phải trên thẻ ảnh để lùi/tiến 1 frame mà không cần mở video.
+3. 🎞️ **Mở Timeline Explorer:** Bấm **icon Cuộn phim** trên thẻ ảnh:
+   * Thanh duyệt toàn bộ chuỗi frame của video sẽ mở ra ở cạnh dưới.
+   * Dùng phím `←` / `→` để di chuyển, phím `Space` hoặc `+` để chọn frame chuẩn nhất, phím `R` để đưa frame lên Top 1, phím `Esc` để đóng.
+4. 🔍 **So Sánh Kép (Dual Preview):** Giữ đè phím **`Alt`** (hoặc bấm **`Alt + X`**) rồi rê chuột qua các ảnh để đối chiếu trực tiếp 2 ảnh lớn song song trái - phải.
 
 ---
 
-### 🎬 3. Dạng Bài TRAKE (Chuỗi sự kiện theo thời gian)
-* **Giao diện:** Chọn tab **`TRAKE`** ở góc trái.
-* **Thao tác:**
-  1. Nhập **Sự kiện 1** (Ví dụ: *"người phụ nữ mặc áo trắng bước xuống xe"*).
-  2. Bấm nút **`+ Thêm Sự Kiện Tiếp Theo`** $\to$ Nhập **Sự kiện 2** (Ví dụ: *"người phụ nữ đi vào cửa hàng"*).
-  3. Bấm **`Enter`** $\to$ Hệ thống tự động phân tích và trả về **Top 20 video** chứa đầy đủ chuỗi sự kiện theo đúng thứ tự thời gian thực tế với tổng cộng $\sim 120\text{ frames}$, mỗi frame được gắn nhãn màu sắc rõ ràng (**Sự kiện 1**, **Sự kiện 2**, **Sự kiện 3**...).
-  4. Ở khay nộp bài bên phải (tab **`TRAKE`**):
-     * Chọn frame cho Sự kiện 1 $\to$ Chọn frame cho Sự kiện 2 trong cùng 1 video.
-     * Có thể bấm `+ Thêm Phương Án` để nộp thêm PA 2 nếu muốn.
-  5. Bấm **`Alt + S`** $\to$ Nhập tên file: `query-3-trake.csv` $\to$ Bấm Lưu.
+### 🔹 PHẦN 5: Quản Lý Bảng Ghim & Lịch Sử Phiên Thi (Pinboard & History)
+1. **Ghim Ảnh Vào Khay (Export Area):**
+   * Bấm **`Chuột giữa`** hoặc dấu **`+`** trên ảnh $\to$ Ảnh được lưu ngay vào Khay Nộp bài bên phải.
+   * Nhìn **Thanh chỉ báo màu sắc**: 🟢 `1 frame (Tốt nhất)` | 🟡 `2-3 frame (OK)` | 🔴 `4-5 frame (Nhiều, nên bớt)`.
+2. **Chuyển Đổi Task Nhanh:**
+   * **Tab KIS:** Dành cho dạng bài tìm ảnh đơn.
+   * **Tab Q&A (VQA):** Tự động mở ô `vqa-common-answer` ở trên cùng $\to$ Gõ nhanh đáp án câu hỏi vào đây.
+   * **Tab TRAKE:** Dành cho bài chuỗi sự kiện. Tự động hỗ trợ chọn Frame Sự kiện 1 và Frame Sự kiện 2.
+3. **Sử Dụng Lịch Sử Truy Vấn (Query History):**
+   * Mở tab Lịch sử ở bảng trái $\to$ Click vào bất kỳ câu query nào trong quá khứ để nạp lại ngay vào ô tìm kiếm.
 
 ---
 
-## 📦 BƯỚC 6: ĐÓNG GÓI BÀI THI & NỘP CHO BAN TỔ CHỨC
-
-1. Bấm tổ hợp phím **`Ctrl + S`** (hoặc nút **`Gói Bài Thi`** ở góc trên bên phải màn hình).
-2. Kiểm tra danh sách các câu đã làm (`query-1-kis.csv`, `query-2-qa.csv`, `query-3-trake.csv`...).
-3. Bấm nút màu xanh: **`NÉN & TẠO FILE SUBMISSION.ZIP`**.
-4. Nộp trực tiếp file **`D:\code-c-a-Long\submission.zip`** lên cổng thi đấu của BTC!
+### 🔹 PHẦN 6: Kiểm Duyệt, Đóng Gói & Nộp Bài (DRES & Package ZIP)
+1. **Lưu Câu Truy Vấn:**
+   * Bấm **`Alt + S`** (hoặc nút **`Lưu`**) $\to$ Nhập tên file: `query-1-kis.csv`, `query-2-qa.csv`... $\to$ Bấm Lưu.
+   * Badge đếm số lượng câu trên Header sẽ tự động tăng lên.
+2. **Đóng Gói ZIP 1-Click (Vòng Sơ Tuyển):**
+   * Bấm **`Ctrl + S`** (hoặc `Alt + P`) $\to$ Modal Quản lý gói nộp bài xuất hiện.
+   * Bấm nút màu xanh: **`NÉN & TẠO FILE SUBMISSION.ZIP`**.
+   * Hệ thống tự động: Loại bỏ `.mp4`, xóa header, escape `"`, kiểm tra UTF-8 và tạo file **`D:\code-c-a-Long\submission.zip`** chuẩn 100% quy định BTC.
+3. **Nộp Trực Tiếp DRES (Vòng Chung Kết Live):**
+   * Bấm nút **`Submit DRES`** màu xanh lá trên giao diện để gửi trực tiếp kết quả lên server giám khảo.
 
 ---
 
-## ⌨️ BẢNG PHÍM TẮT THẦN TỐC (KEYBOARD SHORTCUTS)
+## ⌨️ BẢNG PHÍM TẮT THẦN TỐC TOÀN DIỆN (KEYBOARD SHORTCUTS CHEAT SHEET)
 
+### 1. 🔍 Nhóm Tìm Kiếm & Nhập Liệu (Search & Input)
 | Phím tắt | Thao tác | Mô tả chi tiết |
 | :--- | :--- | :--- |
-| **`Enter`** | **Tìm kiếm** | Thực thi tìm kiếm câu truy vấn đang gõ. |
-| **`Chuột giữa`** / **`[+]`** | **Chọn ảnh** | Thêm ngay khung hình vào Khay Nộp bài. |
-| **`Alt + A`** | **Bật / Tắt Khay** | Ẩn/hiện thanh công cụ chọn ảnh bên phải. |
-| **`Alt + R`** | **Tinh chỉnh AI (Refine)** | AI gom toàn bộ các góc quay cùng sự kiện lên hàng đầu (Rocchio Feedback). |
-| **`Alt + S`** | **Lưu Query** | Lưu câu truy vấn hiện tại vào Gói Bài Thi. |
-| **`Ctrl + S`** / **`Alt + P`** | **Gói Bài & Nén ZIP** | Mở Bảng Quản Lý & Nén `submission.zip` 1-click chuẩn 100% BTC. |
-| **`Ctrl + Q`** | **Làm mới ô nhập** | Xóa nhanh câu query để gõ câu mới. |
-| **`Ctrl + I`** | **Tìm kiếm OCR** | Mở ô tìm kiếm chữ viết xuất hiện trên video (biển số xe, tên đường, chữ trên áo...). |
-| **`Ctrl + K`** | **Tìm kiếm ASR** | Mở ô tìm kiếm lời thoại / âm thanh phát ra trong video. |
-| **`Alt + C`** / **`Alt + X`** | **Xóa ảnh khay** | Làm trống Khay Nộp để làm câu tiếp theo. |
-| **`Esc`** | **Đóng cửa sổ** | Đóng trình phát video hoặc các modal xem trước. |
+| **`Enter`** | **Thực thi Tìm kiếm** | Chạy tìm kiếm tức thì cho câu truy vấn đang nhập trong bất kỳ ô nào (Text, OCR, ASR, QA). |
+| **`Shift + Enter`** | **Lọc Nâng Cao** | Kích hoạt tìm kiếm kết hợp bộ lọc đối tượng / thuộc tính. |
+| **`/` (Dấu xuyệt)** | **Focus Ô Nhập Đầu** | Đưa con trỏ chuột ngay lập tức vào ô nhập Text Query đầu tiên (khi không trong ô nhập). |
+| **`?`** hoặc **`Shift + /`** | **Chuyển Đổi Ô Nhập** | Nhảy vòng tròn qua lại giữa các ô nhập Text Query trong các Scene. |
+| **`Ctrl + I`** | **Thêm ô tìm OCR** | Mở ô tìm kiếm chữ viết xuất hiện trên ảnh (biển tên đường, biển số xe, cổng chùa,...). |
+| **`Ctrl + K`** | **Thêm ô tìm ASR** | Mở ô tìm kiếm lời thoại / âm thanh phát ra trong video. |
+| **`Ctrl + J`** | **Thêm Bộ Lọc Đối Tượng** | Mở bộ lọc thuộc tính đối tượng chi tiết (màu sắc, số lượng, chủng loại). |
+| **`Ctrl + H`** | **Thêm Cảnh Mới (Scene)** | Thêm 1 Search Scene mới cho chuỗi sự kiện hoặc đa điều kiện. |
+| **`Ctrl + Q`** | **Reset Toàn Bộ Query** | Xóa sạch toàn bộ text trong tất cả ô nhập, hủy các cảnh phụ và focus về ô đầu tiên. |
+| **`Ctrl + E`** | **Xóa Sạch Văn Bản** | Xóa nhanh nội dung trong tất cả các `textarea` hiện tại. |
+| **`Alt + W`** | **Đổi Bố Cục (Layout)** | Chuyển đổi linh hoạt giữa giao diện dạng dọc (Vertical) và dạng ngang (Horizontal). |
+| **`Alt + E`** | **Bật/Tắt Dịch Thuật** | Bật/tắt chế độ tự động dịch câu truy vấn (Translate Option). |
+
+### 2. 🖼️ Nhóm Xem Ảnh, Video & Dải Frame Lân Cận (Inspection & Timeline)
+| Phím tắt | Thao tác | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| **`Alt` (Giữ đè)** | **So Sánh Kép Tức Thì** | Rê chuột qua bất kỳ ảnh nào để xem phóng to ở khung Preview bên trái đối chiếu với khung phải. |
+| **`Alt + X`** | **Bật/Tắt Chế Độ So Sánh** | Bật/tắt chế độ khóa Preview so sánh mà không cần giữ đè phím Alt. |
+| **`←` / `→` (Mũi tên)** | **Nhảy Frame Kề Cận** | Lùi về 1 frame trước / Tiến tới 1 frame sau trong video (trên thẻ ảnh hoặc Timeline bar). |
+| **`Space`** hoặc **`+`** | **Chọn Frame Đang Xem** | Thêm ngay frame đang chọn trong Timeline Explorer vào Khay Nộp bài. |
+| **`R`** | **Đưa Frame Lên Top 1** | Đưa frame đang chọn lên vị trí đầu tiên và kích hoạt truy vấn tinh chỉnh (Refine). |
+| **`Esc`** | **Đóng Cửa Sổ / Thoát** | Đóng trình phát Video Player, thanh duyệt Timeline Explorer hoặc Modal đang mở. |
+
+### 3. 📦 Nhóm Quản Trị Khay & Nộp Bài (Pinboard & Submission)
+| Phím tắt | Thao tác | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| **`Chuột giữa`** / **`[+]`** | **Ghim Khung Hình** | Thêm ngay frame kết quả vào Khay Nộp bài (Export Area). |
+| **`Alt + A`** | **Ẩn / Hiện Khay Nộp** | Bật/tắt thanh công cụ quản lý ảnh bên phải màn hình. |
+| **`Alt + R`** | **Tinh chỉnh AI (Refine)** | Kích hoạt bộ tinh chỉnh Vector dựa trên các frame đã chọn trong khay. |
+| **`Alt + S`** | **Lưu Câu Truy Vấn** | Lưu câu query hiện tại vào danh sách gói nộp bài (`query-x-kis.csv`, `query-x-qa.csv`...). |
+| **`Ctrl + S`** / **`Alt + P`** | **Gói Bài & Nén ZIP** | Mở Bảng Quản Lý Gói Bài Thi và Nén `submission.zip` 1-click chuẩn 100% quy định BTC. |
+| **`Alt + C`** | **Làm Sạch Khay** | Xóa toàn bộ ảnh đang chọn trong khay để sẵn sàng cho câu hỏi tiếp theo. |
 
 ---
 
@@ -157,3 +147,5 @@ python data_pipeline/run_master_offline_pipeline.py --videos-dir "D:/video_moi"
    * 🔴 `4-5 frame — Nhiều` (Nên loại bớt các frame phụ).
 3. **Nén ZIP chuẩn 100% BTC:**
    * File `submission.zip` tự động được đóng gói chuẩn cấu trúc không có header, không chứa đuôi `.mp4`, đã được lọc trùng lặp và tương thích hoàn toàn với hệ thống chấm thi của Ban tổ chức!
+
+

@@ -1,4 +1,4 @@
-"""
+r"""
 AIC 2026 Batch Submission Auto-Packer & Validator CLI
 Tự động quét, kiểm tra định dạng và đóng gói thư mục submission/ thành submission.zip tại D:\code-c-a-Long
 ====================================================================================================

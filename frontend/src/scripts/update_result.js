@@ -147,6 +147,13 @@ async function stepCardFrame(imgDis, direction, event) {
   }, 220);
 }
 
+function formatTimeHMS(secondsFloat) {
+  const totalSec = Math.max(0, Math.floor(parseFloat(secondsFloat) || 0));
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
 function createImageDiv(result, index) {
   const info = getEntityInfo(result);
 
@@ -160,6 +167,9 @@ function createImageDiv(result, index) {
     const formattedScore = Math.abs(info.scoreVal) > 1 ? info.scoreVal.toFixed(1) : info.scoreVal.toFixed(3);
     scoreHtml = `<span class="score-badge" title="Score / Distance"><i class="fa-solid fa-chart-simple"></i> ${formattedScore}</span>`;
   }
+
+  const timeFormatted = formatTimeHMS(info.timeVal);
+  const timeBadgeHtml = `<span class="time-badge" style="position: absolute; top: 6px; left: 45px; background: rgba(15, 23, 42, 0.85); color: #38bdf8; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; border: 1px solid rgba(56, 189, 248, 0.4); z-index: 10;" title="Mốc thời gian video: ${timeFormatted} (${info.timeVal}s)"><i class="fa-regular fa-clock"></i> ${timeFormatted}</span>`;
 
   let ocrHtml = '';
   if (info.ocrText) {
@@ -190,6 +200,7 @@ function createImageDiv(result, index) {
   const isTopView = index <= 30;
   div.innerHTML = `
     <span class="rank-badge ${topClass}" title="Thứ tự ưu tiên #${index}">#${index}</span>
+    ${timeBadgeHtml}
     ${scoreHtml}
     ${ocrHtml}
     ${asrHtml}
