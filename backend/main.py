@@ -50,6 +50,12 @@ import open_clip
 # Vector database imports
 from pymilvus import MilvusClient
 
+# Smart Query Decomposer & Omni-Parser
+try:
+    from backend.smart_query_decomposer import smart_decomposer, DecomposedQuery
+except ImportError:
+    from smart_query_decomposer import smart_decomposer, DecomposedQuery
+
 # ==============================================================================
 # VIETNAMESE SYNONYM THESAURUS (BỘ TỪ ĐIỂN TỪ ĐỒNG NGHĨA TIẾNG VIỆT CHUYÊN DỤNG)
 # ==============================================================================
@@ -603,10 +609,13 @@ class MultiModelManager:
             )
             tokenizer = open_clip.get_tokenizer("ViT-gopt-16-SigLIP2-384")
 
-        self.model = model.to(self.device).eval()
+        if self.device.type == "cuda":
+            self.model = model.to(device=self.device, dtype=torch.float16).eval()
+        else:
+            self.model = model.to(self.device).eval()
         self.preprocess = preprocess
         self.tokenizer = tokenizer
-        self.logger.info("✅ Mô hình Google SigLIP 2 Giant đã nạp thành công!")
+        self.logger.info("✅ Mô hình Google SigLIP 2 Giant đã nạp thành công (FP16 CUDA)!")
         return self.model, self.preprocess, self.tokenizer, self.spec
 
 
@@ -635,6 +644,7 @@ class VectorSearchService:
         self.active_connections: List[WebSocket] = []
 
         # Khởi tạo các module cốt lõi nâng cấp
+        self.smart_decomposer = smart_decomposer
         self.router = AdaptiveQueryRouter()
         self.frame_filter = LifelogFrameFilter()
         self.tot_agent = TreeOfThoughtsAgent()
@@ -896,6 +906,14 @@ class VectorSearchService:
                     return translated.strip()
         except Exception as e:
             self.logger.warning(f"Translation timeout hoặc mất mạng: {e}")
+
+        # Fallback dịch offline siêu tốc bằng từ điển thị giác Smart Decomposer (0 MB VRAM, 0ms)
+        try:
+            offline_visual_en = self.smart_decomposer.translate_to_visual_english(q_str)
+            if offline_visual_en:
+                return offline_visual_en
+        except Exception:
+            pass
 
         return q_str
 
@@ -1647,8 +1665,8 @@ class VectorSearchService:
         k_rrf: int = 60
     ) -> List[Dict[str, Any]]:
         """
-        Reciprocal Rank Fusion (RRF) Hybrid Search Engine:
-        Dung hợp điểm số giữa 3 nhánh:
+        Reciprocal Rank Fusion (RRF) Hybrid Search Engine + Smart Query Decomposer:
+        Dung hợp điểm số thông minh giữa 3 nhánh:
         1. Dense Visual Vector Search (SigLIP GPU Tensor)
         2. Sparse Lexical OCR Search (BM25 Inverted Index)
         3. Sparse Lexical ASR Search (BM25 Inverted Index)
@@ -1658,18 +1676,24 @@ class VectorSearchService:
         if not clean_q:
             return []
 
+        # Phân rã thông minh query bằng Smart Decomposer (0 MB VRAM, < 1ms)
+        decomp = self.smart_decomposer.decompose(clean_q, current_topic=global_topic)
+        visual_q = decomp.visual_query or clean_q
+        ocr_q = " ".join(decomp.ocr_keywords) if decomp.ocr_keywords else clean_q
+        asr_q = " ".join(decomp.asr_keywords) if decomp.asr_keywords else clean_q
+
         # 1. Chạy song song cả 3 nhánh tìm kiếm
         async def _run_visual():
             try:
-                emb = await asyncio.to_thread(self.encode_clip_text, clean_q, model_name)
+                emb = await asyncio.to_thread(self.encode_clip_text, visual_q, model_name)
                 return await self.query_milvus(emb, limit=limit)
             except Exception as e:
                 self.logger.error(f"Lỗi Visual Search trong RRF: {e}")
                 return []
 
         visual_task = asyncio.create_task(_run_visual())
-        ocr_task = asyncio.create_task(self.search_ocr(clean_q, limit=limit))
-        asr_task = asyncio.create_task(self.search_asr(clean_q, limit=limit))
+        ocr_task = asyncio.create_task(self.search_ocr(ocr_q, limit=limit))
+        asr_task = asyncio.create_task(self.search_asr(asr_q, limit=limit))
 
         visual_results, ocr_results, asr_results = await asyncio.gather(
             visual_task, ocr_task, asr_task, return_exceptions=True
@@ -1686,13 +1710,13 @@ class VectorSearchService:
         if not ocr_results and not asr_results:
             return visual_results[:limit]
 
-        # 3. Tính toán Reciprocal Rank Fusion (RRF)
+        # 3. Tính toán Reciprocal Rank Fusion (RRF) với trọng số thích ứng
         doc_map: Dict[str, Dict[str, Any]] = {}
         rrf_scores: Dict[str, float] = {}
 
         w_visual = 1.00
-        w_ocr = 0.90
-        w_asr = 0.85
+        w_ocr = 1.15 if decomp.ocr_keywords else 0.90
+        w_asr = 1.10 if decomp.asr_keywords else 0.85
 
         def get_item_key(item: Dict[str, Any]) -> str:
             ent = item.get("entity", {})
@@ -1741,7 +1765,7 @@ class VectorSearchService:
                         doc_map[key]["entity"]["asr_text"] = item.get("asr_text")
             rrf_scores[key] = rrf_scores.get(key, 0.0) + (w_asr / (k_rrf + rank))
 
-        # 4. Sắp xếp danh sách theo điểm RRF giảm dần
+        # 4. Sắp xếp lại danh sách theo tổng điểm RRF giảm dần
         sorted_keys = sorted(rrf_scores.keys(), key=lambda k: rrf_scores[k], reverse=True)
         final_results = []
         for k in sorted_keys[:limit]:
@@ -1775,8 +1799,18 @@ class VectorSearchService:
             if not queries_list:
                 queries_list = ["scenery video overview"]
 
-            # Bổ sung ngữ cảnh chủ đề chung (Global Topic) vào từng sự kiện con nếu có
             clean_topic = (global_topic or "").strip()
+
+            # Tự động phân rã chuỗi thời gian nếu người dùng chỉ nhập 1 câu mô tả (Auto TRAKE Decomposition)
+            if len(queries_list) == 1 and isinstance(queries_list[0], str):
+                decomp = self.smart_decomposer.decompose(queries_list[0], current_topic=clean_topic)
+                if decomp.is_temporal and len(decomp.stages) >= 2:
+                    queries_list = decomp.stages
+                    if not clean_topic and decomp.global_topic:
+                        clean_topic = decomp.global_topic
+                    self.logger.info(f"✨ Auto TRAKE Decomposition: Tự động tách {len(queries_list)} giai đoạn: {queries_list}")
+
+            # Bổ sung ngữ cảnh chủ đề chung (Global Topic) vào từng sự kiện con nếu có
             if clean_topic:
                 enriched_queries = [f"{clean_topic} - {q}" for q in queries_list]
             else:
@@ -2125,6 +2159,16 @@ def create_app(config_file: str = None) -> FastAPI:
     # ==========================================
     # CÁC ENDPOINT NÂNG CẤP MỚI (APIS V2 & TOT AGENT)
     # ==========================================
+    @app.post("/api/v2/decompose_query")
+    async def decompose_query_endpoint(payload: RouteQueryRequest):
+        """API Phân Rã & Tinh Chỉnh Câu Truy Vấn Đa Phương Thức Thông Minh (Zero VRAM, CPU NLP & Multi-stage TRAKE)"""
+        decomposed = service.smart_decomposer.decompose(payload.query_text)
+        return {
+            "status": "success",
+            "query_text": payload.query_text,
+            "decomposed": decomposed.dict()
+        }
+
     @app.post("/api/v2/route_query")
     async def route_query_endpoint(payload: RouteQueryRequest):
         """API tự động phân loại truy vấn, dự đoán môi trường video và chọn mô hình AI tuyệt nhất"""
@@ -2747,11 +2791,22 @@ def create_app(config_file: str = None) -> FastAPI:
                     global_topic = data.get("globalTopic") or data.get("trakeTopic") or ""
                     result = await service.process_temporal_query(first_q, second_q, model_name=model_choice, global_topic=global_topic)
 
+                    decomp_res = service.smart_decomposer.decompose(first_q or second_q, current_topic=global_topic)
+
                     await websocket.send_json({
                         "kq": result,
                         "model": model_choice,
                         "qa_answer": "",
-                        "qa_source": ""
+                        "qa_source": "",
+                        "decomposed": {
+                            "mode": decomp_res.mode,
+                            "global_topic": decomp_res.global_topic,
+                            "stages": decomp_res.stages,
+                            "ocr_keywords": decomp_res.ocr_keywords,
+                            "asr_keywords": decomp_res.asr_keywords,
+                            "visual_query_en": decomp_res.visual_query_en,
+                            "explanation": decomp_res.explanation
+                        }
                     })
 
                 elif req_type == "refine_query":
@@ -2871,7 +2926,23 @@ def create_app(config_file: str = None) -> FastAPI:
                 if not result:
                     result = await service.process_temporal_query(effective_query, model_name=model_choice, global_topic=global_topic)
 
-                await websocket.send_json({"kq": result, "model": model_choice, "status": "success"})
+                primary_q = first_q or (all_text_q_list[0] if all_text_q_list else (ocr_query_str or asr_query_str or ""))
+                decomp_res = service.smart_decomposer.decompose(primary_q, current_topic=global_topic)
+
+                await websocket.send_json({
+                    "kq": result,
+                    "model": model_choice,
+                    "status": "success",
+                    "decomposed": {
+                        "mode": decomp_res.mode,
+                        "global_topic": decomp_res.global_topic,
+                        "stages": decomp_res.stages,
+                        "ocr_keywords": decomp_res.ocr_keywords,
+                        "asr_keywords": decomp_res.asr_keywords,
+                        "visual_query_en": decomp_res.visual_query_en,
+                        "explanation": decomp_res.explanation
+                    }
+                })
         except WebSocketDisconnect:
             service.logger.info("Filter WebSocket disconnected")
         except Exception as e:

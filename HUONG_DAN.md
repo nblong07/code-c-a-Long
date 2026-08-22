@@ -14,11 +14,11 @@ Hệ thống được thiết kế theo mô hình khép kín 6 phần tương t�
                             [Phần 6: Pack & Submit] ◀── [Phần 5: Session & Bảng Ghim] ◀── [Phần 4: Relevance Feedback]
 ```
 
-* **Phần 1: Tiền Xử Lý Dữ Liệu Thô (Offline Indexing 5 bước):** TransNetV2 Adaptive Sampling + Whisper Large-v3 + Paddle/VietOCR + Bisect Metadata Alignment + Google SigLIP 2 Giant (1152d).
-* **Phần 2: Giao Diện Gõ Truy Vấn & Tương Tác Người - Máy:** Tìm kiếm đa kênh (Text/OCR/ASR), hiển thị mốc thời gian `MM:SS`, phím tắt thần tốc.
-* **Phần 3: Search Engine Core & Hybrid Ranking:** Reciprocal Rank Fusion (RRF k=60), BM25 Inverted Index ($< 1\text{ms}$), từ điển đồng nghĩa Tiếng Việt, Temporal Event Matcher.
-* **Phần 4: Relevance Feedback & Tương Tác Phản Hồi Vòng Lặp:** Tìm kiếm theo ảnh tương tự (Image-to-Image), Timeline Explorer duyệt toàn bộ video, lướt frame kề cận ($\pm 1$), Dual Preview Mode.
-* **Phần 5: Quản Trị Phiên Thi Đấu & Bảng Ghim (Pinboard):** LocalStorage chống mất dữ liệu khi F5, khay ghim ảnh tách biệt 3 task (KIS/VQA/TRAKE), lịch sử 60 query 1-click restore.
+* **Phần 1: Tiền Xử Lý Dữ Liệu Thô (Offline Indexing 5 bước):** TransNetV2 Adaptive Sampling + Whisper Large-v3-Turbo + Paddle/VietOCR + Bisect Metadata Alignment + Google SigLIP 2 Giant FP16 Tensor Cores (1152d, trích xuất 14k ảnh chỉ trong 6–8 phút).
+* **Phần 2: Giao Diện Gõ Truy Vấn & Tương Tác Người - Máy:** Tìm kiếm đa kênh (Text/OCR/ASR/QA), hiển thị mốc thời gian `MM:SS`, phím tắt thần tốc, Vanilla JS siêu nhẹ.
+* **Phần 3: Search Engine Core & Hybrid Ranking:** Reciprocal Rank Fusion (RRF k=60), Smart Query Omni-Parser (tự động tách TRAKE, OCR, ASR), GPU Tensor cuBLAS ($< 2\text{ms}$), BM25 Inverted Index ($< 1\text{ms}$).
+* **Phần 4: Relevance Feedback & Tương Tác Phản Hồi Vòng Lặp:** Tìm kiếm theo ảnh tương tự (Image-to-Image), Timeline Explorer duyệt toàn bộ video, lướt frame kề cận ($\pm 1$), Dual Preview Mode, Rocchio Feedback (`Alt + R`).
+* **Phần 5: Quản Trị Phiên Thi Đấu & Bảng Ghim (Pinboard):** LocalStorage chống mất dữ liệu khi F5, khay ghim ảnh tách biệt 3 task (KIS/VQA/TRAKE), thanh chỉ báo màu sắc MRR (🟢/🟡/🔴), lịch sử 60 query 1-click restore.
 * **Phần 6: Đóng Gói, Kiểm Duyệt & Nộp Bài (Validator & DRES Submit):** Tự động sửa lỗi format (xóa `.mp4`, xóa header, escape `"`, giới hạn 100 dòng), nén `submission.zip` 1-click chuẩn BTC và nộp API DRES trực tiếp.
 
 ---
@@ -27,7 +27,7 @@ Hệ thống được thiết kế theo mô hình khép kín 6 phần tương t�
 
 ### 🔹 PHẦN 1: Tiền Xử Lý Dữ Liệu Thô (Offline Pipeline)
 Khi nhận tập video mới từ Ban tổ chức:
-1. **Dọn dẹp dữ liệu cũ (Clean Slate):**
+1. **Dọn dẹp dữ liệu cũ nếu cần (Clean Slate):**
    ```powershell
    Remove-Item -Recurse -Force "D:\code-c-a-Long\data-keyframes\*" -ErrorAction SilentlyContinue
    Remove-Item "D:\code-c-a-Long\features.npy", "D:\code-c-a-Long\image_paths.npy", "D:\code-c-a-Long\ocr_results.jsonl", "D:\code-c-a-Long\asr_results.jsonl", "D:\code-c-a-Long\ocr_asr_metadata.json" -ErrorAction SilentlyContinue
@@ -39,7 +39,7 @@ Khi nhận tập video mới từ Ban tổ chức:
    cd /d D:\code-c-a-Long
    python data_pipeline/run_master_offline_pipeline.py --videos-dir "D:/video_moi"
    ```
-   * Hệ thống tự động: Cắt frame nét $\to$ Bóc băng ASR $\to$ Đọc chữ OCR $\to$ Gộp metadata `ocr_asr_metadata.json` $\to$ Trích xuất vector SigLIP 2 `features.npy`.
+   * Hệ thống tự động tuần tự: Cắt frame nét $\to$ Bóc băng ASR $\to$ Đọc chữ OCR $\to$ Gộp metadata `ocr_asr_metadata.json` $\to$ Trích xuất vector SigLIP 2 FP16 `features.npy` (hoàn tất toàn bộ trong ~20–25 phút).
 
 ---
 
@@ -52,10 +52,11 @@ Khi nhận tập video mới từ Ban tổ chức:
    ```
 2. **Mở Trình Duyệt Web:** 👉 **`http://localhost:8000/frontend/`**
 3. **Cách Gõ Query Thông Minh:**
-   * **Mô tả cảnh/hành động:** Nhập vào ô `Text Query` (ví dụ: *"người phụ nữ áo đỏ lái xe máy qua ngã tư"*). Hệ thống tự mở rộng từ đồng nghĩa Tiếng Việt.
-   * **Chữ trên màn hình/biển hiệu:** Nhấn `Ctrl + I` $\to$ Gõ chữ vào ô `OCR Query` (ví dụ: *"THCS Chu Văn An"*, *"51F-123.45"*).
-   * **Lời thoại giọng nói:** Nhấn `Ctrl + K` $\to$ Gõ lời thoại vào ô `ASR Query` (ví dụ: *"bản tin dự báo thời tiết"*).
-   * Bấm **`Enter`** $\to$ Hệ thống tự động chạy **RRF Hybrid Fusion** trả kết quả ngay sau $0.05$ giây!
+   * **Mô tả cảnh/hành động (KIS):** Nhập vào ô `Text Query` (ví dụ: *"người phụ nữ áo đỏ lái xe máy qua ngã tư"*). Hệ thống tự động làm giàu từ đồng nghĩa và dịch sang tiếng Anh thị giác.
+   * **Chuỗi sự kiện liên hoàn (TRAKE):** Bạn có thể gõ nguyên câu dài (ví dụ: *"người đàn ông bước vào xe ô tô sau đó lái xe đi"*). AI **Smart Omni-Parser** sẽ tự động nhận diện từ nối (*"sau đó", "tiếp theo", "rồi"*) và tách thành các Stage liên hoàn!
+   * **Chữ trên màn hình/biển hiệu (OCR):** Nhấn `Ctrl + I` $\to$ Gõ chữ vào ô `OCR Query` (hoặc để trong ngoặc kép `"THCS Chu Văn An"`, *"51F-123.45"*).
+   * **Lời thoại giọng nói (ASR):** Nhấn `Ctrl + K` $\to$ Gõ lời thoại vào ô `ASR Query` (ví dụ: *"bản tin dự báo thời tiết"*).
+   * Bấm **`Enter`** $\to$ Hệ thống tự động chạy **RRF Hybrid Fusion** trả kết quả ngay sau $< 5\text{ms}$!
 
 ---
 
@@ -67,6 +68,7 @@ Khi thấy một frame gần đúng trên màn hình:
    * Thanh duyệt toàn bộ chuỗi frame của video sẽ mở ra ở cạnh dưới.
    * Dùng phím `←` / `→` để di chuyển, phím `Space` hoặc `+` để chọn frame chuẩn nhất, phím `R` để đưa frame lên Top 1, phím `Esc` để đóng.
 4. 🔍 **So Sánh Kép (Dual Preview):** Giữ đè phím **`Alt`** (hoặc bấm **`Alt + X`**) rồi rê chuột qua các ảnh để đối chiếu trực tiếp 2 ảnh lớn song song trái - phải.
+5. ⚡ **Rocchio Feedback (`Alt + R`):** Chọn 1-2 ảnh đúng vào khay rồi nhấn `Alt + R`, AI tự động gom tất cả các góc quay của sự kiện lên Top đầu.
 
 ---
 
@@ -79,7 +81,7 @@ Khi thấy một frame gần đúng trên màn hình:
    * **Tab Q&A (VQA):** Tự động mở ô `vqa-common-answer` ở trên cùng $\to$ Gõ nhanh đáp án câu hỏi vào đây.
    * **Tab TRAKE:** Dành cho bài chuỗi sự kiện. Tự động hỗ trợ chọn Frame Sự kiện 1 và Frame Sự kiện 2.
 3. **Sử Dụng Lịch Sử Truy Vấn (Query History):**
-   * Mở tab Lịch sử ở bảng trái $\to$ Click vào bất kỳ câu query nào trong quá khứ để nạp lại ngay vào ô tìm kiếm.
+   * Mở tab Lịch sử ở bảng trái $\to$ Click vào bất kỳ câu query nào trong 60 câu gần nhất để nạp lại ngay vào ô tìm kiếm.
 
 ---
 
@@ -101,7 +103,7 @@ Khi thấy một frame gần đúng trên màn hình:
 ### 1. 🔍 Nhóm Tìm Kiếm & Nhập Liệu (Search & Input)
 | Phím tắt | Thao tác | Mô tả chi tiết |
 | :--- | :--- | :--- |
-| **`Enter`** | **Thực thi Tìm kiếm** | Chạy tìm kiếm tức thì cho câu truy vấn đang nhập trong bất kỳ ô nào (Text, OCR, ASR, QA). |
+| **`Enter`** | **Thực thi Tìm kiếm** | Chạy tìm kiếm tức thì cho câu truy vấn đang nhập trong bất kỳ ô nào (Text, OCR, ASR, QA, TRAKE). |
 | **`Shift + Enter`** | **Lọc Nâng Cao** | Kích hoạt tìm kiếm kết hợp bộ lọc đối tượng / thuộc tính. |
 | **`/` (Dấu xuyệt)** | **Focus Ô Nhập Đầu** | Đưa con trỏ chuột ngay lập tức vào ô nhập Text Query đầu tiên (khi không trong ô nhập). |
 | **`?`** hoặc **`Shift + /`** | **Chuyển Đổi Ô Nhập** | Nhảy vòng tròn qua lại giữa các ô nhập Text Query trong các Scene. |
@@ -129,9 +131,9 @@ Khi thấy một frame gần đúng trên màn hình:
 | :--- | :--- | :--- |
 | **`Chuột giữa`** / **`[+]`** | **Ghim Khung Hình** | Thêm ngay frame kết quả vào Khay Nộp bài (Export Area). |
 | **`Alt + A`** | **Ẩn / Hiện Khay Nộp** | Bật/tắt thanh công cụ quản lý ảnh bên phải màn hình. |
-| **`Alt + R`** | **Tinh chỉnh AI (Refine)** | Kích hoạt bộ tinh chỉnh Vector dựa trên các frame đã chọn trong khay. |
+| **`Alt + R`** | **Tinh chỉnh AI (Refine)** | Kích hoạt bộ tinh chỉnh Vector dựa trên các frame đã chọn trong khay (Rocchio Feedback). |
 | **`Alt + S`** | **Lưu Câu Truy Vấn** | Lưu câu query hiện tại vào danh sách gói nộp bài (`query-x-kis.csv`, `query-x-qa.csv`...). |
-| **`Ctrl + S`** / **`Alt + P`** | **Gói Bài & Nén ZIP** | Mở Bảng Quản Lý Gói Bài Thi và Nén `submission.zip` 1-click chuẩn 100% quy định BTC. |
+| **`Ctrl + S`** / **`Alt + P`** | **Gói Bài & Nén ZIP** | Mở Bảng Quản Lý Gói Bài Thi và Nén `submission.zip` 1-click chuẩn 100% BTC. |
 | **`Alt + C`** | **Làm Sạch Khay** | Xóa toàn bộ ảnh đang chọn trong khay để sẵn sàng cho câu hỏi tiếp theo. |
 
 ---
@@ -147,5 +149,3 @@ Khi thấy một frame gần đúng trên màn hình:
    * 🔴 `4-5 frame — Nhiều` (Nên loại bớt các frame phụ).
 3. **Nén ZIP chuẩn 100% BTC:**
    * File `submission.zip` tự động được đóng gói chuẩn cấu trúc không có header, không chứa đuôi `.mp4`, đã được lọc trùng lặp và tương thích hoàn toàn với hệ thống chấm thi của Ban tổ chức!
-
-

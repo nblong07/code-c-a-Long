@@ -144,6 +144,19 @@ function connectWebSocket() {
                 const updateCompleteTime = performance.now();
                 console.log(`Cập nhật UI xong. Tổng thời gian: ${updateCompleteTime - requestTime} ms`);
                 console.log(`---------------------------------------------------------------------`);
+                
+                // Hiển thị phản hồi thông minh từ Smart Query Decomposer nếu có
+                if (data.decomposed && typeof showNotification === 'function') {
+                    const decomp = data.decomposed;
+                    if (decomp.mode === 'trake' && decomp.stages && decomp.stages.length >= 2) {
+                        showNotification(`✨ AI Auto-TRAKE: Tự động tách ${decomp.stages.length} giai đoạn liên hoàn!`, 'info');
+                    } else if (decomp.ocr_keywords && decomp.ocr_keywords.length > 0) {
+                        showNotification(`🔤 AI OCR Intent: Bắt từ khóa "${decomp.ocr_keywords.join(', ')}"`, 'info');
+                    } else if (decomp.asr_keywords && decomp.asr_keywords.length > 0) {
+                        showNotification(`🎙️ AI ASR Intent: Bắt lời thoại "${decomp.asr_keywords.join(', ')}"`, 'info');
+                    }
+                }
+                
                 toggleLoadingIndicator(false);
             } else {
                 console.error("Dữ liệu nhận không có thuộc tính 'kq':", data);
@@ -326,6 +339,19 @@ function connectFilterWebSocket() {
                 updateUIWithSearchResults(data.kq);
                 const updateCompleteTime = performance.now();
                 console.log(`Cập nhật UI xong. Tổng thời gian: ${updateCompleteTime - requestTime} ms.`);
+                
+                // Hiển thị phản hồi thông minh từ Smart Query Decomposer nếu có
+                if (data.decomposed && typeof showNotification === 'function') {
+                    const decomp = data.decomposed;
+                    if (decomp.mode === 'trake' && decomp.stages && decomp.stages.length >= 2) {
+                        showNotification(`✨ AI Auto-TRAKE: Tự động tách ${decomp.stages.length} giai đoạn liên hoàn!`, 'info');
+                    } else if (decomp.ocr_keywords && decomp.ocr_keywords.length > 0) {
+                        showNotification(`🔤 AI OCR Intent: Bắt từ khóa "${decomp.ocr_keywords.join(', ')}"`, 'info');
+                    } else if (decomp.asr_keywords && decomp.asr_keywords.length > 0) {
+                        showNotification(`🎙️ AI ASR Intent: Bắt lời thoại "${decomp.asr_keywords.join(', ')}"`, 'info');
+                    }
+                }
+                
                 toggleLoadingIndicator(false);
             } else if (data.error) {
                 console.error("Lỗi từ server:", data.error);

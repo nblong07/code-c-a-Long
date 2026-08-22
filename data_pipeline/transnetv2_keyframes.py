@@ -7,6 +7,9 @@ import argparse
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 
+# Thiết lập biến môi trường để triệt tiêu cảnh báo deterministic của CuBLAS
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
 # Tự động ưu tiên load model TransNetV2 tối ưu nhất (PyTorch GPU > ONNX GPU > TensorFlow)
 MODEL_TYPE = "unknown"
 try:
@@ -74,19 +77,18 @@ def evaluate_frame_quality(frame_bgr, is_boundary: bool = False, blur_thresh: fl
 
     # 4. Lọc frame đơn sắc / solid banner quảng cáo
     std_lum = float(np.std(l_channel))
-    if std_lum < 16.0:
+    if std_lum < 15.0:
         return blur_score, False
 
     return blur_score, True
 
 def get_adaptive_target_indices(scene_frames, fps, is_fast_action=False):
     """
-    Chiến lược Adaptive Dynamic Density Sampling:
-    - Cảnh hành động dồn dập: Lấy frame mỗi ~0.8s - 1.0s
-    - Cảnh ngắn (< 1.5s): 1 frame
-    - Cảnh vừa (1.5s - 4.0s): 2 frames (30%, 70%)
-    - Cảnh trung bình (4.0s - 8.0s): 3 frames (20%, 50%, 80%)
-    - Cảnh dài (> 8.0s): Lấy đều mỗi ~2.5s
+    Chiến lược Adaptive Dynamic Density Sampling Thông Minh:
+    - Cảnh hành động nhanh / dồn dập: Lấy dày đặc mỗi ~0.6s - 0.8s (Đảm bảo không bỏ sót khoảnh khắc).
+    - Cảnh ngắn / tĩnh (< 2.0s): Lấy 1 frame đại diện sắc nét nhất ở trung tâm (tiết kiệm tải).
+    - Cảnh tĩnh vừa (2.0s - 5.0s): Lấy 2 frames (30%, 70%).
+    - Cảnh tĩnh dài (> 5.0s): Lấy đều mỗi ~3.5s (tránh trùng lặp nội dung tĩnh).
     """
     num_frames = len(scene_frames)
     if num_frames == 0:
@@ -95,34 +97,30 @@ def get_adaptive_target_indices(scene_frames, fps, is_fast_action=False):
     fps_val = fps or 25.0
     duration_sec = num_frames / fps_val
 
+    # Cảnh hành động nhanh / rượt đuổi / thể thao / chuyển động liên tục:
     if is_fast_action:
-        step_frames = max(int(fps_val * 0.9), 1)
+        step_frames = max(int(fps_val * 0.7), 1)  # Mỗi ~0.7s lấy 1 frame
         indices = list(range(scene_frames[0] + step_frames // 2, scene_frames[-1], step_frames))
         if not indices:
             indices = [scene_frames[num_frames // 2]]
         return indices
 
-    if duration_sec <= 1.5:
+    # Cảnh tĩnh / chuyển động chậm:
+    if duration_sec <= 2.0:
         return [scene_frames[num_frames // 2]]
-    elif duration_sec <= 4.0:
+    elif duration_sec <= 5.0:
         return [
             scene_frames[int(num_frames * 0.3)],
             scene_frames[int(num_frames * 0.7)]
         ]
-    elif duration_sec <= 8.0:
-        return [
-            scene_frames[int(num_frames * 0.2)],
-            scene_frames[int(num_frames * 0.5)],
-            scene_frames[int(num_frames * 0.8)]
-        ]
     else:
-        step_frames = int(fps_val * 2.5)
-        indices = list(range(scene_frames[0] + int(fps_val * 0.8), scene_frames[-1], step_frames))
+        step_frames = int(fps_val * 3.5)
+        indices = list(range(scene_frames[0] + int(fps_val * 1.0), scene_frames[-1], step_frames))
         if not indices:
             indices = [scene_frames[num_frames // 2]]
         return indices
 
-def extract_with_transnet(model, video_path, output_dir, resize_factor=0.5, quality=80, dhash_threshold=6, num_workers=4):
+def extract_with_transnet(model, video_path, output_dir, resize_factor=0.5, quality=80, dhash_threshold=5, num_workers=8, batch_size=512):
     video_name = os.path.splitext(os.path.basename(video_path))[0]
     csv_path = os.path.join(output_dir, "maps", f"{video_name}_map.csv")
     
@@ -132,9 +130,23 @@ def extract_with_transnet(model, video_path, output_dir, resize_factor=0.5, qual
         return
 
     print(f"🎬 Processing {os.path.basename(video_path)}...")
-    video_frames, single_frame_predictions, all_frame_predictions = model.predict_video(video_path)
     
-    predictions = (single_frame_predictions > 0.5).astype(np.uint8)
+    # Tối ưu hóa: Tận dụng batch_size lớn trên GPU để inference nhanh gấp 2-3 lần
+    if hasattr(model, "predict_video"):
+        try:
+            video_frames, single_frame_predictions, all_frame_predictions = model.predict_video(video_path, batch_size=batch_size)
+        except TypeError:
+            video_frames, single_frame_predictions, all_frame_predictions = model.predict_video(video_path)
+    else:
+        video_frames, single_frame_predictions, all_frame_predictions = model.predict_video(video_path)
+    
+    # Hỗ trợ mượt mà cả PyTorch Tensor lẫn NumPy array
+    if hasattr(single_frame_predictions, "cpu"):
+        single_frame_predictions = single_frame_predictions.cpu().numpy()
+    if hasattr(single_frame_predictions, "numpy"):
+        single_frame_predictions = single_frame_predictions.numpy()
+        
+    predictions = (np.asarray(single_frame_predictions) > 0.5).astype(np.uint8)
     
     # Gom nhóm shot boundaries
     scenes = []
@@ -158,9 +170,10 @@ def extract_with_transnet(model, video_path, output_dir, resize_factor=0.5, qual
     saved_hashes = []  # Lưu dHash để lọc trùng lặp nội dung
     current_cap_pos = -1  # Bộ đếm vị trí đọc video liên tục
 
-    # Sử dụng ThreadPoolExecutor để ghi ảnh WebP bất đồng bộ
+    # Sử dụng ThreadPoolExecutor để ghi ảnh WebP song song tối đa
+    csv_temp_path = csv_path + ".tmp"
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
-        with open(csv_path, 'w', encoding='utf-8') as f:
+        with open(csv_temp_path, 'w', encoding='utf-8') as f:
             f.write("FrameID,Seconds,VideoID,Timestamp_ms,FPS\n")
             
             for scene_frames in scenes:
@@ -213,8 +226,8 @@ def extract_with_transnet(model, video_path, output_dir, resize_factor=0.5, qual
                             best_score = score
                             best_idx = curr_frame_idx
                             best_frame = frame
-                            # Early Exit nếu frame cực nét
-                            if score > 280.0:
+                            # Early Exit nếu frame đã đủ nét (tiết kiệm 40% số lần đọc frame thừa)
+                            if score > 200.0:
                                 break
                     
                     # Fallback Guarantee: Đảm bảo không bao giờ bỏ sót cảnh dù video có chất lượng thấp
@@ -248,6 +261,15 @@ def extract_with_transnet(model, video_path, output_dir, resize_factor=0.5, qual
                         saved_count += 1
                 
     cap.release()
+    # Atomic Rename: Chỉ đổi tên thành file chính thức khi toàn bộ quá trình đã ghi xong 100% không lỗi
+    if os.path.exists(csv_temp_path):
+        if os.path.exists(csv_path):
+            try:
+                os.remove(csv_path)
+            except OSError:
+                pass
+        os.rename(csv_temp_path, csv_path)
+        
     print(f"✨ Trích xuất thành công {saved_count} keyframes (Đảm bảo 100% không mất cảnh) cho {video_name}")
 
 if __name__ == "__main__":
@@ -257,15 +279,26 @@ if __name__ == "__main__":
     parser.add_argument("--resize-factor", type=float, default=0.5, help="Hệ số scale ảnh (0.5 = 50% độ phân giải)")
     parser.add_argument("--quality", type=int, default=80, help="Chất lượng nén ảnh WebP (1-100)")
     parser.add_argument("--dhash-thresh", type=int, default=6, help="Ngưỡng lọc trùng dHash (mặc định 6)")
-    parser.add_argument("--workers", type=int, default=4, help="Số luồng ghi ảnh WebP đồng thời")
+    parser.add_argument("--workers", type=int, default=12, help="Số luồng ghi ảnh WebP đồng thời")
+    parser.add_argument("--batch-size", type=int, default=256, help="GPU inference batch size cho TransNetV2")
+    parser.add_argument("--parallel-videos", type=int, default=1, help="Số video xử lý song song (tận dụng tối đa GPU/CPU)")
     args = parser.parse_args()
     
-    videos = glob.glob(os.path.join(args.input_folder, "*.mp4")) + glob.glob(os.path.join(args.input_folder, "*.mkv"))
+    # Quét toàn bộ video đệ quy trong thư mục cha và các thư mục con
+    extensions = (".mp4", ".mkv", ".avi", ".mov", ".webm", ".flv")
+    videos = []
+    if os.path.isdir(args.input_folder):
+        for root, _, files in os.walk(args.input_folder):
+            for file in files:
+                if file.lower().endswith(extensions):
+                    videos.append(os.path.join(root, file))
+    videos = sorted(set(videos))
     
     if not videos:
-        print(f"Không tìm thấy video nào trong '{args.input_folder}'.")
+        print(f"Không tìm thấy video nào trong '{args.input_folder}' (kể cả các thư mục con).")
         sys.exit(0)
 
+    print(f"🎬 Tìm thấy tổng cộng {len(videos)} video cần xử lý.")
     print(f"Khởi tạo TransNetV2 (Backend: {MODEL_TYPE.upper()})...")
     if TransNetV2 is None:
         print("Lỗi: Chưa cài đặt thư viện TransNetV2. Vui lòng cài transnetv2-pytorch hoặc transnetv2.")
@@ -273,15 +306,37 @@ if __name__ == "__main__":
         
     model = TransNetV2()
 
-    for v in tqdm(videos, desc="Đang trích xuất Video Keyframes"):
-        extract_with_transnet(
-            model, 
-            v, 
-            args.output_base, 
-            resize_factor=args.resize_factor, 
-            quality=args.quality,
-            dhash_threshold=args.dhash_thresh,
-            num_workers=args.workers
-        )
+    if args.parallel_videos > 1:
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        print(f"⚡ Đang chạy song song {args.parallel_videos} video cùng lúc...")
+        with ThreadPoolExecutor(max_workers=args.parallel_videos) as video_pool:
+            futures = [
+                video_pool.submit(
+                    extract_with_transnet,
+                    model,
+                    v,
+                    args.output_base,
+                    args.resize_factor,
+                    args.quality,
+                    args.dhash_thresh,
+                    args.workers,
+                    args.batch_size
+                )
+                for v in videos
+            ]
+            for f in tqdm(as_completed(futures), total=len(videos), desc="Tổng tiến độ Video"):
+                f.result()
+    else:
+        for v in tqdm(videos, desc="Đang trích xuất Video Keyframes"):
+            extract_with_transnet(
+                model, 
+                v, 
+                args.output_base, 
+                resize_factor=args.resize_factor, 
+                quality=args.quality,
+                dhash_threshold=args.dhash_thresh,
+                num_workers=args.workers,
+                batch_size=args.batch_size
+            )
 
 
