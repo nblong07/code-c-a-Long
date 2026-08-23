@@ -96,6 +96,18 @@ def extract_clip_main():
         print("❌ Error: No valid image files found!")
         return
 
+    # Tự động kiểm tra Resume / Skip nếu toàn bộ keyframes đã được trích xuất vector từ trước
+    if os.path.exists(args.output_features) and os.path.exists(args.output_paths):
+        try:
+            existing_feats = np.load(args.output_features, mmap_mode='r')
+            existing_paths = np.load(args.output_paths, allow_pickle=True)
+            if len(existing_feats) == len(image_paths) and len(existing_paths) == len(image_paths):
+                print(f"⏩ [SKIP] Đã trích xuất đầy đủ 100% vector ({len(existing_feats):,} keyframes, dim {existing_feats.shape[1]}) từ trước!")
+                print(f"✅ File '{args.output_features}' và '{args.output_paths}' đã hoàn tất 100%. Bỏ qua không cần tính lại!")
+                return
+        except Exception:
+            pass
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"🚀 Running feature extraction on device: {device}")
 

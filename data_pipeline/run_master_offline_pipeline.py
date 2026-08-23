@@ -58,6 +58,7 @@ def main():
     parser.add_argument("--skip-keyframes", action="store_true", help="Bỏ qua bước 1 (nếu đã trích xuất keyframes)")
     parser.add_argument("--skip-asr", action="store_true", help="Bỏ qua bước 2 (ASR)")
     parser.add_argument("--skip-ocr", action="store_true", help="Bỏ qua bước 3 (OCR)")
+    parser.add_argument("--skip-features", action="store_true", help="Bỏ qua bước 5 (Vector Visual Features)")
     parser.add_argument("--parallel-videos", type=int, default=3, help="Số video cắt frame song song (mặc định: 3 tối ưu GPU)")
     parser.add_argument("--batch-size", type=int, default=512, help="GPU batch size cho TransNetV2 (mặc định: 512)")
     parser.add_argument("--workers", type=int, default=16, help="Số luồng ghi ảnh WebP (mặc định: 16)")
@@ -118,14 +119,15 @@ def main():
         return
 
     # Bước 5: Feature Extraction
-    cmd5 = [
-        python_exe, "data_pipeline/extract_features.py", "1",
-        "--keyframes-dir", kf_dir,
-        "--model", args.model,
-        "--batch-size", "24"
-    ]
-    if not run_step(cmd5, "Bước 5/5: Trích xuất Vector Đặc trưng Thị giác (Google SigLIP 2 Giant 1152d FP16)"):
-        return
+    if not args.skip_features:
+        cmd5 = [
+            python_exe, "data_pipeline/extract_features.py", "1",
+            "--keyframes-dir", kf_dir,
+            "--model", args.model,
+            "--batch-size", "24"
+        ]
+        if not run_step(cmd5, "Bước 5/5: Trích xuất Vector Đặc trưng Thị giác (Google SigLIP 2 Giant 1152d FP16)"):
+            return
 
     total_time = time.time() - total_start
     print("\n" + "=" * 70)

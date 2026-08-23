@@ -4,6 +4,7 @@ import re
 import json
 import time
 import subprocess
+import gc
 import multiprocessing as mp
 import torch
 from faster_whisper import WhisperModel
@@ -17,7 +18,16 @@ PIPELINE_VERSION = "v3.0-whisper"
 
 MAX_VIDEO_RETRIES = 2
 NUM_WORKERS = 1  # 6GB VRAM dictates exactly 1 worker for ASR model
+ASR_BATCH_SIZE = int(os.environ.get("ASR_BATCH_SIZE", "24"))  # Mặc định 24
 _worker_engine = None
+
+def clean_vram():
+    gc.collect()
+    if torch.cuda.is_available():
+        try:
+            torch.cuda.empty_cache()
+        except Exception:
+            pass
 
 def is_junk_asr_segment(segment, text: str) -> bool:
     """Lọc bỏ âm thanh nền, nhạc rác, ảo giác lặp từ hoặc quảng cáo kết video"""
@@ -59,6 +69,7 @@ def is_junk_asr_segment(segment, text: str) -> bool:
 
 class FasterWhisperASR:
     def __init__(self):
+        clean_vram()
         print("⚡ Khởi tạo Faster-Whisper Large-v3-Turbo / Large-v3 (int8_float16 GPU Tensor Cores) cho 6GB VRAM...")
         model_candidates = ["deepdml/faster-whisper-large-v3-turbo", "large-v3-turbo", "large-v3"]
         self.model = None
@@ -86,7 +97,7 @@ class FasterWhisperASR:
         try:
             from faster_whisper import BatchedInferencePipeline
             self.batched_model = BatchedInferencePipeline(model=self.model)
-            print("🚀 Đã kích hoạt Faster-Whisper BatchedInferencePipeline (Tăng tốc xử lý audio đa luồng)!")
+            print(f"🚀 Đã kích hoạt Faster-Whisper BatchedInferencePipeline (Batch Size={ASR_BATCH_SIZE})!")
         except Exception:
             self.batched_model = None
             
@@ -96,16 +107,29 @@ class FasterWhisperASR:
         counters = {"ok": 0, "failed": 0, "filtered": 0, "empty": 0}
         
         try:
+            segments = None
+            info = None
+            
+            # Thử chạy chế độ Batched inference trước
             if self.batched_model is not None:
-                # Batched transcription với batch_size=36 (tối ưu Tensor Cores, VRAM ~2.2GB, bóc audio siêu tốc)
-                segments, info = self.batched_model.transcribe(
-                    video_path,
-                    batch_size=36,
-                    language="vi",
-                    vad_filter=True,
-                    vad_parameters=dict(min_silence_duration_ms=300, speech_pad_ms=200)
-                )
-            else:
+                try:
+                    segments, info = self.batched_model.transcribe(
+                        video_path,
+                        batch_size=ASR_BATCH_SIZE,
+                        language="vi",
+                        vad_filter=True,
+                        vad_parameters=dict(min_silence_duration_ms=300, speech_pad_ms=200)
+                    )
+                except Exception as batch_err:
+                    clean_vram()
+                    if "out of memory" in str(batch_err).lower() or "cuda" in str(batch_err).lower():
+                        print(f"\n⚠️ Batched ASR gặp lỗi bộ nhớ, tự động fallback sang Standard ASR...")
+                        segments = None
+                    else:
+                        raise batch_err
+            
+            # Fallback nếu không dùng batched hoặc batched bị OOM
+            if segments is None:
                 segments, info = self.model.transcribe(
                     video_path,
                     beam_size=1,
@@ -138,7 +162,7 @@ class FasterWhisperASR:
             return {
                 "status": "completed",
                 "video_path": video_path,
-                "duration_sec": round(info.duration, 2),
+                "duration_sec": round(info.duration, 2) if info else 0,
                 "segments": segments_data,
                 "num_segments": len(segments_data),
                 "successful_segments": counters["ok"],
@@ -160,6 +184,8 @@ class FasterWhisperASR:
                 "empty_segments": 0,
                 "elapsed_sec": round(time.time() - start_time, 2)
             }
+        finally:
+            clean_vram()
 
 def init_worker():
     global _worker_engine
@@ -219,6 +245,7 @@ def discover_videos():
     return sorted(set(videos))
 
 def main():
+    global _worker_engine
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     if hasattr(sys.stderr, "reconfigure"):
@@ -256,6 +283,18 @@ def main():
                 print(f" -> ❌ Thất bại: {err}", flush=True)
                 job["attempt"] += 1
                 next_pending.append(job)
+                
+                # Nếu gặp lỗi CUDA, giải phóng và khởi tạo lại ASR engine để không làm lỗi dây chuyền các video sau
+                err_str = str(err).lower()
+                if "cuda" in err_str or "out of memory" in err_str or "invalid device" in err_str:
+                    print("⚠️ Phát hiện lỗi CUDA context, đang giải phóng VRAM và tái tạo engine...", flush=True)
+                    try:
+                        del _worker_engine
+                    except Exception:
+                        pass
+                    clean_vram()
+                    time.sleep(1)
+                    init_worker()
         pending = next_pending
 
     print("\n🎉 Bóc băng giọng nói (ASR) đã hoàn tất toàn bộ!", flush=True)
