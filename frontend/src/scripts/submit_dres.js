@@ -402,7 +402,10 @@ async function submitFrameInfo(url, body) {
 
 function openDresConfigModal() {
     let modal = document.getElementById('dresConfigModal');
-    if (!modal) return;
+    if (!modal) {
+        console.error("Không tìm thấy element #dresConfigModal");
+        return;
+    }
 
     // Load saved values
     const savedUrl = localStorage.getItem('dresBaseUrl') || 'http://192.168.28.151:5000';
@@ -421,6 +424,7 @@ function openDresConfigModal() {
     if (evalInp) evalInp.value = savedEval;
 
     modal.style.display = 'flex';
+    modal.style.zIndex = '999999';
 }
 
 function closeDresConfigModal() {
@@ -597,3 +601,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof connectFilterWebSocket === 'function') connectFilterWebSocket();
     if (typeof connectAlertWebSocket === 'function') connectAlertWebSocket();
 });
+
+// Expose toàn bộ hàm ra window để gọi từ HTML onclick và phím tắt
+window.openDresConfigModal = openDresConfigModal;
+window.closeDresConfigModal = closeDresConfigModal;
+window.testDresConnection = testDresConnection;
+window.loginDresFromModal = loginDresFromModal;
+window.saveDresManualConfig = saveDresManualConfig;
+window.submit_to_dres_v2 = submit_to_dres_v2;
+window.submitSingleFrameToDres = submitSingleFrameToDres;
+window.updateDresStatusBadge = updateDresStatusBadge;

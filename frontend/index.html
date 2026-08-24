@@ -10,16 +10,16 @@
     <link rel="apple-touch-icon" href="src/Img/favicon-robot.svg?v=5" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <link rel="stylesheet" href="src/styles/layout.css?v=20260824_v52" />
-    <link rel="stylesheet" href="src/styles/left_panel.css?v=20260824_v52" />
-    <link rel="stylesheet" href="src/styles/right_panel.css?v=20260824_v52" />
-    <link rel="stylesheet" href="src/styles/notification.css?v=20260824_v52" />
-    <link rel="stylesheet" href="src/styles/show_video.css?v=20260824_v52" />
-    <link rel="stylesheet" href="src/styles/video_frame.css?v=20260824_v52" />
-    <link rel="stylesheet" href="src/styles/utils.css?v=20260824_v52" />
-    <link rel="stylesheet" href="src/styles/queries_history.css?v=20260824_v52" />
-    <link rel="stylesheet" href="src/styles/export_area.css?v=20260824_v52" />
-    <link rel="stylesheet" href="src/styles/preview.css?v=20260824_v52" />
+    <link rel="stylesheet" href="src/styles/layout.css?v=20260824_v53" />
+    <link rel="stylesheet" href="src/styles/left_panel.css?v=20260824_v53" />
+    <link rel="stylesheet" href="src/styles/right_panel.css?v=20260824_v53" />
+    <link rel="stylesheet" href="src/styles/notification.css?v=20260824_v53" />
+    <link rel="stylesheet" href="src/styles/show_video.css?v=20260824_v53" />
+    <link rel="stylesheet" href="src/styles/video_frame.css?v=20260824_v53" />
+    <link rel="stylesheet" href="src/styles/utils.css?v=20260824_v53" />
+    <link rel="stylesheet" href="src/styles/queries_history.css?v=20260824_v53" />
+    <link rel="stylesheet" href="src/styles/export_area.css?v=20260824_v53" />
+    <link rel="stylesheet" href="src/styles/preview.css?v=20260824_v53" />
 
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
@@ -27,39 +27,9 @@
     <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.27.2/axios.min.js" defer></script> -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest" defer></script>
     <script src="https://vjs.zencdn.net/7.17.0/video.min.js" defer></script>
-    <!-- <script src="src/critical.js" async></script> -->
-    <script>
-      // Function to clear local storage
-      function clearLocalStorage() {
-          localStorage.removeItem('evaluationID');
-          localStorage.removeItem('contestSessionID');
-          // Add any other items you want to remove here
-      }
-      
-      // Add event listener for beforeunload
-      window.addEventListener('beforeunload', function (e) {
-          clearLocalStorage();
-          
-          // The following is optional. It will show a dialog to confirm leaving the page.
-          // Most modern browsers no longer display custom messages here.
-          e.preventDefault(); // Cancel the event
-          e.returnValue = ''; // Chrome requires returnValue to be set
-      });
-      </script>
 </head>
   <body>
     <script>
-      /**
-       * Kiểm tra xem người dùng đã đăng nhập chưa.
-       * Nếu chưa có evaluationID hoặc contestSessionID trong localStorage
-       * thì redirect về trang login.
-       * (Hiện tại bỏ comment redirect để dễ phát triển)
-       */
-      if (!localStorage.getItem('evaluationID') || !localStorage.getItem('contestSessionID')) {
-        // Bỏ comment dòng dưới để bật chức năng redirect về login khi chưa đăng nhập:
-        // window.location.href = 'login.html';
-      }
-
       /**
        * Hàm đăng xuất: xóa session khỏi localStorage và chuyển về trang login.
        */
@@ -95,7 +65,7 @@
         </label>
 
         <div class="button-header-group">
-          <button type="button" id="dres-config-button" class="header-dres-btn" title="Cấu hình kết nối máy chủ DRES (Trực tuyến)">
+          <button type="button" id="dres-config-button" class="header-dres-btn" onclick="openDresConfigModal()" title="Cấu hình kết nối máy chủ DRES (Trực tuyến)">
             <i class="fa-solid fa-server"></i> DRES Live
           </button>
           <button type="button" id="export-button" title="Khay nộp bài">
@@ -314,7 +284,7 @@
               <button class="toolbar-btn save-btn" id="add-to-package-btn" title="Lưu vào Gói Bài Thi (Alt + S)">
                 <i class="fa-solid fa-floppy-disk"></i> Lưu
               </button>
-              <button class="toolbar-btn submit-dres-btn" id="submit-dres-btn" title="Nộp bài trực tiếp lên máy chủ DRES (Alt + D)">
+              <button class="toolbar-btn submit-dres-btn" id="submit-dres-btn" onclick="submit_to_dres_v2()" title="Nộp bài trực tiếp lên máy chủ DRES (Alt + D)">
                 <i class="fa-solid fa-paper-plane"></i> Nộp DRES
               </button>
               <button class="toolbar-btn reset-btn" id="reset-export" title="Xóa khay (Alt + C)">
@@ -398,11 +368,11 @@
     </div>
 
     <!-- Modal Cấu Hình & Quản Lý Phiên Thi Đấu DRES -->
-    <div id="dresConfigModal">
-      <div class="dres-modal-content">
+    <div id="dresConfigModal" style="display: none; position: fixed; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(11, 17, 32, 0.88); backdrop-filter: blur(12px); z-index: 999999; justify-content: center; align-items: center;">
+      <div class="dres-modal-content" style="background-color: #1E293B; border: 1.5px solid #10B981; padding: 24px 28px; border-radius: 14px; width: 580px; max-width: 95%; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(16, 185, 129, 0.25); color: #ffffff; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box;">
         <div class="dres-modal-header">
           <h2><i class="fa-solid fa-server"></i> CẤU HÌNH KẾT NỐI MÁY CHỦ DRES</h2>
-          <button class="close-btn" id="close-dres-modal" title="Đóng" style="background:none; border:none; color:#94A3B8; font-size:24px; cursor:pointer;">×</button>
+          <button class="close-btn" id="close-dres-modal" onclick="closeDresConfigModal()" title="Đóng" style="background:none; border:none; color:#94A3B8; font-size:24px; cursor:pointer;">×</button>
         </div>
 
         <div class="dres-form-grid">
@@ -423,10 +393,10 @@
 
           <div class="dres-form-group full-width">
             <div class="dres-btn-row">
-              <button type="button" class="dres-btn-action login" id="btn-modal-dres-login">
+              <button type="button" class="dres-btn-action login" id="btn-modal-dres-login" onclick="loginDresFromModal()">
                 <i class="fa-solid fa-right-to-bracket"></i> ĐĂNG NHẬP DRES (Tự động lấy Session & Evaluation ID)
               </button>
-              <button type="button" class="dres-btn-action test" id="btn-modal-dres-test">
+              <button type="button" class="dres-btn-action test" id="btn-modal-dres-test" onclick="testDresConnection()">
                 <i class="fa-solid fa-plug"></i> Test Kết Nối
               </button>
             </div>
@@ -447,7 +417,7 @@
         <div id="dres-modal-status"></div>
 
         <div class="dres-btn-row" style="margin-top: 6px;">
-          <button type="button" class="dres-btn-action save" id="btn-modal-dres-save">
+          <button type="button" class="dres-btn-action save" id="btn-modal-dres-save" onclick="saveDresManualConfig()">
             <i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình & Áp Dụng
           </button>
         </div>
@@ -529,20 +499,20 @@
 
     <div id="notification-container"></div>
     
-    <script src="src/scripts/config.js?v=20260824_v52"></script>
-    <script src="src/scripts/filter_get_infor.js?v=20260824_v52"></script>
-    <script src="src/scripts/short_cut.js?v=20260824_v52"></script>
-    <script src="src/scripts/preview.js?v=20260824_v52"></script>
-    <script src="src/scripts/web_socket.js?v=20260824_v52"></script>
-    <script src="src/scripts/start_ui.js?v=20260824_v52"></script>
-    <script src="src/scripts/update_result.js?v=20260824_v52"></script>
-    <script src="src/scripts/show_video.js?v=20260824_v52"></script>
-    <script src="src/scripts/show_videoframe.js?v=20260824_v52"></script>
-    <script src="src/scripts/export.js?v=20260824_v52"></script>
-    <script src="src/scripts/left_panel.js?v=20260824_v52"></script>
-    <script src="src/scripts/queries_history.js?v=20260824_v52"></script>
-    <script src="src/scripts/pagnition.js?v=20260824_v52"></script>
-    <script src="src/scripts/submit_dres.js?v=20260824_v52"></script>
+    <script src="src/scripts/config.js?v=20260824_v53"></script>
+    <script src="src/scripts/filter_get_infor.js?v=20260824_v53"></script>
+    <script src="src/scripts/short_cut.js?v=20260824_v53"></script>
+    <script src="src/scripts/preview.js?v=20260824_v53"></script>
+    <script src="src/scripts/web_socket.js?v=20260824_v53"></script>
+    <script src="src/scripts/start_ui.js?v=20260824_v53"></script>
+    <script src="src/scripts/update_result.js?v=20260824_v53"></script>
+    <script src="src/scripts/show_video.js?v=20260824_v53"></script>
+    <script src="src/scripts/show_videoframe.js?v=20260824_v53"></script>
+    <script src="src/scripts/export.js?v=20260824_v53"></script>
+    <script src="src/scripts/left_panel.js?v=20260824_v53"></script>
+    <script src="src/scripts/queries_history.js?v=20260824_v53"></script>
+    <script src="src/scripts/pagnition.js?v=20260824_v53"></script>
+    <script src="src/scripts/submit_dres.js?v=20260824_v53"></script>
     <script>
       // Tự động kết nối phiên thi đấu DRES ACTIVE (19-8)
       localStorage.setItem('dresBaseUrl', 'http://192.168.28.151:5000');
