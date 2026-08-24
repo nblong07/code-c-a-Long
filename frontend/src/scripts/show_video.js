@@ -329,6 +329,28 @@ async function playVideoAtTime(videoName, timeInSeconds) {
         };
     }
 
+    // 2.5 Nút "Nộp DRES Ngay": Nộp ngay khoảnh khắc đang xem lên máy chủ DRES (1-Click Submit)
+    const dresSubmitBtn = document.getElementById('submitCurrentMomentDresBtn');
+    if (dresSubmitBtn) {
+        dresSubmitBtn.onclick = async () => {
+            const curSec = videoElement.currentTime || targetTime;
+            const { frameId, seconds } = await getNearestKeyframeForVideo(videoName, curSec);
+            const tsMs = Math.round(seconds * 1000);
+            if (typeof submitSingleFrameToDres === 'function') {
+                await submitSingleFrameToDres(videoName, frameId, tsMs);
+            } else if (typeof submit_to_dres_v2 === 'function') {
+                // Thêm vào khay rồi gọi submit_to_dres_v2
+                const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
+                const imgSrc = `${keyframeBase}/${videoName}/keyframes/keyframe_${frameId}.webp`;
+                const frameInfo = `${videoName}-${seconds.toFixed(2)}`;
+                if (typeof addImageToExportArea === 'function') {
+                    addImageToExportArea(frameId, imgSrc, frameInfo, true, tsMs);
+                }
+                await submit_to_dres_v2();
+            }
+        };
+    }
+
     // 3. Nút "Đưa Lên Top Đầu": Lấy đúng Keyframe ID và đưa ngay lên TOP 1 bằng GPU Refine
     const refineBtn = document.getElementById('refineFromCurrentVideoBtn');
     if (refineBtn) {

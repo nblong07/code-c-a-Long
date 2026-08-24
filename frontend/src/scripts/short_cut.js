@@ -242,6 +242,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Alt + d: Nộp bài trực tiếp lên máy chủ DRES (Submit to DRES)
+    document.addEventListener('keydown', function(event) {
+        if (event.altKey && (event.key === 'd' || event.key === 'D')) {
+            event.preventDefault();
+            const dresBtn = document.getElementById('submit-dres-btn');
+            if (dresBtn) {
+                dresBtn.click();
+            } else if (typeof submit_to_dres_v2 === 'function') {
+                submit_to_dres_v2();
+            }
+        }
+    });
+
     // Ctrl + s: Open Submission Package Modal / Pack & Zip
     document.addEventListener('keydown', function(event) {
         if (event.ctrlKey && (event.key === 's' || event.key === 'S')) {

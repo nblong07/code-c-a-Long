@@ -1074,9 +1074,13 @@ document.addEventListener('DOMContentLoaded', function() {
   // 1. Header Buttons
   const exportBtn = document.getElementById('export-button');
   const packageBtn = document.getElementById('package-button');
+  const dresConfigBtn = document.getElementById('dres-config-button');
 
   if (exportBtn) exportBtn.addEventListener('click', toggleExportArea);
   if (packageBtn) packageBtn.addEventListener('click', openSubmissionPackageModal);
+  if (dresConfigBtn) dresConfigBtn.addEventListener('click', () => {
+    if (typeof openDresConfigModal === 'function') openDresConfigModal();
+  });
 
   // 2. Export Area Buttons
   const kisBtn = document.getElementById('kis');
@@ -1086,6 +1090,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const saveQueryBtn = document.getElementById('add-to-package-btn');
   const exportCsvBtn = document.getElementById('export-csv-btn');
   const refineSearchBtn = document.getElementById('refine-search');
+  const submitDresBtn = document.getElementById('submit-dres-btn');
 
   if (kisBtn) kisBtn.addEventListener('click', () => toggleTask('kis'));
   if (vqaBtn) vqaBtn.addEventListener('click', () => toggleTask('vqa'));
@@ -1094,6 +1099,35 @@ document.addEventListener('DOMContentLoaded', function() {
   
   if (saveQueryBtn) saveQueryBtn.addEventListener('click', openExportConfirmModal);
   if (exportCsvBtn) exportCsvBtn.addEventListener('click', openExportConfirmModal);
+  if (submitDresBtn) submitDresBtn.addEventListener('click', () => {
+    if (typeof submit_to_dres_v2 === 'function') {
+      submit_to_dres_v2();
+    }
+  });
+
+  // 2.1 DRES Config Modal Buttons
+  const closeDresModalBtn = document.getElementById('close-dres-modal');
+  const modalDresLoginBtn = document.getElementById('btn-modal-dres-login');
+  const modalDresTestBtn = document.getElementById('btn-modal-dres-test');
+  const modalDresSaveBtn = document.getElementById('btn-modal-dres-save');
+  const dresEvalSelect = document.getElementById('dres_modal_eval_select');
+
+  if (closeDresModalBtn) closeDresModalBtn.addEventListener('click', () => {
+    if (typeof closeDresConfigModal === 'function') closeDresConfigModal();
+  });
+  if (modalDresLoginBtn) modalDresLoginBtn.addEventListener('click', () => {
+    if (typeof loginDresFromModal === 'function') loginDresFromModal();
+  });
+  if (modalDresTestBtn) modalDresTestBtn.addEventListener('click', () => {
+    if (typeof testDresConnection === 'function') testDresConnection();
+  });
+  if (modalDresSaveBtn) modalDresSaveBtn.addEventListener('click', () => {
+    if (typeof saveDresManualConfig === 'function') saveDresManualConfig();
+  });
+  if (dresEvalSelect) dresEvalSelect.addEventListener('change', function() {
+    const evalInp = document.getElementById('dres_modal_eval');
+    if (evalInp && this.value) evalInp.value = this.value;
+  });
 
   if (refineSearchBtn) {
     refineSearchBtn.addEventListener('click', () => {

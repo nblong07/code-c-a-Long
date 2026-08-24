@@ -2440,6 +2440,43 @@ def create_app(config_file: str = None) -> FastAPI:
                 "detail": str(e)
             }
 
+    class DresStatusRequest(BaseModel):
+        dres_url: str = "http://192.168.28.151:5000"
+        session_id: Optional[str] = None
+
+    @app.post("/api/dres/status")
+    async def dres_proxy_status(data: DresStatusRequest):
+        """Kiểm tra kết nối và lấy danh sách cuộc thi (evaluation list) đang chạy trên DRES"""
+        import urllib.request, urllib.error, json
+        dres_base = data.dres_url.rstrip("/")
+        eval_url = f"{dres_base}/api/v2/client/evaluation/list"
+        if data.session_id:
+            eval_url += f"?session={data.session_id}"
+        
+        try:
+            req = urllib.request.Request(eval_url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                eval_list = json.loads(resp.read().decode("utf-8"))
+                return {
+                    "status": "success",
+                    "connected": True,
+                    "evaluations": eval_list
+                }
+        except urllib.error.HTTPError as he:
+            err_body = he.read().decode("utf-8", errors="ignore")
+            return {
+                "status": "error",
+                "connected": True,
+                "code": he.code,
+                "detail": f"DRES HTTP {he.code}: {err_body}"
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "connected": False,
+                "detail": str(e)
+            }
+
     # ==========================================
     # CÁC ENDPOINT ĐÓNG GÓI BÀI THI SƠ TUYỂN (AIC 2026 BATCH SUBMISSION)
     # ==========================================

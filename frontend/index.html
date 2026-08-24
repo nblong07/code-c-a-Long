@@ -95,6 +95,9 @@
         </label>
 
         <div class="button-header-group">
+          <button type="button" id="dres-config-button" class="header-dres-btn" title="Cấu hình kết nối máy chủ DRES (Trực tuyến)">
+            <i class="fa-solid fa-server"></i> DRES Live
+          </button>
           <button type="button" id="export-button" title="Khay nộp bài">
             <i class="fa-solid fa-list-check"></i> Khay Nộp
           </button>
@@ -305,13 +308,16 @@
             </div>
             
             <div class="export-action-toolbar">
-              <button class="toolbar-btn refine-btn" id="refine-search" title="Tinh chỉnh tìm kiếm">
+              <button class="toolbar-btn refine-btn" id="refine-search" title="Tinh chỉnh tìm kiếm (Alt + R)">
                 <i class="fa-solid fa-wand-magic-sparkles"></i> Tinh chỉnh
               </button>
-              <button class="toolbar-btn save-btn" id="add-to-package-btn" title="Lưu vào Gói Bài Thi">
+              <button class="toolbar-btn save-btn" id="add-to-package-btn" title="Lưu vào Gói Bài Thi (Alt + S)">
                 <i class="fa-solid fa-floppy-disk"></i> Lưu
               </button>
-              <button class="toolbar-btn reset-btn" id="reset-export" title="Xóa khay">
+              <button class="toolbar-btn submit-dres-btn" id="submit-dres-btn" title="Nộp bài trực tiếp lên máy chủ DRES (Alt + D)">
+                <i class="fa-solid fa-paper-plane"></i> Nộp DRES
+              </button>
+              <button class="toolbar-btn reset-btn" id="reset-export" title="Xóa khay (Alt + C)">
                 <i class="fa-solid fa-trash-can"></i>
               </button>
             </div>
@@ -391,6 +397,63 @@
       </div>
     </div>
 
+    <!-- Modal Cấu Hình & Quản Lý Phiên Thi Đấu DRES -->
+    <div id="dresConfigModal">
+      <div class="dres-modal-content">
+        <div class="dres-modal-header">
+          <h2><i class="fa-solid fa-server"></i> CẤU HÌNH KẾT NỐI MÁY CHỦ DRES</h2>
+          <button class="close-btn" id="close-dres-modal" title="Đóng" style="background:none; border:none; color:#94A3B8; font-size:24px; cursor:pointer;">×</button>
+        </div>
+
+        <div class="dres-form-grid">
+          <div class="dres-form-group full-width">
+            <label><i class="fa-solid fa-globe"></i> Địa chỉ DRES Server URL:</label>
+            <input type="text" id="dres_modal_url" placeholder="http://192.168.28.151:5000 hoặc https://eventretrieval.one" value="http://192.168.28.151:5000">
+          </div>
+
+          <div class="dres-form-group">
+            <label><i class="fa-solid fa-user"></i> Tên đăng nhập (Username):</label>
+            <input type="text" id="dres_modal_username" placeholder="Nhập username thi đấu">
+          </div>
+
+          <div class="dres-form-group">
+            <label><i class="fa-solid fa-lock"></i> Mật khẩu (Password):</label>
+            <input type="password" id="dres_modal_password" placeholder="Nhập password">
+          </div>
+
+          <div class="dres-form-group full-width">
+            <div class="dres-btn-row">
+              <button type="button" class="dres-btn-action login" id="btn-modal-dres-login">
+                <i class="fa-solid fa-right-to-bracket"></i> ĐĂNG NHẬP DRES (Tự động lấy Session & Evaluation ID)
+              </button>
+              <button type="button" class="dres-btn-action test" id="btn-modal-dres-test">
+                <i class="fa-solid fa-plug"></i> Test Kết Nối
+              </button>
+            </div>
+          </div>
+
+          <div class="dres-form-group full-width">
+            <label><i class="fa-solid fa-key"></i> Session ID (Token định danh):</label>
+            <input type="text" id="dres_modal_session" placeholder="Session Token định danh (tự điền khi đăng nhập)">
+          </div>
+
+          <div class="dres-form-group full-width">
+            <label><i class="fa-solid fa-trophy"></i> Evaluation ID (ID Cuộc thi):</label>
+            <select id="dres_modal_eval_select" style="display: none; margin-bottom: 6px;"></select>
+            <input type="text" id="dres_modal_eval" placeholder="ID Cuộc thi / Evaluation ID">
+          </div>
+        </div>
+
+        <div id="dres-modal-status"></div>
+
+        <div class="dres-btn-row" style="margin-top: 6px;">
+          <button type="button" class="dres-btn-action save" id="btn-modal-dres-save">
+            <i class="fa-solid fa-floppy-disk"></i> Lưu Cấu Hình & Áp Dụng
+          </button>
+        </div>
+      </div>
+    </div>
+
 
 
     <!-- Hiển thị các frame trước/sau của frame hiện tại trong video -->
@@ -431,6 +494,9 @@
           </button>
           <button id="jumpToKeyframeBtn" class="action-btn-neon" title="Định vị và mở các frame lân cận tại thời điểm đang xem video" style="width: auto; border-radius: 6px; padding: 0 12px; font-size: 11px; font-weight: 600; background: rgba(56, 189, 248, 0.2); border: 1px solid #38BDF8; color: #38BDF8; cursor: pointer;">
             <i class="fa-solid fa-timeline"></i> Duyệt Frame Tại Đây
+          </button>
+          <button id="submitCurrentMomentDresBtn" class="action-btn-neon dres-btn" title="Nộp ngay thời điểm đang xem lên máy chủ DRES (1-Click Submit)" style="width: auto; border-radius: 6px; padding: 0 12px; font-size: 11px; font-weight: 700; background: linear-gradient(135deg, #10B981, #06B6D4); color: #0F172A; border: none; cursor: pointer;">
+            <i class="fa-solid fa-paper-plane"></i> Nộp DRES Ngay
           </button>
           <button id="refineFromCurrentVideoBtn" class="action-btn-neon" title="Đưa khoảnh khắc này cùng tất cả góc quay liên quan của video lên TOP đầu" style="width: auto; border-radius: 6px; padding: 0 12px; font-size: 11px; font-weight: 600; background: var(--cyber-gradient); color: #0F172A; border: none; cursor: pointer;">
             <i class="fa-solid fa-wand-magic-sparkles"></i> Đưa Lên Top Đầu

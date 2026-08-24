@@ -85,16 +85,28 @@ Khi thấy một frame gần đúng trên màn hình:
 
 ---
 
-### 🔹 PHẦN 6: Kiểm Duyệt, Đóng Gói & Nộp Bài (DRES & Package ZIP)
-1. **Lưu Câu Truy Vấn:**
+### 🔹 PHẦN 6: Kiểm Duyệt, Đóng Gói & Nộp Bài Trực Tiếp (DRES Live & Package ZIP)
+1. **Nộp Trực Tiếp Lên Máy Chủ DRES (Thi Thử & Vòng Chung Kết):**
+   * **Bước 1 — Kết nối DRES:** Bấm nút **`DRES Live`** trên Header $\to$ Nhập URL máy chủ (VD: `http://192.168.28.151:5000` hoặc `https://eventretrieval.one`), điền Username & Password $\to$ Bấm **`Đăng nhập DRES`** (hệ thống tự động lấy Session ID và Evaluation ID).
+   * **Bước 2 — Nộp kết quả tức thì:**
+     * **Cách 1 (Từ Khay Nộp):** Chọn frame vào Khay (bấm `+` trên ảnh) $\to$ Bấm nút **`🚀 Nộp DRES`** màu xanh ngọc (hoặc bấm phím tắt **`Alt + D`**).
+     * **Cách 2 (Trực tiếp từ Video Player):** Khi đang phát video, bấm **`🚀 Nộp DRES Ngay`** để nộp chính xác mili-giây tại khoảnh khắc đó trong 0.1 giây!
+   * **Hỗ trợ đầy đủ 3 thể thức thi trên DRES:**
+     * **Textual / Video KIS:** Tự động gửi tên video và dải thời gian $\pm 2.5s$.
+     * **Visual Q&A:** Tự động gửi kết hợp format `<đáp_án>-<video_id>-<time_ms>` chuẩn 100% BTC.
+     * **TRAKE:** Tự động gửi chuỗi thời gian các sự kiện liên hoàn theo đúng thứ tự.
+   * **Thông báo kết quả phản hồi từ Ban giám khảo:**
+     * 🟢 **CORRECT:** Nộp đúng $\to$ Hệ thống chúc mừng và tự động làm sạch khay để làm câu tiếp.
+     * 🔴 **WRONG:** Chưa đúng $\to$ Cảnh báo để bạn chọn lại frame khác.
+
+2. **Lưu Câu Truy Vấn Vào Gói Sơ Tuyển:**
    * Bấm **`Alt + S`** (hoặc nút **`Lưu`**) $\to$ Nhập tên file: `query-1-kis.csv`, `query-2-qa.csv`... $\to$ Bấm Lưu.
    * Badge đếm số lượng câu trên Header sẽ tự động tăng lên.
-2. **Đóng Gói ZIP 1-Click (Vòng Sơ Tuyển):**
+
+3. **Đóng Gói ZIP 1-Click (Vòng Sơ Tuyển):**
    * Bấm **`Ctrl + S`** (hoặc `Alt + P`) $\to$ Modal Quản lý gói nộp bài xuất hiện.
    * Bấm nút màu xanh: **`NÉN & TẠO FILE SUBMISSION.ZIP`**.
-   * Hệ thống tự động: Loại bỏ `.mp4`, xóa header, escape `"`, kiểm tra UTF-8 và tạo file **`D:\code-c-a-Long\submission.zip`** chuẩn 100% quy định BTC.
-3. **Nộp Trực Tiếp DRES (Vòng Chung Kết Live):**
-   * Bấm nút **`Submit DRES`** màu xanh lá trên giao diện để gửi trực tiếp kết quả lên server giám khảo.
+   * Hệ thống tự động tạo file **`D:\code-c-a-Long\submission.zip`** chuẩn 100% quy định BTC.
 
 ---
 
@@ -126,9 +138,10 @@ Khi thấy một frame gần đúng trên màn hình:
 | **`R`** | **Đưa Frame Lên Top 1** | Đưa frame đang chọn lên vị trí đầu tiên và kích hoạt truy vấn tinh chỉnh (Refine). |
 | **`Esc`** | **Đóng Cửa Sổ / Thoát** | Đóng trình phát Video Player, thanh duyệt Timeline Explorer hoặc Modal đang mở. |
 
-### 3. 📦 Nhóm Quản Trị Khay & Nộp Bài (Pinboard & Submission)
+### 3. 📦 Nhóm Quản Trị Khay & Nộp Bài (Pinboard, DRES & Submission)
 | Phím tắt | Thao tác | Mô tả chi tiết |
 | :--- | :--- | :--- |
+| **`Alt + D`** | **🚀 Nộp Bài Lên DRES** | Gửi trực tiếp kết quả trong Khay Nộp lên máy chủ chấm thi DRES trong tích tắc! |
 | **`Chuột giữa`** / **`[+]`** | **Ghim Khung Hình** | Thêm ngay frame kết quả vào Khay Nộp bài (Export Area). |
 | **`Alt + A`** | **Ẩn / Hiện Khay Nộp** | Bật/tắt thanh công cụ quản lý ảnh bên phải màn hình. |
 | **`Alt + R`** | **Tinh chỉnh AI (Refine)** | Kích hoạt bộ tinh chỉnh Vector dựa trên các frame đã chọn trong khay (Rocchio Feedback). |
