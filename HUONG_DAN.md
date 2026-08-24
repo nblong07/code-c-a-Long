@@ -37,7 +37,7 @@ Khi nhận tập video mới từ Ban tổ chức:
    ```cmd
    conda activate video_ai
    cd /d D:\code-c-a-Long
-   python data_pipeline/run_master_offline_pipeline.py --videos-dir "D:/video_moi"
+   python data_pipeline/run_master_offline_pipeline.py --videos-dir "C:/video_test"
    ```
    * Hệ thống tự động tuần tự: Cắt frame nét $\to$ Bóc băng ASR $\to$ Đọc chữ OCR $\to$ Gộp metadata `ocr_asr_metadata.json` $\to$ Trích xuất vector SigLIP 2 FP16 `features.npy` (hoàn tất toàn bộ trong ~20–25 phút).
 

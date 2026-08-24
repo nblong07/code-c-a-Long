@@ -104,6 +104,30 @@
     box-shadow: 0 0 15px rgba(0, 242, 254, 0.6);
 }
 
+#vf-btn-locate-cur {
+    background: rgba(14, 165, 233, 0.2);
+    border-color: #38BDF8;
+    color: #38BDF8;
+}
+#vf-btn-locate-cur:hover {
+    background: #0284C7;
+    color: #FFFFFF;
+    border-color: #38BDF8;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+}
+
+#vf-btn-zoom-cur {
+    background: rgba(168, 85, 247, 0.2);
+    border-color: #A855F7;
+    color: #C084FC;
+}
+#vf-btn-zoom-cur:hover {
+    background: #9333EA;
+    color: #FFFFFF;
+    border-color: #C084FC;
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.6);
+}
+
 .vf-close-btn {
     background: rgba(239, 68, 68, 0.15);
     border: 1px solid rgba(239, 68, 68, 0.4);

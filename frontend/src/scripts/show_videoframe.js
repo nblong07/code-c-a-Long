@@ -46,6 +46,8 @@ async function showVideoFrames(imgDiv) {
       <div class="vf-toolbar">
         <button class="vf-tool-btn" id="vf-btn-prev" title="Frame kề trước (Phím ←)"><i class="fa-solid fa-chevron-left"></i> Trước</button>
         <button class="vf-tool-btn" id="vf-btn-next" title="Frame kề sau (Phím →)">Sau <i class="fa-solid fa-chevron-right"></i></button>
+        <button class="vf-tool-btn" id="vf-btn-locate-cur" title="Cuộn ngay về vị trí frame đang chọn (Phím C hoặc Home)"><i class="fa-solid fa-crosshairs"></i> Về Frame Đang Chọn</button>
+        <button class="vf-tool-btn" id="vf-btn-zoom-cur" title="Phóng to xem chi tiết frame đang chọn (Phím Z hoặc F)"><i class="fa-solid fa-expand"></i> Phóng To</button>
         <button class="vf-tool-btn primary-btn" id="vf-btn-add-cur" title="Thêm frame đang chọn vào bài thi (Phím Space hoặc +)"><i class="fa-solid fa-plus"></i> Chọn Frame Này</button>
         <button class="vf-tool-btn refine-btn" id="vf-btn-refine-cur" title="Đưa frame đang chọn lên TOP 1 và tìm các ảnh tương tự (Phím R)"><i class="fa-solid fa-wand-magic-sparkles"></i> Đưa Lên Top 1</button>
         <button class="vf-tool-btn" id="vf-btn-play-cur" title="Phát video từ khoảnh khắc này"><i class="fa-solid fa-play"></i> Xem Video</button>
@@ -102,6 +104,8 @@ function updateHeaderInfo(frameNumber) {
 function setupNavigationButtons() {
   document.getElementById('vf-btn-prev')?.addEventListener('click', () => navigateFrames(-1));
   document.getElementById('vf-btn-next')?.addEventListener('click', () => navigateFrames(1));
+  document.getElementById('vf-btn-locate-cur')?.addEventListener('click', scrollToCurrentFrame);
+  document.getElementById('vf-btn-zoom-cur')?.addEventListener('click', zoomCurrentFrame);
   document.getElementById('vf-btn-add-cur')?.addEventListener('click', exportCurrentFrame);
   document.getElementById('vf-btn-refine-cur')?.addEventListener('click', refineCurrentFrame);
   document.getElementById('vf-btn-play-cur')?.addEventListener('click', () => {
@@ -196,7 +200,6 @@ async function updateFramesSmooth(container, directory, currentFrame, framesToSh
       </div>
       <img class="video-frame ${isCurrent ? 'current-frame' : ''}" src="${framePath}" data-frame-number="${frameNumber}" alt="Video Frame">
       <div class="infor">${frameInfo}</div>
-      ${isCurrent ? '<span class="current-indicator-badge">ĐANG CHỌN</span>' : ''}
     `;
 
     // Click frame to select / focus
@@ -204,6 +207,15 @@ async function updateFramesSmooth(container, directory, currentFrame, framesToSh
       if (e.target.closest('.vf-action-btn')) return; // handled separately
       updateMainFrame(frameNumber, directory, frameInfo);
     });
+
+    if (typeof fetchFullscreenMetaCached === 'function') {
+      fetchFullscreenMetaCached(currentVideoName, frameNumber).then(meta => {
+        if (meta && meta.asr_text) {
+          frameContainer.dataset.asr = meta.asr_text;
+          frameContainer.title = `🎙️ ${meta.asr_text}`;
+        }
+      });
+    }
 
     // Button: Add to Export
     const addBtn = frameContainer.querySelector('.vf-action-btn.add');
@@ -288,6 +300,33 @@ function exportCurrentFrame() {
   }
 }
 
+// Zoom current active frame to fullscreen view
+function zoomCurrentFrame() {
+  if (!currentActiveFrame || !currentVideoName) return;
+  const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
+  const framePath = `${keyframeBase}/${currentVideoName}/keyframes/keyframe_${currentActiveFrame}.webp`;
+  const currentFrameElement = document.querySelector('.frames-container .current-frame-container');
+  if (typeof showFullscreenImage === 'function') {
+    showFullscreenImage(framePath, false, currentFrameElement);
+  }
+}
+
+// Scroll timeline view back to current active frame
+function scrollToCurrentFrame() {
+  const container = document.querySelector('.frames-container');
+  if (!container) return;
+  const currentFrameElement = container.querySelector('.current-frame-container');
+  if (currentFrameElement) {
+    currentFrameElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    currentFrameElement.style.transition = 'all 0.3s ease';
+    currentFrameElement.style.boxShadow = '0 0 24px #00F2FE';
+    currentFrameElement.style.borderColor = '#00F2FE';
+    setTimeout(() => {
+      currentFrameElement.style.boxShadow = '';
+    }, 700);
+  }
+}
+
 // Refine search: Bring current active frame to Top 1
 function refineCurrentFrame() {
   if (!currentActiveFrame || !currentVideoName) return;
@@ -336,6 +375,12 @@ function handleKeyPress(event) {
   } else if (event.key === 'ArrowRight') {
     event.preventDefault();
     navigateFrames(event.shiftKey ? 10 : 1);
+  } else if (event.key === 'c' || event.key === 'C' || event.key === 'Home') {
+    event.preventDefault();
+    scrollToCurrentFrame();
+  } else if (event.key === 'z' || event.key === 'Z' || event.key === 'f' || event.key === 'F') {
+    event.preventDefault();
+    zoomCurrentFrame();
   } else if (event.key === '+' || event.key === '=' || event.key === 'a' || event.key === 'A') {
     event.preventDefault();
     exportCurrentFrame();
@@ -384,6 +429,8 @@ async function showVideoFramesByInfo(videoName, frameId, imgSrc, frameInfo) {
       <div class="vf-toolbar">
         <button class="vf-tool-btn" id="vf-btn-prev" title="Frame kề trước (Phím ←)"><i class="fa-solid fa-chevron-left"></i> Trước</button>
         <button class="vf-tool-btn" id="vf-btn-next" title="Frame kề sau (Phím →)">Sau <i class="fa-solid fa-chevron-right"></i></button>
+        <button class="vf-tool-btn" id="vf-btn-locate-cur" title="Cuộn ngay về vị trí frame đang chọn (Phím C hoặc Home)"><i class="fa-solid fa-crosshairs"></i> Về Frame Đang Chọn</button>
+        <button class="vf-tool-btn" id="vf-btn-zoom-cur" title="Phóng to xem chi tiết frame đang chọn (Phím Z hoặc F)"><i class="fa-solid fa-expand"></i> Phóng To</button>
         <button class="vf-tool-btn primary-btn" id="vf-btn-add-cur" title="Thêm frame đang chọn vào bài thi (Phím Space hoặc +)"><i class="fa-solid fa-plus"></i> Chọn Frame Này</button>
         <button class="vf-tool-btn refine-btn" id="vf-btn-refine-cur" title="Đưa frame đang chọn lên TOP 1 và tìm các ảnh tương tự (Phím R)"><i class="fa-solid fa-wand-magic-sparkles"></i> Đưa Lên Top 1</button>
         <button class="vf-tool-btn" id="vf-btn-play-cur" title="Phát video từ khoảnh khắc này"><i class="fa-solid fa-play"></i> Xem Video</button>

@@ -117,12 +117,121 @@ VIET_TO_ENG_VISUAL_MAP = {
     "uống nước": "drinking beverage",
     "nói chuyện": "people talking chatting",
     "bắt tay": "people shaking hands",
-    "bê vác": "carrying heavy box",
-    "mở cửa": "opening door",
-    "đóng cửa": "closing door",
-    "sút bóng": "kicking soccer ball",
-    "đá bóng": "playing football soccer",
-    "mua hàng": "shopping paying at counter",
+    # Ẩm thực & Nấu nướng
+    "măng tây": "fresh green asparagus vegetable",
+    "măng tây xanh": "fresh green asparagus vegetable",
+    "chế biến măng tây": "cooking preparing fresh asparagus",
+    "chế biến": "cooking preparing food in kitchen",
+    "nấu ăn": "cooking preparing meal in kitchen",
+    "món ăn": "delicious food culinary plate dish",
+    "xào": "stir frying pan cooking",
+    "áp chảo": "pan searing cooking",
+    "cắt thái": "chopping slicing vegetables",
+    "thịt bò": "beef steak meat",
+    "hải sản": "seafood shrimp squid",
+    "salad": "fresh vegetable salad",
+    "sầu riêng": "durian fruit thorny yellow flesh fruit stall",
+    "trái sầu riêng": "durian fruit thorny yellow flesh fruit stall",
+    "quả sầu riêng": "durian fruit thorny yellow flesh fruit stall",
+    "mít": "jackfruit large fruit",
+    "thanh long": "dragonfruit pitaya pink fruit",
+    "dưa hấu": "watermelon red juicy fruit slice",
+    "chuối": "bananas yellow ripe fruit",
+    "xoài": "mango yellow tropical fruit",
+    "cam": "orange citrus fruit",
+    "dứa": "pineapple tropical fruit",
+    "nước uống": "drink beverage glass",
+    "trà": "tea cup teapot",
+    "cà phê": "coffee cup latte espresso",
+    "bánh": "cake pastry bakery",
+    "hoa quả": "fresh fruits",
+    "trái cây": "fresh fruits",
+
+    # Bản đồ, Giấy tờ, Biểu đồ & Thông tin trực quan
+    "bản đồ": "a geographical map atlas navigation chart",
+    "tấm bản đồ": "a geographical map chart atlas",
+    "bản đồ việt nam": "geographical map of vietnam",
+    "bản đồ thế giới": "world geographical map atlas",
+    "sơ đồ": "diagram schematic layout blueprint",
+    "biểu đồ": "chart graph infographic data visual",
+    "lá cờ": "national flag fluttering banner",
+    "quốc kỳ": "national flag",
+    "cờ đỏ sao vàng": "vietnamese national flag with yellow star",
+    "cờ": "flag banner",
+    "biển báo": "traffic road sign street sign",
+    "đèn giao thông": "traffic lights intersection signal",
+    "biển số xe": "vehicle license plate",
+    "bảng hiệu": "storefront billboard signboard",
+
+    # Thiết bị điện tử, Công nghệ & Đồ vật
+    "máy tính": "computer laptop desktop screen monitor",
+    "laptop": "laptop computer open on desk",
+    "màn hình": "digital screen display monitor",
+    "điện thoại": "mobile phone smartphone screen",
+    "smartphone": "smartphone mobile device",
+    "tivi": "television tv screen display",
+    "ti vi": "television tv screen display",
+    "máy quay": "video camera recording",
+    "máy ảnh": "dslr camera photography",
+    "sách": "reading book open pages library",
+    "báo": "reading newspaper printed paper",
+    "tài liệu": "paper documents paperwork",
+    "tiền": "cash banknotes paper money currency",
+    "hộ chiếu": "passport identity booklet",
+    "vali": "travel suitcase luggage bag",
+    "đồng hồ": "wrist watch wall clock timer",
+    "bút": "writing pen pencil",
+    "bàn ghế": "table and chairs furniture",
+    "giường": "bed bedroom furniture",
+    "gương": "mirror reflection",
+    "cửa sổ": "glass window daylight",
+    "cửa ra vào": "door doorway entrance",
+    "bục phát biểu": "podium lectern microphone speech",
+    "sân khấu": "stage performance auditorium hall",
+    "hội trường": "conference hall meeting room auditorium",
+    "phòng họp": "meeting room conference table",
+
+    # Thiên nhiên & Cảnh quan
+    "cây cối": "green trees foliage plants",
+    "cây xanh": "lush green trees park",
+    "rừng": "forest woodland trees",
+    "núi": "mountain peaks landscape",
+    "đồi": "rolling hills green landscape",
+    "thác nước": "waterfall cascading water",
+    "sông": "river flowing water",
+    "hồ": "lake tranquil water",
+    "biển": "ocean sea waves beach",
+    "ruộng lúa": "green rice field terrace paddy",
+    "cánh đồng": "open countryside green field",
+    "hoa sen": "lotus flower blooming",
+    "hoa": "colorful blooming flowers",
+    "mặt trời": "bright sun daylight sunshine",
+    "mặt trăng": "night moon glowing",
+    "trời mưa": "rainy weather rain falling",
+    "mưa lớn": "heavy rainfall storm",
+    "cầu vồng": "rainbow in the sky",
+    "tuyết": "winter snow snowy landscape",
+    "bão": "heavy storm tempest windy",
+    "cháy": "fire flames burning blaze",
+    "khói": "smoke rising plume",
+
+    # Động vật
+    "chó": "pet dog puppy canine",
+    "mèo": "pet cat kitten feline",
+    "chim": "bird flying perched",
+    "cá": "fish swimming underwater",
+    "ngựa": "horse equestrian",
+    "bò": "cow cattle grazing",
+    "heo": "pig livestock",
+    "lợn": "pig livestock",
+    "gà": "chicken rooster poultry",
+    "vịt": "duck swimming bird",
+    "hổ": "tiger wild predator",
+    "sư tử": "lion wild predator",
+    "voi": "elephant large mammal",
+    "khỉ": "monkey primate",
+    "rắn": "snake reptile",
+    "rùa": "turtle tortoise",
 }
 
 # ==============================================================================
@@ -214,8 +323,8 @@ class SmartQueryDecomposer:
     def extract_ocr_keywords(self, text: str) -> Tuple[str, List[str]]:
         """
         Trích xuất từ khóa OCR:
-        1. Từ trong dấu ngoặc kép: "Highlands", 'BIDV'
-        2. Từ đứng sau các tiền tố: có chữ..., biển số..., bảng hiệu...
+        1. Ưu tiên tuyệt đối chuỗi trong dấu ngoặc kép: "Highlands", 'BIDV', "29A-12345"
+        2. Nếu không có ngoặc kép, trích xuất chính xác theo tiền tố: có chữ..., biển số..., bảng hiệu...
         """
         if not text:
             return text, []
@@ -223,27 +332,31 @@ class SmartQueryDecomposer:
         ocr_kws = []
         cleaned_text = text
 
-        # 1. Trích xuất trong dấu ngoặc kép
+        # 1. Trích xuất chính xác trong dấu ngoặc kép
         quotes = re.findall(r'["\'“«](.*?)["\'”»]', text)
         for q in quotes:
             q_clean = q.strip()
             if len(q_clean) >= 2 and q_clean not in ocr_kws:
                 ocr_kws.append(q_clean)
-                # Thay thế dấu ngoặc kép bằng từ đơn giản trong text thị giác
-                cleaned_text = cleaned_text.replace(f'"{q}"', q_clean).replace(f"'{q}'", q_clean)
+                cleaned_text = cleaned_text.replace(f'"{q}"', q_clean).replace(f"'{q}'", q_clean).replace(f'“{q}”', q_clean).replace(f'«{q}»', q_clean)
 
-        # 2. Trích xuất mẫu chữ / biển số
+        # 2. Nếu đã có ngoặc kép thì dừng lại để giữ độ chính xác 100%, không nhận thêm từ thừa
+        if ocr_kws:
+            return cleaned_text, ocr_kws
+
+        # 3. Trích xuất theo tiền tố nhận diện (khi người dùng không dùng ngoặc kép)
         patterns = [
-            r'(?:có\s+chữ|in\s+chữ|khắc\s+chữ|mang\s+dòng\s+chữ)\s+[:：]?\s*([^,\.\n;]+)',
             r'(?:biển\s+số|biển\s+xe)\s+[:：]?\s*([A-Z0-9\-\.\s]{3,12})',
+            r'(?:có\s+chữ|in\s+chữ|khắc\s+chữ|mang\s+dòng\s+chữ|chữ\s+in\s+hoa|chữ)\s+[:：]?\s*([^,\.\n;]+)',
             r'(?:bảng\s+hiệu|bảng\s+tên|biển\s+hiệu|logo|cổng\s+chào)\s+[:：]?\s*([^,\.\n;]+)',
             r'(?:tên\s+đường)\s+[:：]?\s*([^,\.\n;]+)'
         ]
         for pat in patterns:
             for m in re.finditer(pat, text, re.IGNORECASE):
                 val = m.group(1).strip(" \"'“”«»")
-                # Lọc bỏ từ quá chung chung
-                if len(val) >= 2 and val.lower() not in {"ở", "trên", "dưới", "của", "và"} and val not in ocr_kws:
+                # Cắt bỏ các từ chỉ vị trí hoặc từ nối phía sau nếu có
+                val = re.split(r'\b(?:ở|tại|trên|dưới|góc|màu|trong|với|của)\b', val, flags=re.IGNORECASE)[0].strip()
+                if len(val) >= 2 and val.lower() not in {"ở", "trên", "dưới", "của", "và", "trong"} and val not in ocr_kws:
                     ocr_kws.append(val)
 
         return cleaned_text, ocr_kws
@@ -256,6 +369,23 @@ class SmartQueryDecomposer:
         asr_kws = []
         cleaned_text = text
 
+        # 1. Trích xuất lời thoại trong ngoặc kép sau từ khóa nói/hát
+        spoken_quotes = re.findall(r'(?:nói|bảo|hát|phát\s+biểu|hỏi|kể)\s*[:：]?\s*["\'“«](.*?)["\'”»]', text, re.IGNORECASE)
+        for q in spoken_quotes:
+            q_clean = q.strip()
+            if len(q_clean) >= 2 and q_clean not in asr_kws:
+                asr_kws.append(q_clean)
+
+        # 2. Trích xuất mọi chuỗi trong dấu ngoặc kép (người dùng tìm từ khóa văn bản / lời thoại)
+        general_quotes = re.findall(r'["\'“«](.*?)["\'”»]', text)
+        for q in general_quotes:
+            q_clean = q.strip()
+            if len(q_clean) >= 2 and q_clean not in asr_kws:
+                asr_kws.append(q_clean)
+
+        if asr_kws:
+            return cleaned_text, asr_kws
+
         patterns = [
             r'(?:nói|kể|hát|phát\s+biểu|chia\s+sẻ|nhắc\s+đến|đọc\s+thơ|ca\s+ngợi)\s+về\s+[:：]?\s*([^,\.\n;]+)',
             r'(?:nói\s+rằng|bảo\s+rằng|hát\s+câu)\s+[:：]?\s*([^,\.\n;]+)',
@@ -263,7 +393,8 @@ class SmartQueryDecomposer:
         ]
         for pat in patterns:
             for m in re.finditer(pat, text, re.IGNORECASE):
-                val = m.group(1).strip()
+                val = m.group(1).strip(" \"'“”«»")
+                val = re.split(r'\b(?:ở|tại|trên|dưới|trong|sau\s+đó|tiếp\s+theo)\b', val, flags=re.IGNORECASE)[0].strip()
                 if len(val) >= 2 and val not in asr_kws:
                     asr_kws.append(val)
 
@@ -331,10 +462,15 @@ class SmartQueryDecomposer:
 
         # 2. Bóc tách OCR & ASR keywords
         text_no_ocr, ocr_kws = self.extract_ocr_keywords(text_no_topic)
-        text_no_asr, asr_kws = self.extract_asr_keywords(text_no_ocr)
+        text_no_asr, asr_kws = self.extract_asr_keywords(text_no_topic)
+
+        # Mọi từ khóa trong ngoặc kép đều được tìm kiếm song song trên cả OCR và ASR
+        all_exact_kws = list(dict.fromkeys(ocr_kws + asr_kws))
+        ocr_kws = all_exact_kws
+        asr_kws = all_exact_kws
 
         # 3. Làm sạch câu hỏi Video QA & từ nối rác
-        cleaned_core, is_qa = self.clean_qa_question(text_no_asr)
+        cleaned_core, is_qa = self.clean_qa_question(text_no_ocr)
         cleaned_core = self.clean_noise(cleaned_core)
 
         # 4. Kiểm tra và bóc tách chuỗi thời gian (TRAKE Multi-stage)

@@ -61,58 +61,73 @@ except ImportError:
 # ==============================================================================
 VIETNAMESE_SYNONYM_THESAURUS = {
     # Phương tiện giao thông
-    "xe máy": ["xe mô tô", "xe gắn máy", "xe hai bánh", "xe honda", "motorbike", "motorcycle", "scooter"],
+    "xe máy": ["xe mô tô", "xe gắn máy", "xe hai bánh", "xe honda", "xe tay ga", "scooter", "motorbike", "motorcycle"],
     "xe mô tô": ["xe máy", "xe gắn máy", "xe hai bánh", "motorbike", "motorcycle"],
-    "ô tô": ["xe hơi", "xe bốn bánh", "xế hộp", "car", "automobile", "vehicle"],
-    "xe hơi": ["ô tô", "xe bốn bánh", "xế hộp", "car", "automobile"],
-    "xe buýt": ["xe bus", "xe khách", "bus", "coach"],
-    "xe bus": ["xe buýt", "xe khách", "bus"],
-    "xe đạp": ["xe hai bánh", "bicycle", "bike", "cyclist"],
-    "máy bay": ["phi cơ", "tàu bay", "airplane", "plane", "aircraft"],
-    "thuyền": ["tàu", "ghe", "cano", "thuyền buồm", "boat", "ship"],
-    "xe tải": ["xe chở hàng", "truck", "lorry"],
+    "ô tô": ["xe hơi", "xe bốn bánh", "xế hộp", "xe con", "car", "automobile", "vehicle"],
+    "xe hơi": ["ô tô", "xe bốn bánh", "xế hộp", "xe con", "car", "automobile"],
+    "xe buýt": ["xe bus", "xe khách", "xe đò", "bus", "coach"],
+    "xe bus": ["xe buýt", "xe khách", "xe đò", "bus"],
+    "xe đạp": ["xe hai bánh", "xe đạp điện", "bicycle", "bike", "cyclist"],
+    "máy bay": ["phi cơ", "tàu bay", "hàng không", "airplane", "plane", "aircraft"],
+    "thuyền": ["tàu", "ghe", "cano", "ca nô", "xuồng", "thuyền buồm", "boat", "ship"],
+    "xe tải": ["xe chở hàng", "xe ben", "truck", "lorry"],
     "xe cứu thương": ["xe cấp cứu", "ambulance"],
-    "xe cảnh sát": ["xe công an", "police car"],
+    "xe cảnh sát": ["xe công an", "police car", "patrol"],
 
     # Con người & Chức danh
-    "người đàn ông": ["nam giới", "chàng trai", "người nam", "đàn ông", "man", "male", "guy"],
-    "đàn ông": ["người đàn ông", "nam giới", "chàng trai", "man", "male"],
-    "phụ nữ": ["người phụ nữ", "cô gái", "nữ giới", "người nữ", "woman", "female", "girl", "lady"],
-    "cô gái": ["phụ nữ", "thiếu nữ", "bạn nữ", "girl", "young woman"],
-    "trẻ em": ["em bé", "đứa trẻ", "học sinh", "con nít", "trẻ nhỏ", "child", "children", "kid", "baby"],
-    "em bé": ["trẻ sơ sinh", "đứa trẻ", "baby", "toddler", "infant"],
-    "cảnh sát": ["công an", "CSGT", "công an giao thông", "chiến sĩ", "police", "officer"],
-    "bác sĩ": ["y sĩ", "thầy thuốc", "doctor", "physician"],
-    "học sinh": ["sinh viên", "học trò", "student", "pupil"],
-    "tài xế": ["người lái xe", "bác tài", "driver"],
+    "người đàn ông": ["nam giới", "chàng trai", "người nam", "đàn ông", "ông chú", "anh thanh niên", "man", "male", "guy"],
+    "đàn ông": ["người đàn ông", "nam giới", "chàng trai", "anh thanh niên", "man", "male"],
+    "phụ nữ": ["người phụ nữ", "cô gái", "nữ giới", "người nữ", "chị phụ nữ", "bà cô", "woman", "female", "girl", "lady"],
+    "cô gái": ["phụ nữ", "thiếu nữ", "bạn nữ", "cô thanh niên", "girl", "young woman"],
+    "trẻ em": ["em bé", "đứa trẻ", "học sinh", "con nít", "trẻ nhỏ", "bé gái", "bé trai", "child", "children", "kid", "baby"],
+    "em bé": ["trẻ sơ sinh", "đứa trẻ", "em nhỏ", "baby", "toddler", "infant"],
+    "cảnh sát": ["công an", "CSGT", "công an giao thông", "chiến sĩ", "cán bộ", "police", "officer"],
+    "bác sĩ": ["y sĩ", "thầy thuốc", "y tế", "doctor", "physician"],
+    "học sinh": ["sinh viên", "học trò", "học viên", "student", "pupil"],
+    "tài xế": ["người lái xe", "bác tài", "tài xế lái xe", "driver"],
 
     # Trang phục & Phụ kiện
     "áo dài": ["áo dài truyền thống", "ao dai", "traditional dress"],
     "nón lá": ["nón bài thơ", "conical hat"],
     "mũ bảo hiểm": ["nón bảo hiểm", "helmet"],
     "nón bảo hiểm": ["mũ bảo hiểm", "helmet"],
-    "khẩu trang": ["mặt nạ y tế", "facemask", "mask"],
-    "balo": ["ba lô", "cặp sách", "túi xách", "backpack", "bag"],
-    "kính mắt": ["kính râm", "mắt kính", "glasses", "sunglasses"],
+    "khẩu trang": ["mặt nạ y tế", "khẩu trang y tế", "facemask", "mask"],
+    "balo": ["ba lô", "cặp sách", "túi xách", "túi đeo", "backpack", "bag"],
+    "kính mắt": ["kính râm", "mắt kính", "kính cận", "glasses", "sunglasses"],
 
-    # Hành động
+    # Địa danh & Kênh truyền thông
+    "sài gòn": ["tphcm", "tp hcm", "thành phố hồ chí minh", "hcm"],
+    "tphcm": ["sài gòn", "tp hcm", "thành phố hồ chí minh"],
+    "tp hcm": ["sài gòn", "tphcm", "thành phố hồ chí minh"],
+    "hà nội": ["thủ đô", "hn", "thủ đô hà nội"],
+    "đà nẵng": ["dn", "thành phố đà nẵng"],
+    "vtv": ["vtv1", "vtv3", "truyền hình việt nam", "đài truyền hình"],
+    "htv": ["htv7", "htv9", "truyền hình tphcm"],
+
+    # Hành động & Giao tiếp
     "chạy bộ": ["chạy nhanh", "chạy", "tập thể dục", "running", "jogging"],
-    "đi bộ": ["tản bộ", "dạo phố", "walking", "strolling"],
-    "nói chuyện": ["trò chuyện", "giao tiếp", "thảo luận", "bàn tán", "talking", "chatting", "conversing"],
+    "đi bộ": ["tản bộ", "dạo phố", "đi dạo", "walking", "strolling"],
+    "nói chuyện": ["trò chuyện", "giao tiếp", "thảo luận", "bàn tán", "phát biểu", "chia sẻ", "talking", "chatting", "conversing"],
     "bắt tay": ["chào hỏi", "bắt tay nhau", "handshake", "shaking hands"],
-    "ăn uống": ["dùng bữa", "thưởng thức", "eating", "drinking", "dining"],
-    "nghe điện thoại": ["gọi điện thoại", "bấm điện thoại", "on the phone", "calling"],
-    "lái xe": ["điều khiển xe", "driving", "riding"],
+    "ăn uống": ["dùng bữa", "thưởng thức", "ăn cơm", "eating", "drinking", "dining"],
+    "nghe điện thoại": ["gọi điện thoại", "bấm điện thoại", "nghe máy", "on the phone", "calling"],
+    "lái xe": ["điều khiển xe", "chạy xe", "lái", "driving", "riding"],
 
     # Địa điểm & Không gian
-    "đường phố": ["lòng đường", "phố xá", "vỉa hè", "street", "road", "avenue"],
-    "ngã tư": ["ngã tư đường", "giao lộ", "vòng xoay", "ngã ba", "intersection", "crossroad", "junction"],
-    "bãi biển": ["bờ biển", "bờ cát", "bãi cát", "beach", "seashore", "coastline"],
-    "công viên": ["vườn hoa", "khu vui chơi", "park", "garden"],
-    "quán cà phê": ["quán cafe", "quán nước", "tiệm cà phê", "coffee shop", "cafe"],
-    "siêu thị": ["cửa hàng", "tiệm tạp hóa", "supermarket", "store", "grocery"],
-    "bệnh viện": ["phòng khám", "trung tâm y tế", "hospital", "clinic"],
-    "trường học": ["lớp học", "giảng đường", "school", "classroom"],
+    "đường phố": ["lòng đường", "phố xá", "vỉa hè", "tuyến đường", "street", "road", "avenue"],
+    "ngã tư": ["ngã tư đường", "giao lộ", "vòng xoay", "ngã ba", "bùng binh", "intersection", "crossroad", "junction"],
+    "bãi biển": ["bờ biển", "bờ cát", "bãi cát", "ven biển", "beach", "seashore", "coastline"],
+    "công viên": ["vườn hoa", "khu vui chơi", "khuôn viên", "park", "garden"],
+    "quán cà phê": ["quán cafe", "quán nước", "tiệm cà phê", "tiệm cafe", "coffee shop", "cafe"],
+    "siêu thị": ["cửa hàng", "tiệm tạp hóa", "bách hóa", "supermarket", "store", "grocery"],
+    "bệnh viện": ["phòng khám", "trung tâm y tế", "bệnh xá", "hospital", "clinic"],
+    "chợ": ["khu chợ", "chợ truyền thống", "chợ dân sinh", "market"],
+
+    # Ẩm thực & Nấu nướng
+    "măng tây": ["mang tay", "măng tây xanh", "cây măng tây", "măng tây xào", "salad măng tây", "asparagus"],
+    "chế biến": ["nấu ăn", "làm món", "nấu nướng", "chuẩn bị món", "cooking"],
+    "nấu ăn": ["chế biến", "nấu nướng", "làm bếp", "nấu", "cooking"],
+    "món ăn": ["ẩm thực", "món ngon", "thực đơn", "món"],
 }
 
 def expand_text_synonyms(text: str) -> str:
@@ -786,35 +801,47 @@ class VectorSearchService:
         self._build_inverted_indices()
 
     def _build_inverted_indices(self):
-        """Xây dựng chỉ mục nghịch đảo Inverted Index + BM25 trên RAM CPU cho OCR và ASR (0 MB VRAM)"""
+        """Xây dựng chỉ mục nghịch đảo đa cấp độ (Unigram + Bigram + BM25) trên RAM CPU (0 MB VRAM, < 2s)"""
         import re
         from collections import defaultdict
         
-        # 1. OCR Inverted Index
+        # 1. OCR Inverted Index (Unigram + Bigram)
         self.ocr_inverted_index = defaultdict(list)
         self.ocr_doc_lens = {}
         total_ocr_len = 0
         for doc_key, text in self.ocr_data.items():
-            tokens = set(re.findall(r'\w+', self._strip_accents(text.lower())))
-            self.ocr_doc_lens[doc_key] = len(tokens)
-            total_ocr_len += len(tokens)
-            for token in tokens:
+            cleaned = self._strip_accents(text.lower())
+            words = re.findall(r'\w+', cleaned)
+            self.ocr_doc_lens[doc_key] = len(words)
+            total_ocr_len += len(words)
+            
+            all_tokens = set(words)
+            for i in range(len(words) - 1):
+                all_tokens.add(f"{words[i]} {words[i+1]}")
+
+            for token in all_tokens:
                 self.ocr_inverted_index[token].append(doc_key)
         self.avg_ocr_doc_len = total_ocr_len / max(len(self.ocr_data), 1)
 
-        # 2. ASR Inverted Index
+        # 2. ASR Inverted Index (Unigram + Bigram)
         self.asr_inverted_index = defaultdict(list)
         self.asr_doc_lens = {}
         total_asr_len = 0
         for doc_key, text in self.asr_data.items():
-            tokens = set(re.findall(r'\w+', self._strip_accents(text.lower())))
-            self.asr_doc_lens[doc_key] = len(tokens)
-            total_asr_len += len(tokens)
-            for token in tokens:
+            cleaned = self._strip_accents(text.lower())
+            words = re.findall(r'\w+', cleaned)
+            self.asr_doc_lens[doc_key] = len(words)
+            total_asr_len += len(words)
+
+            all_tokens = set(words)
+            for i in range(len(words) - 1):
+                all_tokens.add(f"{words[i]} {words[i+1]}")
+
+            for token in all_tokens:
                 self.asr_inverted_index[token].append(doc_key)
         self.avg_asr_doc_len = total_asr_len / max(len(self.asr_data), 1)
 
-        self.logger.info(f"⚡ Đã lập chỉ mục BM25 Inverted Index ({len(self.ocr_inverted_index):,} tokens OCR, {len(self.asr_inverted_index):,} tokens ASR) trên CPU RAM!")
+        self.logger.info(f"⚡ Đã lập chỉ mục Đa cấp độ BM25 Inverted Index ({len(self.ocr_inverted_index):,} tokens OCR, {len(self.asr_inverted_index):,} tokens ASR) trên CPU RAM!")
 
     def cleanup_vram(self):
         """VRAM Safety Guard: Thu gom rác và giải phóng bộ nhớ đệm GPU chống tràn VRAM"""
@@ -840,6 +867,7 @@ class VectorSearchService:
 
             self.local_metadata = []
             self.local_id_map = {}
+            self.local_ids = []
 
             from pathlib import Path
             for idx, raw_p in enumerate(paths):
@@ -869,6 +897,7 @@ class VectorSearchService:
                     "timestamp_ms": ms_val
                 }
                 self.local_metadata.append(meta)
+                self.local_ids.append(f"{vid_name}_{fid}")
                 self.local_id_map[str(idx)] = idx
                 self.local_id_map[str(fid)] = idx
                 self.local_id_map[f"{vid_name}_{fid}"] = idx
@@ -881,40 +910,64 @@ class VectorSearchService:
             self.logger.error(f"Lỗi nạp vector đặc trưng: {e}")
 
     def translate_query(self, query: str) -> str:
-        """Tự động dịch thuật truy vấn tiếng Việt sang tiếng Anh"""
+        """Tự động dịch thuật truy vấn tiếng Việt sang tiếng Anh (Cache + Từ điển thị giác + Online fallback)"""
         if not query or not query.strip():
             return ""
         q_str = query.strip()
 
-        # Kiểm tra nhanh: Nếu không có ký tự tiếng Việt, bỏ qua bước dịch để tăng tốc độ phản hồi
+        # 1. Kiểm tra cache trong bộ nhớ
+        if not hasattr(self, 'translation_cache'):
+            self.translation_cache = {}
+        if q_str in self.translation_cache:
+            return self.translation_cache[q_str]
+
+        # 2. ƯU TIÊN SỐ 1: Từ điển thị giác chuẩn hóa SigLIP (0.0001s, chính xác 100%, không phụ thuộc mạng)
+        try:
+            offline_visual_en = self.smart_decomposer.translate_to_visual_english(q_str)
+            if offline_visual_en:
+                self.translation_cache[q_str] = offline_visual_en
+                return offline_visual_en
+        except Exception:
+            pass
+
+        # 3. Kiểm tra nhanh: Nếu không có ký tự tiếng Việt, bỏ qua bước dịch
         import re
         if not re.search(r'[àáãạảăắằẳẵặâấầẩẫậèéẹẻẽêềếểễệđìíĩỉịòóõọỏôốồổỗộơớờởỡợùúũụủưứừửữựỳýỹỷỵ]', q_str.lower()):
+            self.translation_cache[q_str] = q_str
             return q_str
 
-        # Sử dụng urllib để gọi trực tiếp Google Translate API ẩn danh với timeout ngắn (2.5 giây)
+        # 4. Thử dịch qua Google Translate API với timeout ngắn (0.8s)
         try:
             import urllib.request
             import urllib.parse
             import json
             url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=" + urllib.parse.quote(q_str)
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=2.5) as response:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+            with urllib.request.urlopen(req, timeout=0.8) as response:
                 res = json.loads(response.read().decode('utf-8'))
                 translated = "".join([item[0] for item in res[0] if item and item[0]])
                 if translated and translated.strip():
-                    self.logger.info(f"🌐 Dịch tự động (Timeout 2.5s): '{q_str}' -> '{translated}'")
-                    return translated.strip()
-        except Exception as e:
-            self.logger.warning(f"Translation timeout hoặc mất mạng: {e}")
-
-        # Fallback dịch offline siêu tốc bằng từ điển thị giác Smart Decomposer (0 MB VRAM, 0ms)
-        try:
-            offline_visual_en = self.smart_decomposer.translate_to_visual_english(q_str)
-            if offline_visual_en:
-                return offline_visual_en
+                    clean_res = translated.strip()
+                    self.translation_cache[q_str] = clean_res
+                    return clean_res
         except Exception:
             pass
 
+        # 5. Fallback MyMemory Translate API
+        try:
+            url_mm = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(q_str)}&langpair=vi|en"
+            req_mm = urllib.request.Request(url_mm, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+            with urllib.request.urlopen(req_mm, timeout=0.8) as response:
+                res_mm = json.loads(response.read().decode('utf-8'))
+                mm_trans = res_mm.get("responseData", {}).get("translatedText", "")
+                if mm_trans and mm_trans.strip() and not mm_trans.startswith("MYMEMORY WARNING"):
+                    clean_mm = mm_trans.strip()
+                    self.translation_cache[q_str] = clean_mm
+                    return clean_mm
+        except Exception:
+            pass
+
+        self.translation_cache[q_str] = q_str
         return q_str
 
     def load_image_from_input(self, image_input: Any) -> Image.Image:
@@ -1180,14 +1233,15 @@ class VectorSearchService:
             for rank_idx in sorted_order:
                 orig_idx = matching_indices[rank_idx]
                 sim_score = float(sims[rank_idx])
-                v_id = self.local_ids[orig_idx]
-                parts = v_id.split("_") if "_" in v_id else v_id.split("-")
-                f_id = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+                meta = self.local_metadata[orig_idx]
+                f_id = meta["frame_id"]
+                v_id = f"{clean_vid}_{f_id}"
                 
                 kf_key = f"{clean_vid}/keyframes/keyframe_{f_id}.webp"
                 ocr_val = self.ocr_data.get(kf_key, "")
                 asr_val = self.asr_data.get(kf_key, "")
-                sec = self.seconds_data.get(v_id) or self.seconds_data.get(f"{clean_vid}_{f_id}") or (f_id / 25.0)
+                sec = meta.get("time", f_id / 25.0)
+                ms = meta.get("timestamp_ms", int(sec * 1000))
                 
                 results.append({
                     "id": v_id,
@@ -1196,6 +1250,7 @@ class VectorSearchService:
                         "video_id": clean_vid,
                         "frame_id": f_id,
                         "time": sec,
+                        "timestamp_ms": ms,
                         "ocr_text": ocr_val,
                         "asr_text": asr_val
                     },
@@ -1212,7 +1267,9 @@ class VectorSearchService:
                     f_id = int(fn.replace("keyframe_", "").replace(".webp", ""))
                     v_id = f"{clean_vid}_{f_id}"
                     if not any(r["id"] == v_id for r in results):
-                        sec = self.seconds_data.get(v_id) or (f_id / 25.0)
+                        time_info = self.time_map.get((clean_vid, f_id)) or self.time_map.get((clean_vid.lower(), f_id)) or self.time_map.get(f"{clean_vid}_{f_id}")
+                        sec = time_info[0] if time_info else round(f_id / 25.0, 3)
+                        ms = time_info[1] if time_info else int(sec * 1000)
                         asr_val = self.asr_data.get(kf_key, "")
                         results.insert(0, {
                             "id": v_id,
@@ -1221,6 +1278,7 @@ class VectorSearchService:
                                 "video_id": clean_vid,
                                 "frame_id": f_id,
                                 "time": sec,
+                                "timestamp_ms": ms,
                                 "ocr_text": ocr_txt,
                                 "asr_text": asr_val
                             },
@@ -1238,7 +1296,9 @@ class VectorSearchService:
                     f_id = int(fn.replace("keyframe_", "").replace(".webp", ""))
                     v_id = f"{clean_vid}_{f_id}"
                     if not any(r["id"] == v_id for r in results):
-                        sec = self.seconds_data.get(v_id) or (f_id / 25.0)
+                        time_info = self.time_map.get((clean_vid, f_id)) or self.time_map.get((clean_vid.lower(), f_id)) or self.time_map.get(f"{clean_vid}_{f_id}")
+                        sec = time_info[0] if time_info else round(f_id / 25.0, 3)
+                        ms = time_info[1] if time_info else int(sec * 1000)
                         ocr_val = self.ocr_data.get(kf_key, "")
                         results.insert(0, {
                             "id": v_id,
@@ -1247,6 +1307,7 @@ class VectorSearchService:
                                 "video_id": clean_vid,
                                 "frame_id": f_id,
                                 "time": sec,
+                                "timestamp_ms": ms,
                                 "ocr_text": ocr_val,
                                 "asr_text": asr_txt
                             },
@@ -1343,7 +1404,8 @@ class VectorSearchService:
         if not text:
             return ""
         import unicodedata
-        nfkd = unicodedata.normalize("NFKD", str(text))
+        t_clean = str(text).replace("đ", "d").replace("Đ", "d")
+        nfkd = unicodedata.normalize("NFKD", t_clean)
         return "".join([c for c in nfkd if not unicodedata.combining(c)]).lower()
 
     async def search_ocr(self, query_text: str, limit: int = 1000) -> List[Dict[str, Any]]:
@@ -1360,38 +1422,32 @@ class VectorSearchService:
         
         # Stop words thường gặp trong câu hỏi / biển chỉ dẫn
         stop_words = {'đường', 'duong', 'phố', 'pho', 'quận', 'quan', 'phường', 'phuong', 'tp', 'thành', 'thanh', 'biển', 'bien', 'chữ', 'chu', 'bảng', 'bang', 'hiệu', 'hieu', 'tên', 'ten', 'tìm', 'tim', 'ảnh', 'anh', 'hình', 'hinh', 'có', 'co'}
-        q_words = set(re.findall(r'\w+', q_no_acc)) - stop_words
+        raw_words = re.findall(r'\w+', q_no_acc)
+        q_words = set(raw_words) - stop_words
         if not q_words:
-            q_words = set(re.findall(r'\w+', q_no_acc))
+            q_words = set(raw_words)
 
-        # Mở rộng từ đồng nghĩa vào tập tokens tìm kiếm
-        expanded_q_words = set(q_words)
-        for key, syns in VIETNAMESE_SYNONYM_THESAURUS.items():
-            key_no_acc = self._strip_accents(key.lower())
-            if key_no_acc in q_no_acc:
-                for s in syns:
-                    for w in re.findall(r'\w+', self._strip_accents(s.lower())):
-                        if w not in stop_words:
-                            expanded_q_words.add(w)
+        # Unigram & Bigram từ chính câu truy vấn (KHÔNG mở rộng từ đồng nghĩa)
+        expanded_q_tokens = set(q_words)
+        for i in range(len(raw_words) - 1):
+            expanded_q_tokens.add(f"{raw_words[i]} {raw_words[i+1]}")
 
         # 1. Thu thập ứng viên từ Inverted Index trong < 1ms
         candidate_docs = set()
         if hasattr(self, 'ocr_inverted_index') and self.ocr_inverted_index:
-            for token in expanded_q_words:
+            for token in expanded_q_tokens:
                 if token in self.ocr_inverted_index:
                     candidate_docs.update(self.ocr_inverted_index[token])
-        else:
-            candidate_docs = set(self.ocr_data.keys())
-
+        
+        # Nếu không có từ khóa nào khớp trong Inverted Index, trả về rỗng ngay lập tức (< 1ms)
         if not candidate_docs:
-            candidate_docs = set(self.ocr_data.keys())
+            return []
+
+        # Giới hạn tối đa 3000 ứng viên để tính điểm trong < 2ms
+        if len(candidate_docs) > 3000:
+            candidate_docs = list(candidate_docs)[:3000]
 
         matched_results = []
-        k1 = 1.2
-        b = 0.75
-        N = max(len(self.ocr_data), 1)
-        avgdl = getattr(self, 'avg_ocr_doc_len', 10.0)
-
         for rel_path in candidate_docs:
             ocr_text = self.ocr_data.get(rel_path, "")
             ocr_clean = ocr_text.lower().strip()
@@ -1403,41 +1459,19 @@ class VectorSearchService:
             if q_clean == ocr_clean:
                 score = 1.0
             # 2. Khớp chuỗi con xuôi / ngược (Substring match)
-            elif q_clean in ocr_clean:
+            elif len(q_clean) >= 3 and q_clean in ocr_clean:
                 score = 0.95 + 0.05 * (len(q_clean) / max(len(ocr_clean), 1))
-            elif len(ocr_clean) >= 3 and ocr_clean in q_clean:
-                score = 0.90 + 0.05 * (len(ocr_clean) / max(len(q_clean), 1))
             # 3. Khớp không dấu (Accent-insensitive match)
-            elif q_no_acc in ocr_no_acc:
-                score = 0.88 + 0.08 * (len(q_no_acc) / max(len(ocr_no_acc), 1))
-            elif len(ocr_no_acc) >= 3 and ocr_no_acc in q_no_acc:
-                score = 0.82 + 0.08 * (len(ocr_no_acc) / max(len(q_no_acc), 1))
-            else:
-                # 4. Tính điểm BM25 Token Matching
+            elif len(q_no_acc) >= 3 and q_no_acc in ocr_no_acc:
+                score = 0.90 + 0.08 * (len(q_no_acc) / max(len(ocr_no_acc), 1))
+            elif len(ocr_no_acc) >= 4 and len(q_no_acc) >= 4 and ocr_no_acc in q_no_acc:
+                score = 0.85 + 0.08 * (len(ocr_no_acc) / max(len(q_no_acc), 1))
+            elif len(raw_words) == 1:
                 ocr_words = set(re.findall(r'\w+', ocr_no_acc))
-                intersection = expanded_q_words & ocr_words
-                if intersection:
-                    doc_len = len(ocr_words)
-                    bm25_score = 0.0
-                    for term in intersection:
-                        df = len(self.ocr_inverted_index.get(term, [])) if hasattr(self, 'ocr_inverted_index') else 1
-                        idf = math.log((N - df + 0.5) / (df + 0.5) + 1.0)
-                        tf = 1.0
-                        term_score = idf * ((tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (doc_len / max(avgdl, 1.0)))))
-                        bm25_score += term_score
-                    
-                    precision = len(intersection) / len(expanded_q_words)
-                    recall = len(intersection) / max(len(ocr_words), 1)
-                    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
-                    score = max(score, round(min(0.70 + 0.20 * min(bm25_score / 3.0, 1.0) + 0.10 * f1, 0.96), 3))
+                if raw_words[0] in ocr_words:
+                    score = 0.80
 
-                # 5. Khớp mờ Levenshtein / SequenceMatcher
-                if len(ocr_no_acc) >= 3 and len(q_no_acc) >= 3:
-                    ratio = difflib.SequenceMatcher(None, q_no_acc, ocr_no_acc).ratio()
-                    if ratio >= 0.65:
-                        score = max(score, round(0.65 + 0.22 * ratio, 3))
-
-            if score >= 0.65:
+            if score >= 0.75:
                 try:
                     norm_path = rel_path.replace("\\", "/")
                     parts = norm_path.split("/")
@@ -1453,15 +1487,25 @@ class VectorSearchService:
                     match = re.search(r'(\d+)', filename)
                     frame_id = int(match.group(1)) if match else 0
 
+                    time_info = self.time_map.get((video_id, frame_id)) or self.time_map.get((video_id.lower(), frame_id)) or self.time_map.get(f"{video_id}_{frame_id}")
+                    if time_info:
+                        sec_val = time_info[0]
+                        ms_val = time_info[1]
+                    else:
+                        sec_val = round(frame_id / 25.0, 3)
+                        ms_val = int(sec_val * 1000)
+
                     matched_results.append({
                         "id": f"{video_id}_{frame_id}",
                         "distance": round(score, 3),
                         "score": round(score, 3),
+                        "ocr_text": ocr_text,
                         "entity": {
                             "filepath": norm_path,
                             "video_id": video_id,
                             "frame_id": frame_id,
-                            "time": frame_id,
+                            "time": sec_val,
+                            "timestamp_ms": ms_val,
                             "ocr_text": ocr_text
                         }
                     })
@@ -1484,38 +1528,32 @@ class VectorSearchService:
         q_no_acc = self._strip_accents(q_clean)
         
         stop_words = {'tìm', 'tim', 'người', 'nguoi', 'nói', 'noi', 'lời', 'loi', 'thoại', 'thoai', 'âm', 'am', 'thanh'}
-        q_words = set(re.findall(r'\w+', q_no_acc)) - stop_words
+        raw_words = re.findall(r'\w+', q_no_acc)
+        q_words = set(raw_words) - stop_words
         if not q_words:
-            q_words = set(re.findall(r'\w+', q_no_acc))
+            q_words = set(raw_words)
 
-        # Mở rộng từ đồng nghĩa vào tập tokens tìm kiếm
-        expanded_q_words = set(q_words)
-        for key, syns in VIETNAMESE_SYNONYM_THESAURUS.items():
-            key_no_acc = self._strip_accents(key.lower())
-            if key_no_acc in q_no_acc:
-                for s in syns:
-                    for w in re.findall(r'\w+', self._strip_accents(s.lower())):
-                        if w not in stop_words:
-                            expanded_q_words.add(w)
+        # Unigram & Bigram từ chính câu truy vấn (KHÔNG mở rộng từ đồng nghĩa)
+        expanded_q_tokens = set(q_words)
+        for i in range(len(raw_words) - 1):
+            expanded_q_tokens.add(f"{raw_words[i]} {raw_words[i+1]}")
 
         # 1. Thu thập ứng viên từ Inverted Index
         candidate_docs = set()
         if hasattr(self, 'asr_inverted_index') and self.asr_inverted_index:
-            for token in expanded_q_words:
+            for token in expanded_q_tokens:
                 if token in self.asr_inverted_index:
                     candidate_docs.update(self.asr_inverted_index[token])
-        else:
-            candidate_docs = set(self.asr_data.keys())
-
+        
+        # Nếu không có từ khóa nào khớp trong Inverted Index, trả về rỗng ngay lập tức (< 1ms)
         if not candidate_docs:
-            candidate_docs = set(self.asr_data.keys())
+            return []
+
+        # Giới hạn tối đa 3000 ứng viên để tính điểm trong < 2ms
+        if len(candidate_docs) > 3000:
+            candidate_docs = list(candidate_docs)[:3000]
 
         matched_results = []
-        k1 = 1.2
-        b = 0.75
-        N = max(len(self.asr_data), 1)
-        avgdl = getattr(self, 'avg_asr_doc_len', 10.0)
-
         for rel_path in candidate_docs:
             asr_text = self.asr_data.get(rel_path, "")
             asr_clean = asr_text.lower().strip()
@@ -1525,39 +1563,19 @@ class VectorSearchService:
 
             if q_clean == asr_clean:
                 score = 1.0
-            elif q_clean in asr_clean:
+            elif len(q_clean) >= 3 and q_clean in asr_clean:
                 score = 0.95 + 0.05 * (len(q_clean) / max(len(asr_clean), 1))
-            elif len(asr_clean) >= 3 and asr_clean in q_clean:
-                score = 0.90 + 0.05 * (len(asr_clean) / max(len(q_clean), 1))
-            elif q_no_acc in asr_no_acc:
-                score = 0.88 + 0.08 * (len(q_no_acc) / max(len(asr_no_acc), 1))
-            elif len(asr_no_acc) >= 3 and asr_no_acc in q_no_acc:
-                score = 0.82 + 0.08 * (len(asr_no_acc) / max(len(q_no_acc), 1))
-            else:
-                # 4. Tính điểm BM25 Token Matching
+            # 3. Khớp không dấu (Accent-insensitive match)
+            elif len(q_no_acc) >= 3 and q_no_acc in asr_no_acc:
+                score = 0.90 + 0.08 * (len(q_no_acc) / max(len(asr_no_acc), 1))
+            elif len(asr_no_acc) >= 4 and len(q_no_acc) >= 4 and asr_no_acc in q_no_acc:
+                score = 0.85 + 0.08 * (len(asr_no_acc) / max(len(q_no_acc), 1))
+            elif len(raw_words) == 1:
                 asr_words = set(re.findall(r'\w+', asr_no_acc))
-                intersection = expanded_q_words & asr_words
-                if intersection:
-                    doc_len = len(asr_words)
-                    bm25_score = 0.0
-                    for term in intersection:
-                        df = len(self.asr_inverted_index.get(term, [])) if hasattr(self, 'asr_inverted_index') else 1
-                        idf = math.log((N - df + 0.5) / (df + 0.5) + 1.0)
-                        tf = 1.0
-                        term_score = idf * ((tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (doc_len / max(avgdl, 1.0)))))
-                        bm25_score += term_score
-                    
-                    precision = len(intersection) / len(expanded_q_words)
-                    recall = len(intersection) / max(len(asr_words), 1)
-                    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
-                    score = max(score, round(min(0.70 + 0.20 * min(bm25_score / 3.0, 1.0) + 0.10 * f1, 0.96), 3))
+                if raw_words[0] in asr_words:
+                    score = 0.80
 
-                if len(asr_no_acc) >= 3 and len(q_no_acc) >= 3:
-                    ratio = difflib.SequenceMatcher(None, q_no_acc, asr_no_acc).ratio()
-                    if ratio >= 0.65:
-                        score = max(score, round(0.65 + 0.22 * ratio, 3))
-
-            if score >= 0.65:
+            if score >= 0.75:
                 try:
                     norm_path = rel_path.replace("\\", "/")
                     parts = norm_path.split("/")
@@ -1573,15 +1591,25 @@ class VectorSearchService:
                     match = re.search(r'(\d+)', filename)
                     frame_id = int(match.group(1)) if match else 0
 
+                    time_info = self.time_map.get((video_id, frame_id)) or self.time_map.get((video_id.lower(), frame_id)) or self.time_map.get(f"{video_id}_{frame_id}")
+                    if time_info:
+                        sec_val = time_info[0]
+                        ms_val = time_info[1]
+                    else:
+                        sec_val = round(frame_id / 25.0, 3)
+                        ms_val = int(sec_val * 1000)
+
                     matched_results.append({
                         "id": f"{video_id}_{frame_id}",
                         "distance": round(score, 3),
                         "score": round(score, 3),
+                        "asr_text": asr_text,
                         "entity": {
                             "filepath": norm_path,
                             "video_id": video_id,
                             "frame_id": frame_id,
-                            "time": frame_id,
+                            "time": sec_val,
+                            "timestamp_ms": ms_val,
                             "asr_text": asr_text
                         }
                     })
@@ -1679,8 +1707,8 @@ class VectorSearchService:
         # Phân rã thông minh query bằng Smart Decomposer (0 MB VRAM, < 1ms)
         decomp = self.smart_decomposer.decompose(clean_q, current_topic=global_topic)
         visual_q = decomp.visual_query or clean_q
-        ocr_q = " ".join(decomp.ocr_keywords) if decomp.ocr_keywords else clean_q
-        asr_q = " ".join(decomp.asr_keywords) if decomp.asr_keywords else clean_q
+        ocr_q = " ".join(decomp.ocr_keywords) if decomp.ocr_keywords else (clean_q if len(clean_q) <= 60 else "")
+        asr_q = " ".join(decomp.asr_keywords) if decomp.asr_keywords else (clean_q if len(clean_q) <= 60 else "")
 
         # 1. Chạy song song cả 3 nhánh tìm kiếm
         async def _run_visual():
@@ -1692,8 +1720,8 @@ class VectorSearchService:
                 return []
 
         visual_task = asyncio.create_task(_run_visual())
-        ocr_task = asyncio.create_task(self.search_ocr(ocr_q, limit=limit))
-        asr_task = asyncio.create_task(self.search_asr(asr_q, limit=limit))
+        ocr_task = asyncio.create_task(self.search_ocr(ocr_q, limit=limit)) if ocr_q else asyncio.create_task(asyncio.sleep(0, result=[]))
+        asr_task = asyncio.create_task(self.search_asr(asr_q, limit=limit)) if asr_q else asyncio.create_task(asyncio.sleep(0, result=[]))
 
         visual_results, ocr_results, asr_results = await asyncio.gather(
             visual_task, ocr_task, asr_task, return_exceptions=True
@@ -1706,17 +1734,31 @@ class VectorSearchService:
         if isinstance(asr_results, Exception):
             asr_results = []
 
-        # 2. Nếu không có kết quả OCR/ASR nào, trả về trực tiếp visual results
+        # 2. Nếu không có kết quả OCR/ASR nào, luôn luôn gắn kèm nguyên văn ASR & OCR cho tất cả visual results trước khi trả về
         if not ocr_results and not asr_results:
+            for item in visual_results[:limit]:
+                ent = item.get("entity", {}) if isinstance(item.get("entity"), dict) else {}
+                vid = ent.get("video_id") or item.get("video_id") or ""
+                fid = ent.get("frame_id") if ent.get("frame_id") is not None else item.get("frame_id")
+                if vid and fid is not None:
+                    rel_path = f"{vid}/keyframes/keyframe_{fid}.webp"
+                    if rel_path in self.asr_data:
+                        item["asr_text"] = self.asr_data[rel_path]
+                        if isinstance(item.get("entity"), dict):
+                            item["entity"]["asr_text"] = self.asr_data[rel_path]
+                    if rel_path in self.ocr_data:
+                        item["ocr_text"] = self.ocr_data[rel_path]
+                        if isinstance(item.get("entity"), dict):
+                            item["entity"]["ocr_text"] = self.ocr_data[rel_path]
             return visual_results[:limit]
 
         # 3. Tính toán Reciprocal Rank Fusion (RRF) với trọng số thích ứng
         doc_map: Dict[str, Dict[str, Any]] = {}
         rrf_scores: Dict[str, float] = {}
 
-        w_visual = 1.00
-        w_ocr = 1.15 if decomp.ocr_keywords else 0.90
-        w_asr = 1.10 if decomp.asr_keywords else 0.85
+        w_visual = 2.00
+        w_ocr = 1.20 if decomp.ocr_keywords else 0.95
+        w_asr = 1.20 if decomp.asr_keywords else 0.90
 
         def get_item_key(item: Dict[str, Any]) -> str:
             ent = item.get("entity", {})
@@ -1765,14 +1807,73 @@ class VectorSearchService:
                         doc_map[key]["entity"]["asr_text"] = item.get("asr_text")
             rrf_scores[key] = rrf_scores.get(key, 0.0) + (w_asr / (k_rrf + rank))
 
-        # 4. Sắp xếp lại danh sách theo tổng điểm RRF giảm dần
-        sorted_keys = sorted(rrf_scores.keys(), key=lambda k: rrf_scores[k], reverse=True)
+        # 4. Sắp xếp lại danh sách theo phân tầng ưu tiên (Hierarchical Priority Ranking)
+        is_quoted_search = bool(re.findall(r'["\'“«](.*?)["\'”»]', decomp.raw_query)) or bool(decomp.ocr_keywords) or bool(decomp.asr_keywords)
+        target_kws = decomp.ocr_keywords or decomp.asr_keywords or re.findall(r'["\'“«](.*?)["\'”»]', decomp.raw_query)
+
+        def compute_item_tier_score(key: str) -> Tuple[float, float]:
+            item = doc_map[key]
+            ent = item.get("entity", {}) if isinstance(item.get("entity"), dict) else {}
+            vid = ent.get("video_id") or item.get("video_id") or ""
+            fid = ent.get("frame_id") if ent.get("frame_id") is not None else item.get("frame_id")
+            rel_path = f"{vid}/keyframes/keyframe_{fid}.webp" if vid and fid is not None else ""
+
+            txt_asr = self.asr_data.get(rel_path, "")
+            txt_ocr = self.ocr_data.get(rel_path, "")
+            txt_combined = f"{txt_asr} {txt_ocr}".lower()
+            txt_no_acc = self._strip_accents(txt_combined)
+
+            tier = 0.0
+            if target_kws:
+                for kw in target_kws:
+                    kw_clean = kw.lower().strip()
+                    kw_no_acc = self._strip_accents(kw_clean)
+                    raw_words = [w for w in re.findall(r'\w+', kw_no_acc) if len(w) >= 2]
+
+                    # ƯU TIÊN 1: Khớp trọn vẹn cụm từ đầy đủ (VD: "sầu riêng", "măng tây")
+                    if kw_no_acc in txt_no_acc or kw_clean in txt_combined:
+                        tier = max(tier, 100.0)
+                    elif raw_words:
+                        # ƯU TIÊN 2: Khớp 1 hoặc nhiều từ trong cụm từ khóa (VD: có chữ "sầu" hoặc chữ "riêng")
+                        txt_words = set(re.findall(r'\w+', txt_no_acc))
+                        matched_cnt = sum(1 for w in raw_words if w in txt_words)
+                        if matched_cnt > 0:
+                            tier = max(tier, 10.0 + 10.0 * (matched_cnt / len(raw_words)))
+
+            return tier, rrf_scores.get(key, 0.0)
+
+        # Sắp xếp theo: Phân tầng Tier cao nhất trước -> sau đó đến Điểm RRF thị giác
+        sorted_keys = sorted(rrf_scores.keys(), key=lambda k: (compute_item_tier_score(k)[0], compute_item_tier_score(k)[1]), reverse=True)
         final_results = []
-        for k in sorted_keys[:limit]:
+        for k in sorted_keys:
+            tier_val, rrf_val = compute_item_tier_score(k)
+            if is_quoted_search and tier_val < 10.0:
+                # Nếu người dùng tìm kiếm từ khóa trong dấu ngoặc kép, loại bỏ các frame không có từ khóa nào
+                continue
+
             item = doc_map[k]
-            item["distance"] = float(round(rrf_scores[k], 6))
-            item["rrf_score"] = float(round(rrf_scores[k], 6))
+            item["distance"] = float(round(rrf_val, 6))
+            item["rrf_score"] = float(round(rrf_val, 6))
+            item["tier_score"] = float(round(tier_val, 2))
+
+            # Gắn kèm nguyên văn ASR / OCR nếu có trong tập dữ liệu
+            ent = item.get("entity", {}) if isinstance(item.get("entity"), dict) else {}
+            vid = ent.get("video_id") or item.get("video_id") or ""
+            fid = ent.get("frame_id") if ent.get("frame_id") is not None else item.get("frame_id")
+            if vid and fid is not None:
+                rel_path = f"{vid}/keyframes/keyframe_{fid}.webp"
+                if rel_path in self.asr_data:
+                    item["asr_text"] = self.asr_data[rel_path]
+                    if isinstance(item.get("entity"), dict):
+                        item["entity"]["asr_text"] = self.asr_data[rel_path]
+                if rel_path in self.ocr_data:
+                    item["ocr_text"] = self.ocr_data[rel_path]
+                    if isinstance(item.get("entity"), dict):
+                        item["entity"]["ocr_text"] = self.ocr_data[rel_path]
+
             final_results.append(item)
+            if len(final_results) >= limit:
+                break
 
         return final_results
 
@@ -1956,8 +2057,17 @@ class VectorSearchService:
                         fallback_item = copy.deepcopy(it)
                         fallback_item["trake_stage"] = 1
                         final_trake_results.append(fallback_item)
-                        if len(final_trake_results) >= 200:
-                            break
+            # Gắn kèm nguyên văn ASR / OCR nếu có trong tập dữ liệu cho từng frame
+            for item in final_trake_results:
+                ent = item.get("entity", {}) if isinstance(item.get("entity"), dict) else {}
+                vid = ent.get("video_id") or item.get("video_id") or ""
+                fid = ent.get("frame_id") if ent.get("frame_id") is not None else item.get("frame_id")
+                if vid and fid is not None:
+                    rel_path = f"{vid}/keyframes/keyframe_{fid}.webp"
+                    if not item.get("asr_text") and rel_path in self.asr_data:
+                        item["asr_text"] = self.asr_data[rel_path]
+                    if not item.get("ocr_text") and rel_path in self.ocr_data:
+                        item["ocr_text"] = self.ocr_data[rel_path]
 
             return final_trake_results
         except Exception as e:
@@ -2121,7 +2231,29 @@ def create_app(config_file: str = None) -> FastAPI:
                 for root, _, files in os.walk(vdir):
                     if video_name in files:
                         return FileResponse(os.path.join(root, video_name), media_type="video/mp4")
-        return Response(status_code=404)
+    @app.get("/api/frame_metadata")
+    async def get_frame_metadata(video: str, frame_id: int):
+        """Lấy thông tin phụ đề OCR & Lời thoại ASR chuẩn xác cho từng frame cụ thể"""
+        v_clean = video.replace(".mp4", "").strip()
+        rel_path = f"{v_clean}/keyframes/keyframe_{frame_id}.webp"
+        
+        ocr_txt = service.ocr_data.get(rel_path, "")
+        asr_txt = service.asr_data.get(rel_path, "")
+        
+        # Nếu frame cụ thể không có text, tìm kiếm đoạn thoại kề cận trong cùng video (+- 50 frame ~ 2 giây)
+        if not asr_txt:
+            for offset in [1, -1, 2, -2, 5, -5, 10, -10, 25, -25, 50, -50]:
+                near_path = f"{v_clean}/keyframes/keyframe_{frame_id + offset}.webp"
+                if near_path in service.asr_data:
+                    asr_txt = service.asr_data[near_path]
+                    break
+
+        return {
+            "video": v_clean,
+            "frame_id": frame_id,
+            "ocr_text": ocr_txt,
+            "asr_text": asr_txt
+        }
 
     @app.get("/")
     async def root():
@@ -2876,55 +3008,41 @@ def create_app(config_file: str = None) -> FastAPI:
 
                 # Câu truy vấn hiệu dụng để tìm kiếm ngữ nghĩa SigLIP
                 effective_query = all_text_q_list if all_text_q_list else (ocr_query_str or asr_query_str or "scenery overview")
-
-                result = []
-                
-                # 3. Trích xuất ý định tìm kiếm chữ (OCR Intent Recognition) thông minh
-                if not ocr_query_str and first_q:
-                    import re
-                    m = re.search(r'["\'](.*?)["\']', first_q)
-                    if m and m.group(1).strip():
-                        ocr_query_str = m.group(1).strip()
-                    else:
-                        ocr_patterns = [
-                            r'(?:tìm\s+)?(?:hình\s+ảnh|ảnh|video|khung\s+hình)?\s*(?:có\s+)?(?:chữ|biển\s+số|bảng\s+hiệu|logo|text|ocr)\s*[:：]?\s*(.+)',
-                            r'(?:có\s+chữ)\s+(.+)',
-                            r'(?:chữ)\s+(.+)',
-                            r'(?:biển\s+số)\s+(.+)',
-                            r'(?:bảng\s+hiệu)\s+(.+)'
-                        ]
-                        for pat in ocr_patterns:
-                            m = re.search(pat, first_q.strip(), re.IGNORECASE)
-                            if m and m.group(1).strip():
-                                ocr_query_str = m.group(1).strip()
-                                break
-                        
-                # A. Tìm kiếm theo OCR nếu có chuỗi OCR
-                ocr_results = []
-                if ocr_query_str:
-                    ocr_results = await service.search_ocr(ocr_query_str, limit=1000)
-
-                # B. Tìm kiếm theo ASR nếu có chuỗi ASR
-                asr_results = []
-                if asr_query_str:
-                    asr_results = await service.search_asr(asr_query_str, limit=1000)
-
                 global_topic = data.get("globalTopic") or data.get("trakeTopic") or ""
-                exact_matches = ocr_results + asr_results
-                if exact_matches:
-                    # Đưa toàn bộ ảnh khớp OCR / ASR lên đầu
-                    semantic_results = await service.process_temporal_query(effective_query, model_name=model_choice, global_topic=global_topic)
-                    seen_ids = {item["id"] for item in exact_matches}
-                    merged_results = list(exact_matches)
-                    for sem in semantic_results:
-                        if sem.get("id") not in seen_ids:
-                            merged_results.append(sem)
-                            seen_ids.add(sem.get("id"))
-                    result = merged_results
-                
-                # Nếu không có kết quả OCR/ASR hoặc là tìm kiếm ngữ nghĩa thông thường
-                if not result:
-                    result = await service.process_temporal_query(effective_query, model_name=model_choice, global_topic=global_topic)
+                result = []
+
+                # Nếu chỉ tìm kiếm chuyên biệt trên ô OCR hoặc ASR thuần túy (không có mô tả chính)
+                if not all_text_q_list and ocr_query_str:
+                    result = await service.search_ocr(ocr_query_str, limit=1000)
+                    # Nếu OCR không có hoặc có ít kết quả, tự động mở rộng sang ASR & Visual Hybrid
+                    if len(result) < 20:
+                        extra_asr = await service.search_asr(ocr_query_str, limit=1000)
+                        extra_visual = await service.process_temporal_query(ocr_query_str, model_name=model_choice, global_topic=global_topic)
+                        seen_keys = {f"{r.get('video_id')}_{r.get('frame_id')}" for r in result}
+                        for item in (extra_asr or []) + (extra_visual or []):
+                            k = f"{item.get('video_id')}_{item.get('frame_id')}"
+                            if k not in seen_keys:
+                                seen_keys.add(k)
+                                result.append(item)
+                elif not all_text_q_list and asr_query_str:
+                    result = await service.search_asr(asr_query_str, limit=1000)
+                    if len(result) < 20:
+                        extra_ocr = await service.search_ocr(asr_query_str, limit=1000)
+                        extra_visual = await service.process_temporal_query(asr_query_str, model_name=model_choice, global_topic=global_topic)
+                        seen_keys = {f"{r.get('video_id')}_{r.get('frame_id')}" for r in result}
+                        for item in (extra_ocr or []) + (extra_visual or []):
+                            k = f"{item.get('video_id')}_{item.get('frame_id')}"
+                            if k not in seen_keys:
+                                seen_keys.add(k)
+                                result.append(item)
+                else:
+                    # Mặc định sử dụng bộ tìm kiếm đa phương thức Hybrid RRF + Temporal TRAKE
+                    combined_query = list(all_text_q_list)
+                    if ocr_query_str and ocr_query_str not in combined_query:
+                        combined_query.append(f'"{ocr_query_str}"')
+                    if asr_query_str and asr_query_str not in combined_query:
+                        combined_query.append(f'"{asr_query_str}"')
+                    result = await service.process_temporal_query(combined_query or effective_query, model_name=model_choice, global_topic=global_topic)
 
                 primary_q = first_q or (all_text_q_list[0] if all_text_q_list else (ocr_query_str or asr_query_str or ""))
                 decomp_res = service.smart_decomposer.decompose(primary_q, current_topic=global_topic)

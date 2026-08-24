@@ -151,9 +151,7 @@ function connectWebSocket() {
                     if (decomp.mode === 'trake' && decomp.stages && decomp.stages.length >= 2) {
                         showNotification(`✨ AI Auto-TRAKE: Tự động tách ${decomp.stages.length} giai đoạn liên hoàn!`, 'info');
                     } else if (decomp.ocr_keywords && decomp.ocr_keywords.length > 0) {
-                        showNotification(`🔤 AI OCR Intent: Bắt từ khóa "${decomp.ocr_keywords.join(', ')}"`, 'info');
-                    } else if (decomp.asr_keywords && decomp.asr_keywords.length > 0) {
-                        showNotification(`🎙️ AI ASR Intent: Bắt lời thoại "${decomp.asr_keywords.join(', ')}"`, 'info');
+                        showNotification(`🔍 Tìm kiếm chính xác từ khóa: "${decomp.ocr_keywords.join(', ')}"`, 'info');
                     }
                 }
                 

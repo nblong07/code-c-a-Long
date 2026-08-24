@@ -187,8 +187,8 @@ def extract_clip_main():
         try: os.remove(args.output_paths)
         except: pass
 
-    os.rename(temp_feat, args.output_features)
-    os.rename(temp_paths, args.output_paths)
+    os.replace(temp_feat, args.output_features)
+    os.replace(temp_paths, args.output_paths)
 
     print(f"\n✨ SUCCESS! Extracted {len(features)} vector features (dimension: {features.shape[1]}).")
     print(f"Saved features to '{args.output_features}' and paths to '{args.output_paths}'.")

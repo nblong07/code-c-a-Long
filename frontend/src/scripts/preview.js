@@ -254,12 +254,59 @@ let currentFullscreenContext = {
   directory: ''
 };
 
-function showFullscreenImage(src, isLeftPreview = false, targetElement = null) {
+//// Memory cache for frame metadata (OCR / ASR)
+const fullscreenMetaCache = new Map();
+
+async function fetchFullscreenMetaCached(videoName, frameId) {
+  const cleanVid = (videoName || '').replace(/\.mp4$/i, '').trim();
+  const cacheKey = `${cleanVid}_${frameId}`;
+  if (fullscreenMetaCache.has(cacheKey)) {
+    return fullscreenMetaCache.get(cacheKey);
+  }
+  try {
+    const apiBase = window.API_BASE || 'http://localhost:8000';
+    const resp = await fetch(`${apiBase}/api/frame_metadata?video=${encodeURIComponent(cleanVid)}&frame_id=${frameId}`);
+    if (resp.ok) {
+      const data = await resp.json();
+      fullscreenMetaCache.set(cacheKey, data);
+      return data;
+    }
+  } catch (e) {}
+  return { video: cleanVid, frame_id: frameId, ocr_text: '', asr_text: '' };
+}
+
+// Helper: Highlight matching search keywords inside text ONLY when quoted keywords are present
+function formatFullTextWithHighlight(fullText) {
+  if (!fullText) return '';
+  const rawVal = document.querySelector('textarea[name="Text_Query"]')?.value || '';
+  const quoteMatch = rawVal.match(/["'“”«»](.*?)["'”»]/);
+  
+  // Nếu trong câu mô tả KHÔNG có từ khóa trong dấu ngoặc kép -> Không bôi đậm từ nào
+  if (!quoteMatch || !quoteMatch[1].trim()) {
+    return fullText;
+  }
+
+  const cleanKeyword = quoteMatch[1].trim();
+  const words = cleanKeyword.split(/\s+/).filter(w => w.length >= 2);
+  if (words.length === 0) return fullText;
+
+  try {
+    const regexPattern = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+    const regex = new RegExp(`(${regexPattern})`, 'gi');
+    return fullText.replace(regex, '<mark>$1</mark>');
+  } catch (e) {
+    return fullText;
+  }
+}
+
+async function showFullscreenImage(src, isLeftPreview = false, targetElement = null) {
   const container = document.getElementById('fullscreen-image-container');
   const image = document.getElementById('fullscreen-image');
   const titleEl = document.getElementById('fullscreen-frame-title');
   const ocrBadge = document.getElementById('fullscreen-ocr-badge');
   const ocrTextEl = document.getElementById('fullscreen-ocr-text');
+  const asrBadge = document.getElementById('fullscreen-asr-badge');
+  const asrTextEl = document.getElementById('fullscreen-asr-text');
   
   if (!container || !image) return;
 
@@ -272,63 +319,66 @@ function showFullscreenImage(src, isLeftPreview = false, targetElement = null) {
     imgDis = targetElement.closest ? targetElement.closest('.img-dis, .frame-container') : null;
   }
   
-  if (!imgDis && event && event.target) {
-    imgDis = event.target.closest('.img-dis, .frame-container');
+  let frameNumber = 0;
+  let videoName = '';
+  
+  if (imgDis) {
+    frameNumber = parseInt(imgDis.dataset.frameId, 10);
+    videoName = imgDis.dataset.video || '';
+  }
+  
+  if (!frameNumber || isNaN(frameNumber)) {
+    const match = src.match(/keyframe_(\d+)\./);
+    if (match) frameNumber = parseInt(match[1], 10);
   }
 
-  let videoName = '';
-  let frameNumber = 0;
-  const srcParts = src.split('/');
-  const match = src.match(/\/([^\/]+)\/keyframes\/keyframe_(\d+)\./i) ||
-                src.match(/(L\d+_V\d+).*?keyframe_(\d+)\./i);
-  if (match) {
-    videoName = match[1];
-    frameNumber = parseInt(match[2], 10) || 0;
-  } else {
-    const kfIdx = srcParts.lastIndexOf('keyframes');
-    if (kfIdx > 0 && srcParts[kfIdx - 1] && !srcParts[kfIdx - 1].includes(':')) {
-      videoName = srcParts[kfIdx - 1];
-      const lastPart = srcParts[srcParts.length - 1] || '';
-      if (lastPart.includes('_')) {
-        frameNumber = parseInt(lastPart.split('_')[1].split('.')[0]) || 0;
-      }
+  if (videoName && (videoName.includes(':') || videoName.toLowerCase() === 'keyframes')) {
+    videoName = '';
+  }
+
+  if (!videoName) {
+    const match = src.match(/\/([^\/]+)\/keyframes\/keyframe_\d+/i) || src.match(/(L\d+_V\d+)/i);
+    if (match) videoName = match[1];
+    else {
+      const srcParts = src.split('/');
+      const kfIdx = srcParts.lastIndexOf('keyframes');
+      if (kfIdx > 0 && srcParts[kfIdx - 1] && !srcParts[kfIdx - 1].includes(':')) videoName = srcParts[kfIdx - 1];
     }
   }
+  videoName = (videoName || 'video').replace(/\.mp4$/i, '').trim();
 
   currentFullscreenContext.videoName = videoName;
   currentFullscreenContext.currentFrameNumber = frameNumber;
-  const kfIdx = srcParts.lastIndexOf('keyframes');
-  currentFullscreenContext.directory = kfIdx > 0 ? srcParts.slice(0, kfIdx + 1).join('/') + '/' : '';
+  currentFullscreenContext.frameList = [];
+  currentFullscreenContext.timesMap = {};
 
-  if (videoName && typeof getVideoFrameMap === 'function') {
+  if (typeof getVideoFrameMap === 'function') {
     getVideoFrameMap(videoName).then(mapData => {
       currentFullscreenContext.frameList = mapData.frames || [];
       currentFullscreenContext.timesMap = mapData.times || {};
     });
   }
 
-  if (imgDis && imgDis.classList.contains('img-dis')) {
-    currentFullscreenContext.type = 'video';
-    const index = parseInt(imgDis.dataset.index || imgDis.querySelector('.result')?.id || '1');
-    currentFullscreenContext.currentIndex = isNaN(index) ? 1 : index;
+  if (titleEl) titleEl.textContent = `Video: ${videoName} | Khung hình: ${frameNumber}`;
+  if (ocrBadge) ocrBadge.style.display = 'none';
 
-    const infoText = imgDis.querySelector('.infor')?.textContent || `${videoName}-${(frameNumber/25).toFixed(2)}`;
-    const ocrText = imgDis.dataset.ocr || imgDis.querySelector('.ocr-text-tag')?.textContent || '';
-
-    if (titleEl) titleEl.textContent = `Video: ${videoName} | Khung hình: ${frameNumber} (${infoText})`;
-    if (ocrBadge && ocrTextEl) {
-      if (ocrText) {
-        ocrTextEl.textContent = ocrText.replace('Văn bản nhận diện (OCR):', '').trim();
-        ocrBadge.style.display = 'inline-flex';
-      } else {
-        ocrBadge.style.display = 'none';
-      }
-    }
-  } else {
-    currentFullscreenContext.type = 'video';
-    if (titleEl) titleEl.textContent = `Video: ${videoName} | Khung hình: ${frameNumber}`;
-    if (ocrBadge) ocrBadge.style.display = 'none';
+  // Lấy dữ liệu ASR ban đầu từ dataset hoặc qua API chuẩn xác
+  const matchedCard = document.querySelector(`.img-dis[data-video="${videoName}"][data-frame-id="${frameNumber}"]`);
+  let initialAsr = imgDis?.dataset.asr || matchedCard?.dataset.asr || '';
+  if (initialAsr && asrBadge && asrTextEl) {
+    asrTextEl.innerHTML = formatFullTextWithHighlight(initialAsr);
+    asrBadge.style.display = 'inline-flex';
+  } else if (asrBadge) {
+    asrBadge.style.display = 'none';
   }
+
+  // Tự động đồng bộ hóa nội dung thoại mới nhất cho frame này
+  fetchFullscreenMetaCached(videoName, frameNumber).then(meta => {
+    if (meta && meta.asr_text && asrBadge && asrTextEl) {
+      asrTextEl.innerHTML = formatFullTextWithHighlight(meta.asr_text);
+      asrBadge.style.display = 'inline-flex';
+    }
+  });
 
   document.removeEventListener('keydown', handleEscapeKey);
   document.addEventListener('keydown', handleEscapeKey);
@@ -354,7 +404,8 @@ async function navigateFullscreenImage(direction) {
   const image = document.getElementById('fullscreen-image');
   const titleEl = document.getElementById('fullscreen-frame-title');
   const ocrBadge = document.getElementById('fullscreen-ocr-badge');
-  const ocrTextEl = document.getElementById('fullscreen-ocr-text');
+  const asrBadge = document.getElementById('fullscreen-asr-badge');
+  const asrTextEl = document.getElementById('fullscreen-asr-text');
   
   if (!container || container.style.display !== 'flex' || !image) return;
 
@@ -386,6 +437,15 @@ async function navigateFullscreenImage(direction) {
     image.src = newSrc;
     if (titleEl) titleEl.textContent = `Video: ${videoName} | Khung hình: ${newFrameNumber} (${secVal.toFixed(2)}s) [${newIdx + 1}/${frames.length}]`;
     if (ocrBadge) ocrBadge.style.display = 'none';
+
+    // Đồng bộ hóa trực tiếp lời thoại tương ứng với frame vừa chuyển đến
+    const meta = await fetchFullscreenMetaCached(videoName, newFrameNumber);
+    if (meta && meta.asr_text && asrBadge && asrTextEl) {
+      asrTextEl.innerHTML = formatFullTextWithHighlight(meta.asr_text);
+      asrBadge.style.display = 'inline-flex';
+    } else if (asrBadge) {
+      asrBadge.style.display = 'none';
+    }
 
     // Flash border effect
     image.style.boxShadow = '0 0 25px rgba(0, 242, 254, 0.8)';

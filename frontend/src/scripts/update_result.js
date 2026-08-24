@@ -21,7 +21,7 @@ function getEntityInfo(result) {
   let timestampMs = 0;
   if (entity.timestamp_ms !== undefined && entity.timestamp_ms !== null) {
     timestampMs = parseInt(entity.timestamp_ms);
-  } else if (entity.time !== undefined && entity.time !== null) {
+  } else if (entity.time !== undefined && entity.time !== null && (parseFloat(entity.time) !== parseInt(frameId) || parseInt(frameId) <= 10)) {
     timestampMs = Math.round(parseFloat(entity.time) * 1000.0);
   } else {
     timestampMs = Math.round((parseInt(frameId) / 25.0) * 1000.0);
@@ -140,6 +140,77 @@ async function stepCardFrame(imgDis, direction, event) {
   if (inforEl) inforEl.textContent = newFrameInfo;
   imgDis.dataset.timestampMs = Math.round(newSec * 1000);
   imgDis.dataset.frameId = newFid;
+  imgDis.dataset.timeSec = newSec;
+
+  // 1. Cập nhật nhãn đồng hồ thời gian (Time Badge)
+  const timeBadge = imgDis.querySelector('.time-badge');
+  if (timeBadge) {
+    timeBadge.innerHTML = `<i class="fa-regular fa-clock"></i> ${formatTimeHMS(newSec)}`;
+  }
+
+  // 2. Đồng bộ hóa nội dung Lời thoại / Chữ viết (ASR & OCR) tương ứng với frame mới
+  if (typeof fetchFullscreenMetaCached === 'function') {
+    fetchFullscreenMetaCached(videoName, newFid).then(meta => {
+      if (!meta) return;
+      imgDis.dataset.asr = meta.asr_text || '';
+      imgDis.dataset.ocr = meta.ocr_text || '';
+
+      const rawSearchVal = document.querySelector('textarea[name="Text_Query"]')?.value || '';
+      const quoteMatch = rawSearchVal.match(/["'“”«»](.*?)["'”»]/);
+      const hasQuotes = Boolean(quoteMatch && quoteMatch[1].trim().length >= 2);
+      const quotedKeyword = hasQuotes ? quoteMatch[1].trim() : '';
+
+      let badgeEl = imgDis.querySelector('.asr-text-tag, .ocr-text-tag');
+      if (hasQuotes) {
+        const cleanKw = stripAccents(quotedKeyword);
+        const kwWords = cleanKw.split(/\s+/).filter(w => w.length >= 2);
+        let matchedText = '';
+        let iconClass = 'fa-microphone';
+        let badgeColor = 'rgba(14, 165, 233, 0.95)';
+        let textColor = '#bae6fd';
+
+        if (meta.asr_text && stripAccents(meta.asr_text).includes(cleanKw)) {
+          matchedText = meta.asr_text;
+          iconClass = 'fa-microphone';
+          badgeColor = 'rgba(14, 165, 233, 0.95)';
+          textColor = '#bae6fd';
+        } else if (meta.ocr_text && stripAccents(meta.ocr_text).includes(cleanKw)) {
+          matchedText = meta.ocr_text;
+          iconClass = 'fa-quote-left';
+          badgeColor = 'rgba(245, 158, 11, 0.95)';
+          textColor = '#fef08a';
+        } else if (meta.asr_text && kwWords.some(w => stripAccents(meta.asr_text).includes(w))) {
+          matchedText = meta.asr_text;
+          iconClass = 'fa-microphone';
+          badgeColor = 'rgba(14, 165, 233, 0.85)';
+          textColor = '#bae6fd';
+        } else if (meta.ocr_text && kwWords.some(w => stripAccents(meta.ocr_text).includes(w))) {
+          matchedText = meta.ocr_text;
+          iconClass = 'fa-quote-left';
+          badgeColor = 'rgba(245, 158, 11, 0.85)';
+          textColor = '#fef08a';
+        }
+
+        if (matchedText) {
+          const cleanSnippet = getHighlightSnippet(matchedText, quotedKeyword);
+          if (!badgeEl) {
+            badgeEl = document.createElement('div');
+            badgeEl.className = 'ocr-text-tag asr-text-tag';
+            imgDis.appendChild(badgeEl);
+          }
+          badgeEl.style.display = 'block';
+          badgeEl.style.background = badgeColor;
+          badgeEl.style.color = textColor;
+          badgeEl.title = matchedText;
+          badgeEl.innerHTML = `<i class="fa-solid ${iconClass}" style="font-size: 10px; margin-right: 4px;"></i> ${cleanSnippet}`;
+        } else if (badgeEl) {
+          badgeEl.style.display = 'none';
+        }
+      } else if (badgeEl) {
+        badgeEl.style.display = 'none';
+      }
+    });
+  }
 
   imgDis.style.boxShadow = '0 0 16px #00F2FE';
   setTimeout(() => {
@@ -171,14 +242,109 @@ function createImageDiv(result, index) {
   const timeFormatted = formatTimeHMS(info.timeVal);
   const timeBadgeHtml = `<span class="time-badge" style="position: absolute; top: 6px; left: 45px; background: rgba(15, 23, 42, 0.85); color: #38bdf8; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700; border: 1px solid rgba(56, 189, 248, 0.4); z-index: 10;" title="Mốc thời gian video: ${timeFormatted} (${info.timeVal}s)"><i class="fa-regular fa-clock"></i> ${timeFormatted}</span>`;
 
-  let ocrHtml = '';
-  if (info.ocrText) {
-    ocrHtml = `<div class="ocr-text-tag" title="Văn bản nhận diện (OCR): ${info.ocrText}"><i class="fa-solid fa-font"></i> ${info.ocrText}</div>`;
-  }
+function stripAccents(str) {
+  if (!str) return '';
+  return str
+    .toString()
+    .replace(/[đĐ]/g, 'd')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
 
-  let asrHtml = '';
-  if (info.asrText) {
-    asrHtml = `<div class="ocr-text-tag" style="background: rgba(14, 165, 233, 0.4); border-color: rgba(56, 189, 248, 0.5); color: #bae6fd;" title="Giọng nói nhận diện (ASR): ${info.asrText}"><i class="fa-solid fa-microphone"></i> ${info.asrText}</div>`;
+  // Hàm trích xuất đoạn văn bản ngắn chứa từ khóa tìm kiếm và tô sáng
+  const getHighlightSnippet = (fullText, keyword, maxLen = 42) => {
+    if (!fullText) return '';
+    const cleanKw = (keyword || '').trim();
+    if (!cleanKw) {
+      return fullText.length > maxLen ? fullText.substring(0, maxLen - 3) + '...' : fullText;
+    }
+
+    const normText = stripAccents(fullText);
+    const normKw = stripAccents(cleanKw);
+    let matchIdx = normText.indexOf(normKw);
+    let matchLen = cleanKw.length;
+
+    if (matchIdx === -1) {
+      const words = normKw.split(/\s+/).filter(w => w.length >= 2);
+      for (const w of words) {
+        matchIdx = normText.indexOf(w);
+        if (matchIdx !== -1) {
+          matchLen = w.length;
+          break;
+        }
+      }
+    }
+
+    let snippet = fullText;
+    if (matchIdx !== -1) {
+      const start = Math.max(0, matchIdx - 12);
+      const end = Math.min(fullText.length, matchIdx + matchLen + 24);
+      snippet = fullText.substring(start, end).trim();
+      if (start > 0) snippet = '...' + snippet;
+      if (end < fullText.length) snippet = snippet + '...';
+    } else if (fullText.length > maxLen) {
+      snippet = fullText.substring(0, maxLen - 3) + '...';
+    }
+
+    const words = cleanKw.split(/\s+/).filter(w => w.length >= 2);
+    try {
+      const regexPattern = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+      const regex = new RegExp(`(${regexPattern})`, 'gi');
+      return snippet.replace(regex, '<mark>$&</mark>');
+    } catch (e) {
+      return snippet;
+    }
+  };
+
+  // Hiển thị đoạn trích lời thoại / chữ viết chứa từ khóa trên 80 khung frame KHI VÀ CHỈ KHI trong câu mô tả có dấu ngoặc kép ""
+  const rawSearchVal = document.querySelector('textarea[name="Text_Query"]')?.value || '';
+  const quoteMatch = rawSearchVal.match(/["'“”«»](.*?)["'”»]/);
+  const hasQuotes = Boolean(quoteMatch && quoteMatch[1].trim().length >= 2);
+  const quotedKeyword = hasQuotes ? quoteMatch[1].trim() : '';
+
+  let quotedTextBadgeHtml = '';
+  if (hasQuotes) {
+    const cleanKw = stripAccents(quotedKeyword);
+    const kwWords = cleanKw.split(/\s+/).filter(w => w.length >= 2);
+    let matchedText = '';
+    let iconClass = 'fa-microphone';
+    let badgeColor = 'rgba(14, 165, 233, 0.95)';
+    let textColor = '#bae6fd';
+
+    // 1. Ưu tiên Lời nói (ASR) khớp trọn vẹn cụm từ (Tier 1)
+    if (info.asrText && stripAccents(info.asrText).includes(cleanKw)) {
+      matchedText = info.asrText;
+      iconClass = 'fa-microphone';
+      badgeColor = 'rgba(14, 165, 233, 0.95)';
+      textColor = '#bae6fd';
+    } 
+    // 2. Chữ viết (OCR) khớp trọn vẹn cụm từ (Tier 1)
+    else if (info.ocrText && stripAccents(info.ocrText).includes(cleanKw)) {
+      matchedText = info.ocrText;
+      iconClass = 'fa-quote-left';
+      badgeColor = 'rgba(245, 158, 11, 0.95)';
+      textColor = '#fef08a';
+    }
+    // 3. Khớp một phần từ khóa trong Lời nói (Tier 2)
+    else if (info.asrText && kwWords.some(w => stripAccents(info.asrText).includes(w))) {
+      matchedText = info.asrText;
+      iconClass = 'fa-microphone';
+      badgeColor = 'rgba(14, 165, 233, 0.85)';
+      textColor = '#bae6fd';
+    }
+    // 4. Khớp một phần từ khóa trong Chữ viết (Tier 2)
+    else if (info.ocrText && kwWords.some(w => stripAccents(info.ocrText).includes(w))) {
+      matchedText = info.ocrText;
+      iconClass = 'fa-quote-left';
+      badgeColor = 'rgba(245, 158, 11, 0.85)';
+      textColor = '#fef08a';
+    }
+
+    if (matchedText) {
+      const cleanSnippet = getHighlightSnippet(matchedText, quotedKeyword);
+      quotedTextBadgeHtml = `<div class="ocr-text-tag asr-text-tag" style="bottom: 6px; left: 4px; right: 28px; z-index: 10; background: ${badgeColor}; border: 1px solid rgba(255,255,255,0.3); color: ${textColor};" title="${matchedText}"><i class="fa-solid ${iconClass}" style="font-size: 10px; margin-right: 4px;"></i> ${cleanSnippet}</div>`;
+    }
   }
 
   let trakeHtml = '';
@@ -202,18 +368,19 @@ function createImageDiv(result, index) {
     <span class="rank-badge ${topClass}" title="Thứ tự ưu tiên #${index}">#${index}</span>
     ${timeBadgeHtml}
     ${scoreHtml}
-    ${ocrHtml}
-    ${asrHtml}
     ${trakeHtml}
+    ${quotedTextBadgeHtml}
     <img alt="${info.frameInfo}" class="result" loading="${isTopView ? 'eager' : 'lazy'}" decoding="async" id="${index}"
       src="${info.imgSrc}" data-src="${info.imgSrc}">
     <div class="infor">${info.frameInfo}</div>
-    <div class="card-step-btn prev-step" title="Frame kề trước trong video (←)" style="position: absolute; left: 4px; top: 50%; transform: translateY(-50%); width: 22px; height: 28px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(0, 242, 254, 0.4); border-radius: 4px; color: #00F2FE; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 10; font-size: 11px; opacity: 0.85; transition: all 0.2s ease;"><i class="fa-solid fa-chevron-left"></i></div>
-    <div class="card-step-btn next-step" title="Frame kề sau trong video (→)" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 22px; height: 28px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(0, 242, 254, 0.4); border-radius: 4px; color: #00F2FE; display: flex; justify-content: center; align-items: center; cursor: pointer; z-index: 10; font-size: 11px; opacity: 0.85; transition: all 0.2s ease;"><i class="fa-solid fa-chevron-right"></i></div>
-    <div class="export_icon" title="Thêm vào danh sách xuất file / Nộp bài (+)" style="display: flex; justify-content: center; align-items: center; width: 24px; height: 24px; position: absolute; right: 5px; top: 5px; cursor: pointer; z-index: 10; background-color: rgba(16, 185, 129, 0.85); border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; color: white;"><i class="fa-solid fa-plus" style="font-size: 13px;"></i></div>
-    <div name="similarity_search" class="similarity_search" title="Tìm kiếm tương tự (Similarity Search)" style="display: flex; justify-content: center; align-items: center; width: 24px; height: 24px; position: absolute; right: 5px; top: 33px; cursor: pointer; z-index: 10; background-color: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; color: white;"><i class="fa-solid fa-camera" style="font-size: 12px;"></i></div>
-    <div name="fullscreen_zoom" class="fullscreen_zoom" title="Phóng to hình ảnh (Xem chi tiết)" style="display: flex; justify-content: center; align-items: center; width: 24px; height: 24px; position: absolute; right: 5px; top: 61px; cursor: pointer; z-index: 10; background-color: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255,255,255,0.25); border-radius: 4px; color: white;"><i class="fa-solid fa-expand" style="font-size: 12px;"></i></div>
-    <div name="timeline_explorer" class="timeline_explorer" title="Mở toàn bộ chuỗi frame của video này (Timeline Explorer)" style="display: flex; justify-content: center; align-items: center; width: 24px; height: 24px; position: absolute; right: 5px; top: 89px; cursor: pointer; z-index: 10; background-color: rgba(30, 41, 59, 0.85); border: 1px solid rgba(0, 242, 254, 0.5); border-radius: 4px; color: #00F2FE;"><i class="fa-solid fa-film" style="font-size: 11px;"></i></div>
+    <div class="card-step-btn prev-step" title="Frame kề trước trong video (←)"><i class="fa-solid fa-chevron-left"></i></div>
+    <div class="card-actions-bar">
+      <div name="timeline_explorer" class="timeline_explorer action-btn" title="Mở toàn bộ chuỗi frame của video này (Timeline Explorer)"><i class="fa-solid fa-film"></i></div>
+      <div name="similarity_search" class="similarity_search action-btn" title="Tìm kiếm tương tự (Similarity Search)"><i class="fa-solid fa-camera"></i></div>
+      <div class="card-step-btn next-step action-btn" title="Frame kề sau trong video (→)"><i class="fa-solid fa-chevron-right"></i></div>
+      <div name="fullscreen_zoom" class="fullscreen_zoom action-btn" title="Phóng to hình ảnh (Xem chi tiết)"><i class="fa-solid fa-expand"></i></div>
+      <div class="export_icon action-btn" title="Thêm vào danh sách xuất file / Nộp bài (+)"><i class="fa-solid fa-plus"></i></div>
+    </div>
   `;
 
   const img = div.querySelector('img');
@@ -256,88 +423,15 @@ function updateRightPanel_list(results) {
   const listPhoto = document.getElementById("list-photo");
   if (!listPhoto) return [];
 
+  listPhoto.innerHTML = '';
   const fragment = document.createDocumentFragment();
-  const existingDivs = Array.from(listPhoto.children);
-
-  const updatedDivs = results.map((result, index) => {
-      const rankIndex = index + 1;
-      const info = getEntityInfo(result);
-      let div;
-
-      if (index < existingDivs.length) {
-          div = existingDivs[index];
-          div.style.display = 'block';
-          div.dataset.index = rankIndex;
-          div.dataset.video = info.video;
-          div.dataset.frameId = info.frameId;
-          div.dataset.timeSec = info.timeVal;
-          div.dataset.timestampMs = info.timestampMs;
-          div.dataset.ocr = info.ocrText;
-          div.dataset.asr = info.asrText;
-
-          // Update rank badge
-          let rankBadge = div.querySelector('.rank-badge');
-          if (!rankBadge) {
-              rankBadge = document.createElement('span');
-              div.insertBefore(rankBadge, div.firstChild);
-          }
-          let topClass = 'rank-badge';
-          if (rankIndex === 1) topClass += ' top-1';
-          else if (rankIndex === 2) topClass += ' top-2';
-          else if (rankIndex === 3) topClass += ' top-3';
-          rankBadge.className = topClass;
-          rankBadge.textContent = `#${rankIndex}`;
-          rankBadge.title = `Thứ tự ưu tiên #${rankIndex}`;
-
-          // Update score badge
-          let scoreBadge = div.querySelector('.score-badge');
-          if (info.scoreVal !== null && !isNaN(info.scoreVal)) {
-              const formattedScore = Math.abs(info.scoreVal) > 1 ? info.scoreVal.toFixed(1) : info.scoreVal.toFixed(3);
-              if (!scoreBadge) {
-                  scoreBadge = document.createElement('span');
-                  scoreBadge.className = 'score-badge';
-                  scoreBadge.title = 'Score / Distance';
-                  const firstImg = div.querySelector('img');
-                  if (firstImg) {
-                      div.insertBefore(scoreBadge, firstImg);
-                  } else {
-                      div.appendChild(scoreBadge);
-                  }
-              }
-              scoreBadge.innerHTML = `<i class="fa-solid fa-chart-simple"></i> ${formattedScore}`;
-              scoreBadge.style.display = 'flex';
-          } else if (scoreBadge) {
-              scoreBadge.style.display = 'none';
-          }
-
-          const img = div.querySelector('img');
-          const infor = div.querySelector('.infor');
-          if (img) {
-              img.id = rankIndex;
-              img.loading = rankIndex <= 30 ? 'eager' : 'lazy';
-              img.decoding = 'async';
-              img.dataset.src = info.imgSrc;
-              img.src = info.imgSrc;
-          }
-          if (infor) {
-              infor.textContent = info.frameInfo;
-          }
-      } else {
-          div = createImageDiv(result, rankIndex);
-          fragment.appendChild(div);
-      }
-
-      return div;
+  const updatedDivs = (results || []).map((result, index) => {
+    const div = createImageDiv(result, index + 1);
+    fragment.appendChild(div);
+    return div;
   });
 
-  // Remove excess divs
-  existingDivs.slice(results.length).forEach(div => div.remove());
-
-  // Append new divs if any
-  if (fragment.children.length > 0) {
-      listPhoto.appendChild(fragment);
-  }
-
+  listPhoto.appendChild(fragment);
   return updatedDivs;
 }
 

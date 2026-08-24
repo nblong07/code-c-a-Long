@@ -465,25 +465,71 @@ async function playVideoAtTime(videoName, timeInSeconds) {
 
 // Show video details & lookup exact timestamp from CSV map
 async function showVideo(img) {
-    if (!data || !data.kq || !data.kq[img.id - 1]) return;
+    let item = null;
+    let videoName = '';
+    let frameId = 0;
+    let exactTime = undefined;
 
-    const item = data.kq[img.id - 1];
-    const entity = (item && item.entity) ? item.entity : (item || {});
-    const videoName = entity.video_id || entity.video || '';
-    const frameId = entity.frame_id !== undefined ? entity.frame_id : 0;
+    // 1. Lấy thông tin từ data.kq hoặc DOM element (hỗ trợ cả img và img-dis)
+    if (img) {
+        const imgEl = img.tagName === 'IMG' ? img : (img.querySelector ? img.querySelector('img') : null);
+        const idx = imgEl && imgEl.id ? parseInt(imgEl.id, 10) - 1 : (img.dataset && img.dataset.index ? parseInt(img.dataset.index, 10) - 1 : -1);
+        if (typeof data !== 'undefined' && data && data.kq && idx >= 0 && data.kq[idx]) {
+            item = data.kq[idx];
+        }
+        
+        const entity = (item && item.entity) ? item.entity : (item || {});
+        videoName = entity.video_id || entity.video || '';
+        frameId = entity.frame_id !== undefined ? parseInt(entity.frame_id, 10) : 0;
 
-    let exactTime = entity.time;
+        if (entity.timestamp_ms !== undefined && entity.timestamp_ms !== null) {
+            exactTime = parseFloat(entity.timestamp_ms) / 1000.0;
+        } else if (entity.time !== undefined && entity.time !== null && (parseFloat(entity.time) !== frameId || frameId <= 10)) {
+            exactTime = parseFloat(entity.time);
+        }
 
-    // 1. Kiểm tra trong globalSecondList đã nạp sẵn từ CSV map chưa
-    if (exactTime === undefined && typeof globalSecondList !== 'undefined' && globalSecondList && globalSecondList[frameId] !== undefined) {
-        exactTime = globalSecondList[frameId];
+        // Nếu chưa có từ entity, thử đọc từ dataset của imgDis
+        const imgDis = img.closest ? img.closest('.img-dis') : null;
+        if (imgDis) {
+            if (!videoName && imgDis.dataset.video) videoName = imgDis.dataset.video;
+            if (!frameId && imgDis.dataset.frameId) frameId = parseInt(imgDis.dataset.frameId, 10) || 0;
+            if (exactTime === undefined && imgDis.dataset.timestampMs) {
+                exactTime = parseFloat(imgDis.dataset.timestampMs) / 1000.0;
+            } else if (exactTime === undefined && imgDis.dataset.timeSec) {
+                exactTime = parseFloat(imgDis.dataset.timeSec);
+            }
+        }
     }
 
-    // 2. Nếu chưa có, tải trực tiếp file CSV map để tra cứu giây chính xác theo FrameID
-    if (exactTime === undefined) {
+    if (!videoName) return;
+
+    // 2. Tra cứu từ globalSecondList hoặc CSV map cache
+    if (exactTime === undefined || isNaN(exactTime) || (exactTime === frameId && frameId > 10)) {
+        if (typeof globalSecondList !== 'undefined' && globalSecondList && globalSecondList[frameId] !== undefined) {
+            exactTime = globalSecondList[frameId];
+        }
+    }
+
+    // 3. Tra cứu từ cache bản đồ CSV đã tải
+    if (exactTime === undefined || isNaN(exactTime) || (exactTime === frameId && frameId > 10)) {
+        const cleanVid = videoName.split('/').pop().replace(/\.mp4$/i, '').trim();
+        const mapList = window._videoCsvMapCache ? window._videoCsvMapCache[cleanVid] : null;
+        if (mapList && mapList.length > 0) {
+            const found = mapList.find(m => m.fid === frameId);
+            if (found) {
+                exactTime = found.sec;
+            }
+        }
+    }
+
+    // 4. Nếu chưa có, tải trực tiếp file CSV map để tra cứu giây chính xác theo FrameID
+    if (exactTime === undefined || isNaN(exactTime) || (exactTime === frameId && frameId > 10)) {
         try {
             const csvBase = window.CSV_BASE || 'http://localhost:8000/keyframes/maps';
-            const res = await fetch(`${csvBase}/${videoName}_map.csv`);
+            let res = await fetch(`${csvBase}/${videoName}_map.csv`);
+            if (!res.ok) {
+                res = await fetch(`${csvBase}/${videoName}.csv`);
+            }
             if (res.ok) {
                 const text = await res.text();
                 const lines = text.trim().split('\n');
@@ -504,8 +550,8 @@ async function showVideo(img) {
         }
     }
 
-    // 3. Fallback nếu không thấy CSV
-    if (exactTime === undefined || isNaN(exactTime)) {
+    // 5. Fallback nếu không thấy CSV
+    if (exactTime === undefined || isNaN(exactTime) || (exactTime === frameId && frameId > 10)) {
         exactTime = frameId / 25.0;
     }
 

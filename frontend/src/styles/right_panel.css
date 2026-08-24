@@ -217,109 +217,214 @@
     z-index: 2;
 }
 
-/* OCR Text Tag on result cards */
-.img-dis .ocr-text-tag {
+/* Dialogue and OCR Text Badge on Result Card Thumbnail */
+.img-dis .ocr-text-tag,
+.img-dis .asr-text-tag {
     position: absolute;
-    bottom: 24px;
+    bottom: 6px;
     left: 4px;
-    right: 4px;
-    background: rgba(15, 23, 42, 0.95);
-    color: #FCD34D;
-    border: 1px solid #F59E0B;
-    padding: 2px 6px;
+    right: 28px;
+    background: rgba(14, 165, 233, 0.95);
+    color: #bae6fd;
+    border: 1px solid rgba(56, 189, 248, 0.8);
+    padding: 3px 6px;
     font-size: 10.5px;
-    font-weight: 600;
+    font-weight: 700;
     border-radius: 4px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    z-index: 3;
-    box-shadow: var(--shadow-sm);
+    z-index: 12;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
     pointer-events: none;
+    line-height: 1.2;
 }
 
-/* Similarity Search Button */
-.list .img-dis .similarity_search {
-    display: none;
+.img-dis .ocr-text-tag mark,
+.img-dis .asr-text-tag mark {
+    background: #FDE047;
+    color: #0F172A;
+    font-weight: 900;
+    padding: 0 3px;
+    border-radius: 2px;
+}
+
+/* Keyword Location Badge on small result cards (Nơi có từ khóa) */
+.keyword-location-badge {
     position: absolute;
     bottom: 6px;
-    right: 6px;
-    width: 26px;
-    height: 26px;
-    background: #1E293B;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    cursor: pointer;
-    justify-content: center;
-    align-items: center;
-    color: var(--secondary-color);
-    transition: all 0.2s ease;
-    box-shadow: var(--shadow-sm);
-    z-index: 2;
-}
-
-.list .img-dis .similarity_search:hover {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-    color: #FFFFFF;
-    transform: scale(1.08);
-    box-shadow: 0 0 10px var(--primary-glow);
-}
-
-/* Show buttons on hover */
-.list .img-dis:hover .infor,
-.list .img-dis:hover .similarity_search {
-    display: flex;
-}
-
-/* Export Icon (+) - Cyan Neon Accent */
-.list .img-dis .export_icon {
-    display: none;
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    width: 26px;
-    height: 26px;
-    background-color: var(--secondary-color);
-    border: 1px solid var(--secondary-color);
-    border-radius: 4px;
-    cursor: pointer;
-    justify-content: center;
-    align-items: center;
-    color: #0F172A;
+    left: 6px;
+    z-index: 10;
+    font-size: 10px;
     font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4.5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(6px);
+    pointer-events: none;
+    letter-spacing: 0.2px;
+}
+
+.keyword-location-badge.asr-badge {
+    background: rgba(14, 165, 233, 0.95);
+    border: 1px solid rgba(56, 189, 248, 0.8);
+    color: #ffffff;
+}
+
+.keyword-location-badge.ocr-badge {
+    background: rgba(245, 158, 11, 0.95);
+    border: 1px solid rgba(251, 191, 36, 0.8);
+    color: #0F172A;
+}
+
+.keyword-location-badge.both-badge {
+    background: rgba(139, 92, 246, 0.95);
+    border: 1px solid rgba(167, 139, 250, 0.8);
+    color: #ffffff;
+}
+
+/* Card Actions Bar (5 Buttons Column on Right Edge) */
+.card-actions-bar {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    z-index: 12;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(6px);
+    padding: 3px 2px;
+    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    opacity: 0.85;
     transition: all 0.2s ease;
-    box-shadow: 0 0 8px var(--secondary-glow);
-    z-index: 8;
 }
 
-.list .img-dis .export_icon:hover {
-    background-color: var(--secondary-hover);
-    transform: scale(1.08);
-    box-shadow: 0 0 14px var(--secondary-glow);
+.img-dis:hover .card-actions-bar {
+    opacity: 1;
+    background: rgba(15, 23, 42, 0.96);
+    border-color: rgba(0, 242, 254, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
 }
 
-.list .img-dis:hover .export_icon,
-.list .img-dis:hover .timeline_explorer,
-.list .img-dis:hover .fullscreen_zoom,
-.list .img-dis:hover .similarity_search {
-    display: flex !important;
+.card-actions-bar .action-btn {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 3.5px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    border: 1px solid transparent;
+    font-size: 10px;
 }
 
-.timeline_explorer:hover {
+.card-actions-bar .timeline_explorer {
+    background: rgba(30, 41, 59, 0.9);
+    color: #00F2FE;
+    border-color: rgba(0, 242, 254, 0.4);
+}
+.card-actions-bar .timeline_explorer:hover {
     background: #00F2FE !important;
     color: #0F172A !important;
     border-color: #00F2FE !important;
-    box-shadow: 0 0 10px rgba(0, 242, 254, 0.6) !important;
-    transform: scale(1.1);
+    transform: scale(1.12);
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.7);
 }
 
-.card-step-btn:hover {
-    background: #00F2FE !important;
-    color: #0F172A !important;
-    border-color: #00F2FE !important;
-    box-shadow: 0 0 12px rgba(0, 242, 254, 0.8) !important;
+.card-actions-bar .similarity_search {
+    background: rgba(30, 41, 59, 0.9);
+    color: #F8FAFC;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+.card-actions-bar .similarity_search:hover {
+    background: #3B82F6 !important;
+    color: #FFFFFF !important;
+    border-color: #3B82F6 !important;
+    transform: scale(1.12);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.7);
+}
+
+.card-actions-bar .fullscreen_zoom {
+    background: rgba(30, 41, 59, 0.9);
+    color: #F8FAFC;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+.card-actions-bar .fullscreen_zoom:hover {
+    background: #8B5CF6 !important;
+    color: #FFFFFF !important;
+    border-color: #8B5CF6 !important;
+    transform: scale(1.12);
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.7);
+}
+
+.card-actions-bar .export_icon {
+    background: rgba(16, 185, 129, 0.9);
+    color: #FFFFFF;
+    border-color: rgba(16, 185, 129, 0.5);
+}
+.card-actions-bar .export_icon:hover {
+    background: #10B981 !important;
+    color: #FFFFFF !important;
+    border-color: #10B981 !important;
+    transform: scale(1.12);
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
+}
+
+/* Nút > (Next-step) nằm ở vị trí số 5 trên thanh công cụ bên phải */
+.card-actions-bar .card-step-btn.next-step {
+    background: rgba(30, 41, 59, 0.9);
+    color: #38BDF8;
+    border-color: rgba(56, 189, 248, 0.4);
+    font-size: 9.5px;
+}
+.card-actions-bar .card-step-btn.next-step:hover {
+    background: #0284C7 !important;
+    color: #FFFFFF !important;
+    border-color: #38BDF8 !important;
+    transform: scale(1.15);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+}
+
+/* Nút < (Prev-step) nằm ở bên trái mép card như cũ, cùng kích cỡ đồng bộ */
+.card-step-btn.prev-step {
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    border-radius: 3.5px;
+    color: #38BDF8;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 10;
+    font-size: 9.5px;
+    opacity: 0.85;
+    transition: all 0.18s ease;
+}
+
+.card-step-btn.prev-step:hover {
+    background: #0284C7 !important;
+    color: #FFFFFF !important;
+    border-color: #38BDF8 !important;
     transform: translateY(-50%) scale(1.15) !important;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.8) !important;
+    opacity: 1 !important;
 }
 
 
@@ -434,77 +539,7 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.rows .img-dis .similarity_search {
-  display: none;
-  position: absolute;
-  bottom: 6px;
-  right: 6px;
-  width: 24px;
-  height: 24px;
-  background: rgba(18, 19, 28, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 50%;
-  cursor: pointer;
-  justify-content: center;
-  align-items: center;
-  color: var(--text-color);
-  transition: all 0.2s ease;
-}
-
-.rows .img-dis .similarity_search::before {
-  content: "\f00e";
-  font-family: "Font Awesome 6 Free";
-  font-weight: 900;
-  font-size: 9px;
-}
-
-.rows .img-dis .similarity_search:hover {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-  transform: scale(1.1);
-}
-
-.rows .img-dis:hover .infor,
-.rows .img-dis:hover .similarity_search {
-  display: flex;
-}
-
-.rows .img-dis .export_icon {
-  display: none;
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 24px;
-  height: 24px;
-  background: rgba(18, 19, 28, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 50%;
-  cursor: pointer;
-  justify-content: center;
-  align-items: center;
-  color: var(--text-color);
-  transition: all 0.2s ease;
-}
-
-.rows .img-dis .export_icon:before {
-  content: '+';
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-  font-size: 12px;
-}
-
-.rows .img-dis .export_icon:hover {
-  background: var(--accent-green);
-  color: white;
-  border-color: var(--accent-green);
-  transform: scale(1.1);
-}
-
-.rows .img-dis:hover .export_icon {
+.rows .img-dis:hover .infor {
   display: flex;
 }
 
