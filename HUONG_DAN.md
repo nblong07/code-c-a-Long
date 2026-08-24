@@ -138,6 +138,57 @@ Khi thấy một frame gần đúng trên màn hình:
 
 ---
 
+---
+
+## 🔄 7. QUẢN LÝ PHIÊN BẢN & KHÔI PHỤC CODE (GIT ROLLBACK & RESTORE)
+
+### 📌 Mốc Phiên Bản Ổn Định (Baseline Checkpoint)
+* **Mã Commit Gốc:** `81f6375` *(Full Hash: `81f637595ff1e239366a785ffff1b501cf8aff71`)*
+* **Nhánh:** `main` (Remote: `https://github.com/nblong07/code-c-a-Long.git`)
+* **Nội dung commit:** `tôi là AI` *(Thời gian: 24/08/2026)*
+
+---
+
+### 🛠️ Các Lệnh Khôi Phục Code Về Bản Hiện Tại
+
+#### 1. Hủy bỏ thay đổi đang thử nghiệm dở dang (chưa commit):
+Nếu bạn hoặc AI vừa sửa code nhưng xảy ra lỗi và muốn hoàn tác ngay lập tức về bản sạch sẽ:
+```powershell
+# Hoàn tác toàn bộ file đã chỉnh sửa
+git restore .
+
+# Xóa các file rác / file mới tạo chưa được theo dõi (untracked)
+git clean -fd
+```
+
+#### 2. Khôi phục về bản commit `81f6375` sau khi đã commit nhiều lần:
+Nếu sau này bạn đã commit thêm nhiều tính năng mới nhưng muốn quay lại đúng bản mốc này:
+```powershell
+# Cách A: Reset toàn bộ mã nguồn về đúng bản 81f6375 (hủy bỏ mọi thay đổi sau đó)
+git reset --hard 81f6375
+
+# Cách B: Tạo một nhánh mới từ bản này để phát triển hướng khác mà không mất nhánh main
+git checkout -b ban-phuc-hoi 81f6375
+
+# Cách C: Chuyển sang xem lại code ở bản 81f6375 (chế độ detached HEAD)
+git checkout 81f6375
+```
+
+#### 3. Tạo Thẻ Đánh Dấu (Git Tag) để dễ nhớ:
+Bạn có thể đặt tên mốc cho phiên bản này để sau này chỉ cần dùng tên thay vì nhớ mã `81f6375`:
+```powershell
+# Đặt thẻ đánh dấu
+git tag v1.0-checkpoint 81f6375
+
+# Đẩy tag lên GitHub
+git push origin v1.0-checkpoint
+
+# Khi muốn quay lại mốc này, chỉ cần chạy:
+git checkout v1.0-checkpoint
+```
+
+---
+
 ## 💡 BÍ QUYẾT ĐẠT TOP 1 ĐIỂM SỐ (MRR & TOP RANK)
 
 1. **Tuyệt đối KHÔNG chọn tràn lan hàng chục frame không chắc chắn:**
@@ -149,3 +200,4 @@ Khi thấy một frame gần đúng trên màn hình:
    * 🔴 `4-5 frame — Nhiều` (Nên loại bớt các frame phụ).
 3. **Nén ZIP chuẩn 100% BTC:**
    * File `submission.zip` tự động được đóng gói chuẩn cấu trúc không có header, không chứa đuôi `.mp4`, đã được lọc trùng lặp và tương thích hoàn toàn với hệ thống chấm thi của Ban tổ chức!
+
