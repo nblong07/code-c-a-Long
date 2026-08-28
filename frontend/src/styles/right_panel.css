@@ -218,15 +218,36 @@
 }
 
 /* Dialogue and OCR Text Badge on Result Card Thumbnail */
-.img-dis .ocr-text-tag,
+.img-dis .ocr-text-tag {
+    position: absolute;
+    bottom: 6px;
+    left: 4px;
+    right: 28px;
+    background: rgba(245, 158, 11, 0.95);
+    color: #fef08a;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 3px 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    border-radius: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    z-index: 12;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    pointer-events: none;
+    line-height: 1.2;
+}
+
 .img-dis .asr-text-tag {
     position: absolute;
     bottom: 6px;
     left: 4px;
     right: 28px;
-    background: rgba(14, 165, 233, 0.95);
-    color: #bae6fd;
-    border: 1px solid rgba(56, 189, 248, 0.8);
+    background: linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(126, 34, 206, 0.95));
+    color: #f3e8ff;
+    border: 1px solid rgba(192, 132, 252, 0.7);
     padding: 3px 6px;
     font-size: 10.5px;
     font-weight: 700;
@@ -243,11 +264,12 @@
 
 .img-dis .ocr-text-tag mark,
 .img-dis .asr-text-tag mark {
-    background: #FDE047;
-    color: #0F172A;
-    font-weight: 900;
-    padding: 0 3px;
-    border-radius: 2px;
+    background: #FDE047 !important;
+    color: #000000 !important;
+    font-weight: 900 !important;
+    padding: 1px 4px !important;
+    border-radius: 3px !important;
+    box-shadow: 0 0 6px rgba(253, 224, 71, 0.8) !important;
 }
 
 /* Keyword Location Badge on small result cards (Nơi có từ khóa) */

@@ -96,7 +96,7 @@ function updateHeaderInfo(frameNumber) {
     const sec = globalSecondList[frameNumber] !== undefined ? globalSecondList[frameNumber] : (frameNumber / 25.0);
     const curIdx = globalFrameList.indexOf(parseInt(frameNumber, 10));
     const totalCount = globalFrameList.length;
-    const posStr = curIdx !== -1 ? `[${curIdx + 1}/${totalCount}]` : '';
+    const posStr = curIdx !== -1 ? `[Vị trí: ${curIdx + 1} / ${totalCount}]` : `[Tổng: ${totalCount} frames]`;
     badgeEl.textContent = `Frame: ${frameNumber} (${sec.toFixed(2)}s) ${posStr}`;
   }
 }
@@ -120,7 +120,11 @@ function setupNavigationButtons() {
 async function loadFrameListFromCSV(directory, imageInfo) {
   let videoName = currentVideoName || parseVideoNameFromDirOrInfo(directory, imageInfo);
   const csvBase = window.CSV_BASE || 'http://localhost:8000/keyframes/maps';
+  const apiBase = window.API_BASE || 'http://localhost:8000';
   let csvFilePath = `${csvBase}/${videoName}_map.csv`;
+
+  globalSecondList = {};
+  globalFrameList = [];
 
   try {
     let response = await fetch(csvFilePath);
@@ -131,8 +135,6 @@ async function loadFrameListFromCSV(directory, imageInfo) {
     if (response.ok) {
       const csvData = await response.text();
       const lines = csvData.trim().split('\n');
-      globalSecondList = {};
-      globalFrameList = [];
       lines.forEach((line, idx) => {
         if (idx === 0 && line.toLowerCase().includes('frameid')) return;
         const parts = line.split(',');
@@ -145,10 +147,25 @@ async function loadFrameListFromCSV(directory, imageInfo) {
           }
         }
       });
+    } else {
+      // Thử gọi endpoint API lấy toàn bộ keyframe của video từ backend
+      const apiResp = await fetch(`${apiBase}/api/video_keyframes/${videoName}`);
+      if (apiResp.ok) {
+        const data = await apiResp.json();
+        if (data.keyframes && data.keyframes.length > 0) {
+          data.keyframes.forEach(kf => {
+            globalFrameList.push(kf.frame_id);
+            globalSecondList[kf.frame_id] = kf.sec;
+          });
+        }
+      }
     }
   } catch (e) {
-    console.warn("Could not load CSV mapping for", videoName, e);
+    console.warn("Could not load frame list for", videoName, e);
   }
+
+  // Đảm bảo danh sách frame không trùng lặp và được sắp xếp đúng thứ tự thời gian
+  globalFrameList = Array.from(new Set(globalFrameList)).sort((a, b) => a - b);
 }
 
 async function updateMainFrame(newFrameNumber, directory, frameInfo) {
@@ -160,21 +177,34 @@ async function updateMainFrame(newFrameNumber, directory, frameInfo) {
   framesContainer.dataset.directory = directory;
 
   updateHeaderInfo(currentActiveFrame);
+
+  // Nếu toàn bộ danh sách frame của video này đã được dựng trong DOM, chuyển active tức thì không cần render lại
+  const existingActive = framesContainer.querySelector(`.frame-container[data-frame-number="${currentActiveFrame}"]`);
+  if (existingActive) {
+    framesContainer.querySelectorAll('.frame-container.current-frame-container').forEach(el => {
+      el.classList.remove('current-frame-container');
+      el.querySelector('.video-frame')?.classList.remove('current-frame');
+    });
+    existingActive.classList.add('current-frame-container');
+    existingActive.querySelector('.video-frame')?.classList.add('current-frame');
+    existingActive.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    return;
+  }
+
+  // Nếu chưa có, dựng lại toàn bộ danh sách frame
   await updateFrames(framesContainer, directory, currentActiveFrame, frameInfo);
 }
 
 async function updateFrames(container, directory, currentFrame, currentFrameInfo) {
-  if (globalFrameList.length === 0) return;
+  const curFid = parseInt(currentFrame, 10) || 0;
 
-  const curFid = parseInt(currentFrame, 10);
-  const currentIndex = globalFrameList.indexOf(curFid);
-  const nearestIndex = currentIndex !== -1 ? currentIndex : globalFrameList.reduce((prev, curr, idx) => 
-    Math.abs(curr - curFid) < Math.abs(globalFrameList[prev] - curFid) ? idx : prev, 0);
+  if (globalFrameList.length === 0) {
+    globalFrameList = [curFid];
+    globalSecondList[curFid] = curFid / 25.0;
+  }
 
-  // Show a generous sliding window of surrounding frames (±35 frames)
-  const start = Math.max(0, nearestIndex - 35);
-  const end = Math.min(globalFrameList.length, nearestIndex + 36);
-  const framesToShow = globalFrameList.slice(start, end);
+  // Hiển thị TOÀN BỘ TẤT CẢ các frame của video đó
+  const framesToShow = globalFrameList;
 
   await updateFramesSmooth(container, directory, curFid, framesToShow);
 }
@@ -198,7 +228,7 @@ async function updateFramesSmooth(container, directory, currentFrame, framesToSh
         <button class="vf-action-btn add" title="Thêm frame này vào bài thi (+)"><i class="fa-solid fa-plus"></i></button>
         <button class="vf-action-btn refine" title="Đưa frame này lên TOP 1 & Tìm tương tự"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
       </div>
-      <img class="video-frame ${isCurrent ? 'current-frame' : ''}" src="${framePath}" data-frame-number="${frameNumber}" alt="Video Frame">
+      <img class="video-frame ${isCurrent ? 'current-frame' : ''}" src="${framePath}" loading="lazy" decoding="async" data-frame-number="${frameNumber}" alt="Video Frame">
       <div class="infor">${frameInfo}</div>
     `;
 

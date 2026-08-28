@@ -148,64 +148,106 @@ async function stepCardFrame(imgDis, direction, event) {
     timeBadge.innerHTML = `<i class="fa-regular fa-clock"></i> ${formatTimeHMS(newSec)}`;
   }
 
-  // 2. Đồng bộ hóa nội dung Lời thoại / Chữ viết (ASR & OCR) tương ứng với frame mới
-  if (typeof fetchFullscreenMetaCached === 'function') {
+  // 2. Đồng bộ hóa nội dung Lời thoại / Chữ viết (ASR & OCR) tương ứng với frame mới (Bỏ qua ở chế độ TRAKE)
+  if ((typeof activeTask === 'undefined' || activeTask !== 'trake') && typeof fetchFullscreenMetaCached === 'function') {
     fetchFullscreenMetaCached(videoName, newFid).then(meta => {
       if (!meta) return;
       imgDis.dataset.asr = meta.asr_text || '';
       imgDis.dataset.ocr = meta.ocr_text || '';
 
-      const rawSearchVal = document.querySelector('textarea[name="Text_Query"]')?.value || '';
-      const quoteMatch = rawSearchVal.match(/["'“”«»](.*?)["'”»]/);
-      const hasQuotes = Boolean(quoteMatch && quoteMatch[1].trim().length >= 2);
-      const quotedKeyword = hasQuotes ? quoteMatch[1].trim() : '';
+      const rawTextVal = document.querySelector('textarea[name="Text_Query"]')?.value || '';
+      const rawAsrVal = document.querySelector('textarea[name="Asm_Query"], textarea[name="Asr_Query"]')?.value || '';
+      const rawOcrVal = document.querySelector('textarea[name="Ocr_Query"]')?.value || '';
+
+      const quoteMatch = rawTextVal.match(/["'“”«»](.*?)["'”»]/);
+      const quotedKeyword = (quoteMatch && quoteMatch[1].trim().length >= 2) ? quoteMatch[1].trim() : '';
+
+      const asrSearchKeyword = rawAsrVal.trim();
+      const ocrSearchKeyword = rawOcrVal.trim();
 
       let badgeEl = imgDis.querySelector('.asr-text-tag, .ocr-text-tag');
-      if (hasQuotes) {
+      let matchedText = '';
+      let activeKeyword = '';
+      let iconClass = 'fa-microphone';
+      let badgeBg = 'linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(126, 34, 206, 0.95))';
+      let badgeBorder = 'rgba(192, 132, 252, 0.7)';
+      let textColor = '#f3e8ff';
+
+      // 1. Tìm kiếm ô ASR
+      if (asrSearchKeyword && meta.asr_text) {
+        matchedText = meta.asr_text;
+        activeKeyword = asrSearchKeyword;
+        iconClass = 'fa-microphone';
+        badgeBg = 'linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(126, 34, 206, 0.95))';
+        badgeBorder = 'rgba(192, 132, 252, 0.7)';
+        textColor = '#f3e8ff';
+      }
+      // 2. Tìm kiếm ô OCR
+      else if (ocrSearchKeyword && meta.ocr_text) {
+        matchedText = meta.ocr_text;
+        activeKeyword = ocrSearchKeyword;
+        iconClass = 'fa-quote-left';
+        badgeBg = 'rgba(245, 158, 11, 0.95)';
+        badgeBorder = 'rgba(255,255,255,0.3)';
+        textColor = '#fef08a';
+      }
+      // 3. Tìm kiếm Text có ngoặc kép ""
+      else if (quotedKeyword) {
+        activeKeyword = quotedKeyword;
         const cleanKw = stripAccents(quotedKeyword);
         const kwWords = cleanKw.split(/\s+/).filter(w => w.length >= 2);
-        let matchedText = '';
-        let iconClass = 'fa-microphone';
-        let badgeColor = 'rgba(14, 165, 233, 0.95)';
-        let textColor = '#bae6fd';
 
         if (meta.asr_text && stripAccents(meta.asr_text).includes(cleanKw)) {
           matchedText = meta.asr_text;
           iconClass = 'fa-microphone';
-          badgeColor = 'rgba(14, 165, 233, 0.95)';
-          textColor = '#bae6fd';
+          badgeBg = 'linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(126, 34, 206, 0.95))';
+          badgeBorder = 'rgba(192, 132, 252, 0.7)';
+          textColor = '#f3e8ff';
         } else if (meta.ocr_text && stripAccents(meta.ocr_text).includes(cleanKw)) {
           matchedText = meta.ocr_text;
           iconClass = 'fa-quote-left';
-          badgeColor = 'rgba(245, 158, 11, 0.95)';
+          badgeBg = 'rgba(245, 158, 11, 0.95)';
+          badgeBorder = 'rgba(255,255,255,0.3)';
           textColor = '#fef08a';
         } else if (meta.asr_text && kwWords.some(w => stripAccents(meta.asr_text).includes(w))) {
           matchedText = meta.asr_text;
           iconClass = 'fa-microphone';
-          badgeColor = 'rgba(14, 165, 233, 0.85)';
-          textColor = '#bae6fd';
+          badgeBg = 'linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(126, 34, 206, 0.95))';
+          badgeBorder = 'rgba(192, 132, 252, 0.7)';
+          textColor = '#f3e8ff';
         } else if (meta.ocr_text && kwWords.some(w => stripAccents(meta.ocr_text).includes(w))) {
           matchedText = meta.ocr_text;
           iconClass = 'fa-quote-left';
-          badgeColor = 'rgba(245, 158, 11, 0.85)';
+          badgeBg = 'rgba(245, 158, 11, 0.95)';
+          badgeBorder = 'rgba(255,255,255,0.3)';
           textColor = '#fef08a';
         }
-
-        if (matchedText) {
-          const cleanSnippet = getHighlightSnippet(matchedText, quotedKeyword);
-          if (!badgeEl) {
-            badgeEl = document.createElement('div');
-            badgeEl.className = 'ocr-text-tag asr-text-tag';
-            imgDis.appendChild(badgeEl);
-          }
-          badgeEl.style.display = 'block';
-          badgeEl.style.background = badgeColor;
-          badgeEl.style.color = textColor;
-          badgeEl.title = matchedText;
-          badgeEl.innerHTML = `<i class="fa-solid ${iconClass}" style="font-size: 10px; margin-right: 4px;"></i> ${cleanSnippet}`;
-        } else if (badgeEl) {
-          badgeEl.style.display = 'none';
+      }
+      else if (rawTextVal.trim() && meta.asr_text) {
+        const rawWords = stripAccents(rawTextVal).split(/\s+/).filter(w => w.length >= 3 && !['nguoi', 'dang', 'tren', 'trong', 'duoi', 'chiec', 'doan', 'video'].includes(w));
+        if (rawWords.some(w => stripAccents(meta.asr_text).includes(w))) {
+          matchedText = meta.asr_text;
+          activeKeyword = rawTextVal;
+          iconClass = 'fa-microphone';
+          badgeBg = 'linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(126, 34, 206, 0.95))';
+          badgeBorder = 'rgba(192, 132, 252, 0.7)';
+          textColor = '#f3e8ff';
         }
+      }
+
+      if (matchedText) {
+        const cleanSnippet = getHighlightSnippet(matchedText, activeKeyword);
+        if (!badgeEl) {
+          badgeEl = document.createElement('div');
+          badgeEl.className = 'ocr-text-tag asr-text-tag';
+          imgDis.appendChild(badgeEl);
+        }
+        badgeEl.style.display = 'block';
+        badgeEl.style.background = badgeBg;
+        badgeEl.style.border = `1px solid ${badgeBorder}`;
+        badgeEl.style.color = textColor;
+        badgeEl.title = matchedText;
+        badgeEl.innerHTML = `<i class="fa-solid ${iconClass}" style="font-size: 10px; margin-right: 4px;"></i> ${cleanSnippet}`;
       } else if (badgeEl) {
         badgeEl.style.display = 'none';
       }
@@ -252,10 +294,34 @@ function stripAccents(str) {
     .toLowerCase();
 }
 
+function makeAccentInsensitivePattern(word) {
+  if (!word) return '';
+  const charMap = {
+    'a': '[aàáảãạăằắẳẵặâầấẩẫậAÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬ]',
+    'e': '[eèéẻẽẹêềếểễệEÈÉẺẼẸÊỀẾỂỄỆ]',
+    'i': '[iìíỉĩịIÌÍỈĨỊ]',
+    'o': '[oòóỏõọôồốổỗộơờớởỡợOÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢ]',
+    'u': '[uùúủũụưừứửữựUÙÚỦŨỤƯỪỨỬỮỰ]',
+    'y': '[yỳýỷỹỵYỲÝỶỸỴ]',
+    'd': '[dđDĐ]'
+  };
+  let pattern = '';
+  const lowerWord = stripAccents(word);
+  for (let i = 0; i < lowerWord.length; i++) {
+    const ch = lowerWord[i];
+    if (charMap[ch]) {
+      pattern += charMap[ch];
+    } else {
+      pattern += ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+  }
+  return pattern;
+}
+
   // Hàm trích xuất đoạn văn bản ngắn chứa từ khóa tìm kiếm và tô sáng
-  const getHighlightSnippet = (fullText, keyword, maxLen = 42) => {
+  const getHighlightSnippet = (fullText, keyword, maxLen = 48) => {
     if (!fullText) return '';
-    const cleanKw = (keyword || '').trim();
+    const cleanKw = (keyword || '').trim().replace(/^["'“”«»]+|["'”»]+$/g, '');
     if (!cleanKw) {
       return fullText.length > maxLen ? fullText.substring(0, maxLen - 3) + '...' : fullText;
     }
@@ -278,8 +344,8 @@ function stripAccents(str) {
 
     let snippet = fullText;
     if (matchIdx !== -1) {
-      const start = Math.max(0, matchIdx - 12);
-      const end = Math.min(fullText.length, matchIdx + matchLen + 24);
+      const start = Math.max(0, matchIdx - 14);
+      const end = Math.min(fullText.length, matchIdx + matchLen + 26);
       snippet = fullText.substring(start, end).trim();
       if (start > 0) snippet = '...' + snippet;
       if (end < fullText.length) snippet = snippet + '...';
@@ -288,62 +354,90 @@ function stripAccents(str) {
     }
 
     const words = cleanKw.split(/\s+/).filter(w => w.length >= 2);
+    if (words.length === 0) return snippet;
+
     try {
-      const regexPattern = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-      const regex = new RegExp(`(${regexPattern})`, 'gi');
-      return snippet.replace(regex, '<mark>$&</mark>');
+      const regexPatterns = words.map(makeAccentInsensitivePattern).filter(Boolean);
+      if (regexPatterns.length > 0) {
+        const regex = new RegExp(`(${regexPatterns.join('|')})`, 'gi');
+        return snippet.replace(regex, '<mark>$1</mark>');
+      }
+      return snippet;
     } catch (e) {
       return snippet;
     }
   };
 
-  // Hiển thị đoạn trích lời thoại / chữ viết chứa từ khóa trên 80 khung frame KHI VÀ CHỈ KHI trong câu mô tả có dấu ngoặc kép ""
-  const rawSearchVal = document.querySelector('textarea[name="Text_Query"]')?.value || '';
-  const quoteMatch = rawSearchVal.match(/["'“”«»](.*?)["'”»]/);
-  const hasQuotes = Boolean(quoteMatch && quoteMatch[1].trim().length >= 2);
-  const quotedKeyword = hasQuotes ? quoteMatch[1].trim() : '';
+  // Hiển thị đoạn trích lời thoại / chữ viết chứa từ khóa trên các khung frame
+  const rawTextVal = document.querySelector('textarea[name="Text_Query"]')?.value || '';
+  const rawAsrVal = document.querySelector('textarea[name="Asm_Query"], textarea[name="Asr_Query"]')?.value || '';
+  const rawOcrVal = document.querySelector('textarea[name="Ocr_Query"]')?.value || '';
+
+  const quoteMatch = rawTextVal.match(/["'“”«»](.*?)["'”»]/);
+  const quotedKeyword = (quoteMatch && quoteMatch[1].trim().length >= 2) ? quoteMatch[1].trim() : '';
+
+  const asrSearchKeyword = rawAsrVal.trim();
+  const ocrSearchKeyword = rawOcrVal.trim();
 
   let quotedTextBadgeHtml = '';
-  if (hasQuotes) {
-    const cleanKw = stripAccents(quotedKeyword);
-    const kwWords = cleanKw.split(/\s+/).filter(w => w.length >= 2);
-    let matchedText = '';
-    let iconClass = 'fa-microphone';
-    let badgeColor = 'rgba(14, 165, 233, 0.95)';
-    let textColor = '#bae6fd';
 
-    // 1. Ưu tiên Lời nói (ASR) khớp trọn vẹn cụm từ (Tier 1)
-    if (info.asrText && stripAccents(info.asrText).includes(cleanKw)) {
-      matchedText = info.asrText;
-      iconClass = 'fa-microphone';
-      badgeColor = 'rgba(14, 165, 233, 0.95)';
-      textColor = '#bae6fd';
-    } 
-    // 2. Chữ viết (OCR) khớp trọn vẹn cụm từ (Tier 1)
-    else if (info.ocrText && stripAccents(info.ocrText).includes(cleanKw)) {
-      matchedText = info.ocrText;
-      iconClass = 'fa-quote-left';
-      badgeColor = 'rgba(245, 158, 11, 0.95)';
-      textColor = '#fef08a';
+  // Ở chế độ TRAKE, không hiển thị thẻ OCR và ASR
+  if (typeof activeTask === 'undefined' || activeTask !== 'trake') {
+    // 1. Nếu tìm kiếm ô ASR: Luôn hiển thị phụ đề ASR nếu frame có dữ liệu lời thoại
+    if (asrSearchKeyword && info.asrText) {
+      const cleanSnippet = getHighlightSnippet(info.asrText, asrSearchKeyword);
+      quotedTextBadgeHtml = `<div class="ocr-text-tag asr-text-tag" style="bottom: 6px; left: 4px; right: 28px; z-index: 10; background: linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(126, 34, 206, 0.95)); border: 1px solid rgba(192, 132, 252, 0.7); color: #f3e8ff;" title="🎙️ Lời thoại: ${info.asrText}"><i class="fa-solid fa-microphone" style="font-size: 10px; margin-right: 4px; color: #e9d5ff;"></i> ${cleanSnippet}</div>`;
     }
-    // 3. Khớp một phần từ khóa trong Lời nói (Tier 2)
-    else if (info.asrText && kwWords.some(w => stripAccents(info.asrText).includes(w))) {
-      matchedText = info.asrText;
-      iconClass = 'fa-microphone';
-      badgeColor = 'rgba(14, 165, 233, 0.85)';
-      textColor = '#bae6fd';
+    // 2. Nếu tìm kiếm ô OCR: Luôn hiển thị nhãn OCR nếu frame có dữ liệu chữ viết
+    else if (ocrSearchKeyword && info.ocrText) {
+      const cleanSnippet = getHighlightSnippet(info.ocrText, ocrSearchKeyword);
+      quotedTextBadgeHtml = `<div class="ocr-text-tag asr-text-tag" style="bottom: 6px; left: 4px; right: 28px; z-index: 10; background: rgba(245, 158, 11, 0.95); border: 1px solid rgba(255,255,255,0.3); color: #fef08a;" title="🔤 Chữ viết: ${info.ocrText}"><i class="fa-solid fa-quote-left" style="font-size: 10px; margin-right: 4px;"></i> ${cleanSnippet}</div>`;
     }
-    // 4. Khớp một phần từ khóa trong Chữ viết (Tier 2)
-    else if (info.ocrText && kwWords.some(w => stripAccents(info.ocrText).includes(w))) {
-      matchedText = info.ocrText;
-      iconClass = 'fa-quote-left';
-      badgeColor = 'rgba(245, 158, 11, 0.85)';
-      textColor = '#fef08a';
-    }
+    // 3. Nếu tìm kiếm Text có dấu ngoặc kép ""
+    else if (quotedKeyword) {
+      const cleanKw = stripAccents(quotedKeyword);
+      const kwWords = cleanKw.split(/\s+/).filter(w => w.length >= 2);
+      let matchedText = '';
+      let iconClass = 'fa-microphone';
+      let badgeBg = 'linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(126, 34, 206, 0.95))';
+      let badgeBorder = 'rgba(192, 132, 252, 0.7)';
+      let textColor = '#f3e8ff';
 
-    if (matchedText) {
-      const cleanSnippet = getHighlightSnippet(matchedText, quotedKeyword);
-      quotedTextBadgeHtml = `<div class="ocr-text-tag asr-text-tag" style="bottom: 6px; left: 4px; right: 28px; z-index: 10; background: ${badgeColor}; border: 1px solid rgba(255,255,255,0.3); color: ${textColor};" title="${matchedText}"><i class="fa-solid ${iconClass}" style="font-size: 10px; margin-right: 4px;"></i> ${cleanSnippet}</div>`;
+      if (info.asrText && stripAccents(info.asrText).includes(cleanKw)) {
+        matchedText = info.asrText;
+        iconClass = 'fa-microphone';
+      } else if (info.ocrText && stripAccents(info.ocrText).includes(cleanKw)) {
+        matchedText = info.ocrText;
+        iconClass = 'fa-quote-left';
+        badgeBg = 'rgba(245, 158, 11, 0.95)';
+        badgeBorder = 'rgba(255,255,255,0.3)';
+        textColor = '#fef08a';
+      } else if (info.asrText && kwWords.some(w => stripAccents(info.asrText).includes(w))) {
+        matchedText = info.asrText;
+        iconClass = 'fa-microphone';
+      } else if (info.ocrText && kwWords.some(w => stripAccents(info.ocrText).includes(w))) {
+        matchedText = info.ocrText;
+        iconClass = 'fa-quote-left';
+        badgeBg = 'rgba(245, 158, 11, 0.95)';
+        badgeBorder = 'rgba(255,255,255,0.3)';
+        textColor = '#fef08a';
+      }
+
+      if (matchedText) {
+        const cleanSnippet = getHighlightSnippet(matchedText, quotedKeyword);
+        quotedTextBadgeHtml = `<div class="ocr-text-tag asr-text-tag" style="bottom: 6px; left: 4px; right: 28px; z-index: 10; background: ${badgeBg}; border: 1px solid ${badgeBorder}; color: ${textColor};" title="${matchedText}"><i class="fa-solid ${iconClass}" style="font-size: 10px; margin-right: 4px;"></i> ${cleanSnippet}</div>`;
+      }
+    }
+    // 4. Nếu frame có dữ liệu lời thoại ASR (luôn hiển thị để hỗ trợ quan sát)
+    else if (info.asrText) {
+      const activeKw = asrSearchKeyword || rawTextVal;
+      const cleanSnippet = getHighlightSnippet(info.asrText, activeKw);
+      quotedTextBadgeHtml = `<div class="ocr-text-tag asr-text-tag" style="bottom: 6px; left: 4px; right: 28px; z-index: 10; background: linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(126, 34, 206, 0.95)); border: 1px solid rgba(192, 132, 252, 0.7); color: #f3e8ff;" title="🎙️ Lời thoại: ${info.asrText}"><i class="fa-solid fa-microphone" style="font-size: 10px; margin-right: 4px; color: #e9d5ff;"></i> ${cleanSnippet}</div>`;
+    }
+    // 5. Nếu frame có dữ liệu chữ viết OCR
+    else if (info.ocrText) {
+      const cleanSnippet = getHighlightSnippet(info.ocrText, ocrSearchKeyword || rawTextVal);
+      quotedTextBadgeHtml = `<div class="ocr-text-tag asr-text-tag" style="bottom: 6px; left: 4px; right: 28px; z-index: 10; background: rgba(245, 158, 11, 0.95); border: 1px solid rgba(255,255,255,0.3); color: #fef08a;" title="🔤 Chữ viết: ${info.ocrText}"><i class="fa-solid fa-quote-left" style="font-size: 10px; margin-right: 4px;"></i> ${cleanSnippet}</div>`;
     }
   }
 
@@ -411,6 +505,33 @@ function stripAccents(str) {
       const currentFid = div.dataset.frameId || info.frameId;
       const currentMs = div.dataset.timestampMs || info.timestampMs;
       addImageToExportArea(currentFid, imagePath, inforText, true, currentMs);
+    });
+  }
+
+  // Tự động kiểm tra và gắn phụ đề ASR nếu thẻ chưa có sẵn dữ liệu ASR ban đầu (Bỏ qua ở chế độ TRAKE)
+  if ((typeof activeTask === 'undefined' || activeTask !== 'trake') && !info.asrText && typeof fetchFullscreenMetaCached === 'function') {
+    fetchFullscreenMetaCached(info.video, info.frameId).then(meta => {
+      if (meta && meta.asr_text) {
+        div.dataset.asr = meta.asr_text;
+        let badge = div.querySelector('.asr-text-tag, .ocr-text-tag');
+        if (!badge) {
+          const rawAsr = document.querySelector('textarea[name="Asm_Query"], textarea[name="Asr_Query"]')?.value || '';
+          const rawText = document.querySelector('textarea[name="Text_Query"]')?.value || '';
+          const cleanSnippet = getHighlightSnippet(meta.asr_text, rawAsr.trim() || rawText.trim());
+          badge = document.createElement('div');
+          badge.className = 'ocr-text-tag asr-text-tag';
+          badge.style.bottom = '6px';
+          badge.style.left = '4px';
+          badge.style.right = '28px';
+          badge.style.zIndex = '10';
+          badge.style.background = 'linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(126, 34, 206, 0.95))';
+          badge.style.border = '1px solid rgba(192, 132, 252, 0.7)';
+          badge.style.color = '#f3e8ff';
+          badge.title = `🎙️ Lời thoại: ${meta.asr_text}`;
+          badge.innerHTML = `<i class="fa-solid fa-microphone" style="font-size: 10px; margin-right: 4px; color: #e9d5ff;"></i> ${cleanSnippet}`;
+          div.appendChild(badge);
+        }
+      }
     });
   }
 

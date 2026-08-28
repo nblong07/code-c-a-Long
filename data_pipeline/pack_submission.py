@@ -5,10 +5,18 @@ Tự động quét, kiểm tra định dạng và đóng gói thư mục submiss
 """
 
 import os
+import sys
 import re
 import csv
 import zipfile
 from pathlib import Path
+
+# Đảm bảo stdout hỗ trợ UTF-8 trên Windows console
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 def validate_and_pack_submission(project_root: str = "D:\\code-c-a-Long", zip_name: str = "submission.zip"):
     root = Path(project_root)

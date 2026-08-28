@@ -4,10 +4,9 @@
     z-index: 10000;
     right: 24px;
     top: 72px;
-    height: 520px;
+    height: auto;
     width: 660px;
     min-width: 380px;
-    min-height: 300px;
     max-width: 90vw;
     max-height: 90vh;
     border-radius: 12px;
@@ -28,8 +27,8 @@
     width: 100%;
     box-sizing: border-box;
     padding-top: 36px;
-    overflow-y: auto;
-    overflow-x: hidden;
+    padding-bottom: 12px;
+    overflow: hidden;
 }
 
 .Details .details_bg .vid_details {
@@ -120,4 +119,209 @@
     color: #0F172A;
     transform: scale(1.06);
     box-shadow: 0 0 12px var(--secondary-glow);
+}
+
+/* ==============================================================================
+   LIVE SUBTITLE BAR (HIỂN THỊ PHỤ ĐỀ CHẠY DƯỚI VIDEO - PHONG CÁCH YOUTUBE CC)
+   ============================================================================== */
+.vid-subtitle-bar {
+    width: 96%;
+    margin: 8px auto 4px auto;
+    min-height: 42px;
+    background: linear-gradient(135deg, rgba(11, 17, 32, 0.95), rgba(15, 23, 42, 0.98));
+    border: 1px solid rgba(0, 242, 254, 0.35);
+    border-radius: 8px;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    box-sizing: border-box;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.vid-subtitle-bar:hover {
+    border-color: rgba(0, 242, 254, 0.6);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.7), 0 0 12px rgba(0, 242, 254, 0.2);
+}
+
+.vid-subtitle-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(135deg, #0284C7, #0369A1);
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    letter-spacing: 0.5px;
+    box-shadow: 0 0 8px rgba(2, 132, 199, 0.4);
+    user-select: none;
+}
+
+.vid-subtitle-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.vid-subtitle-text {
+    display: inline-block;
+    color: #F8FAFC;
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.45;
+    word-break: break-word;
+    text-align: center;
+    letter-spacing: 0.2px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    transition: opacity 0.15s ease;
+}
+
+.vid-subtitle-text .sub-active-text {
+    color: #FFFFFF;
+    background: rgba(0, 242, 254, 0.15);
+    padding: 2px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 242, 254, 0.4);
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.15);
+    animation: subPulse 0.25s ease-out;
+}
+
+.vid-subtitle-text .sub-muted {
+    color: #64748B;
+    font-size: 12px;
+    font-style: italic;
+    font-weight: 400;
+}
+
+.vid-subtitle-time {
+    font-family: monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: #00F2FE;
+    background: rgba(0, 242, 254, 0.12);
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    border: 1px solid rgba(0, 242, 254, 0.25);
+    user-select: none;
+}
+
+@keyframes subPulse {
+    0% {
+        opacity: 0.6;
+        transform: translateY(2px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==============================================================================
+   INTERACTIVE SUBTITLE TRANSCRIPT PANEL (BẢNG LỜI THOẠI CLICK-TO-SEEK)
+   ============================================================================== */
+.vid-transcript-panel {
+    background: #0B1120;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 8px;
+    margin: 8px 12px 12px 12px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.transcript-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.vid-transcript-list {
+    max-height: 140px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-right: 4px;
+}
+
+.vid-transcript-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+.vid-transcript-list::-webkit-scrollbar-thumb {
+    background: #38BDF8;
+    border-radius: 4px;
+}
+
+.vid-transcript-list::-webkit-scrollbar-track {
+    background: #0F172A;
+}
+
+.transcript-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #CBD5E1;
+    background: rgba(30, 41, 59, 0.5);
+    border-left: 2px solid transparent;
+    transition: all 0.15s ease;
+}
+
+.transcript-item:hover {
+    background: rgba(56, 189, 248, 0.15);
+    color: #FFFFFF;
+    border-left-color: #38BDF8;
+}
+
+.transcript-item.active {
+    background: rgba(0, 242, 254, 0.18);
+    border-left: 3px solid #00F2FE;
+    color: #FFFFFF;
+    font-weight: 600;
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.15);
+}
+
+.transcript-time {
+    font-family: monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: #00F2FE;
+    background: rgba(0, 242, 254, 0.12);
+    padding: 1px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.transcript-text {
+    flex: 1;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.transcript-empty {
+    text-align: center;
+    color: #64748B;
+    font-size: 11.5px;
+    padding: 12px 0;
 }

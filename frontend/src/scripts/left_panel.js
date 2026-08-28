@@ -12,9 +12,9 @@ function resetAllQueries() {
     if (typeof resetTrakeScenes === 'function') {
         resetTrakeScenes();
     }
-    // Clear any extra dynamic containers
-    const ocrContainers = document.querySelectorAll('.ocr-container, .asm-container, .asr-container, .object-filter');
-    ocrContainers.forEach(el => el.remove());
+    // Clear any extra dynamic containers (such as object filter tags)
+    const extraContainers = document.querySelectorAll('.object-filter');
+    extraContainers.forEach(el => el.remove());
     // Clear quick answer bar if exists
     const commonInput = document.getElementById('vqa-common-answer');
     if (commonInput) commonInput.value = '';
@@ -458,11 +458,11 @@ function addNewSearchScene() {
     const existingScenes = scenesContainer.querySelectorAll('.Search_Scene');
     const newSceneNumber = existingScenes.length + 1;
 
-    // Create a streamlined new search scene for multi-event TRAKE
+    // Create a streamlined new search scene for multi-event TRAKE (Only Text Query for each event, no OCR/ASR)
     const newSceneElement = document.createElement('div');
     newSceneElement.className = 'Search_Scene';
     newSceneElement.id = `search-scene-${newSceneNumber}`;
-    newSceneElement.style.cssText = 'margin-top: 10px; border: 1px solid #334155; border-radius: 8px; padding: 10px; background: #0F172A; transition: all 0.2s ease;';
+    newSceneElement.style.cssText = 'margin-top: 10px; border: 1px solid #334155; border-radius: 8px; padding: 10px; background: #1E293B; transition: all 0.2s ease;';
 
     newSceneElement.innerHTML = `
         <div class="scene-header-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
@@ -472,8 +472,11 @@ function addNewSearchScene() {
             <button type="button" class="close-scene2-btn" style="background: none; border: none; color: #EF4444; font-size: 16px; font-weight: 700; cursor: pointer; padding: 0 4px; line-height: 1;" title="Xóa Sự kiện ${newSceneNumber}">&times;</button>
         </div>
         <div class="query-group">
-            <div class="query-content-area">
-                <textarea name="Text_Query" id="Omni-Query-${newSceneNumber}" rows="3" placeholder="🔍 Nhập mô tả sự kiện ${newSceneNumber}..." style="width: 100%; box-sizing: border-box;"></textarea>
+            <div class="query-field-block">
+                <div class="query-field-header">
+                    <label class="query-field-label visual-label">Text (Sự kiện ${newSceneNumber})</label>
+                </div>
+                <textarea name="Text_Query" id="Omni-Query-${newSceneNumber}" rows="2" placeholder="Text (Sự kiện ${newSceneNumber})..."></textarea>
             </div>
         </div>
     `;
@@ -490,7 +493,7 @@ function addNewSearchScene() {
     scenesContainer.appendChild(newSceneElement);
 
     // Auto-focus into the newly created event textarea
-    const newTextarea = newSceneElement.querySelector('textarea');
+    const newTextarea = newSceneElement.querySelector('textarea[name="Text_Query"]');
     if (newTextarea) {
         newTextarea.focus();
     }
@@ -510,10 +513,14 @@ function reindexScenes() {
             if (titleSpan) {
                 titleSpan.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> Sự kiện ${num}`;
             }
+            const label = scene.querySelector('.visual-label');
+            if (label) {
+                label.textContent = `Text (Sự kiện ${num})`;
+            }
             const ta = scene.querySelector('textarea[name="Text_Query"]');
             if (ta) {
                 ta.id = `Omni-Query-${num}`;
-                ta.placeholder = `🔍 Nhập mô tả sự kiện ${num}...`;
+                ta.placeholder = `Text (Sự kiện ${num})...`;
             }
         }
     });

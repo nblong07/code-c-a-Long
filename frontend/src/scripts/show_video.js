@@ -134,9 +134,9 @@ window._videoCsvMapCache = window._videoCsvMapCache || {};
 
 // Tìm Frame ID chính xác gần nhất trong tệp CSV Map của video theo số giây hiện tại (chính xác từng mili-giây)
 async function getNearestKeyframeForVideo(videoName, curSec) {
-    let bestFid = Math.round(curSec * 25);
-    let bestSec = curSec;
     const cleanVid = (videoName || '').split('/').pop().replace(/\.mp4$/i, '').trim();
+    let bestFid = Math.max(1, Math.round(curSec * 25));
+    let bestSec = curSec;
 
     try {
         let mapList = window._videoCsvMapCache[cleanVid];
@@ -161,7 +161,20 @@ async function getNearestKeyframeForVideo(videoName, curSec) {
                         }
                     }
                 }
-                window._videoCsvMapCache[cleanVid] = mapList;
+                if (mapList.length > 0) {
+                    window._videoCsvMapCache[cleanVid] = mapList;
+                }
+            } else {
+                // Fallback gọi API backend lấy danh sách keyframe của video
+                const apiBase = window.API_BASE_URL || window.API_BASE || 'http://localhost:8000';
+                const apiResp = await fetch(`${apiBase}/api/video_keyframes/${cleanVid}`);
+                if (apiResp.ok) {
+                    const data = await apiResp.json();
+                    if (data.keyframes && data.keyframes.length > 0) {
+                        mapList = data.keyframes.map(k => ({ fid: k.frame_id, sec: k.sec }));
+                        window._videoCsvMapCache[cleanVid] = mapList;
+                    }
+                }
             }
         }
 
@@ -179,7 +192,125 @@ async function getNearestKeyframeForVideo(videoName, curSec) {
     } catch (e) {
         console.warn("Could not fetch CSV map for nearest keyframe:", e);
     }
+
     return { frameId: bestFid, seconds: bestSec };
+}
+
+// ==============================================================================
+// SUBTITLE & TRANSCRIPT MANAGER FOR VIDEO PLAYER
+// ==============================================================================
+let currentVideoSubtitles = [];
+let isSubtitleVisible = true;
+let activeSubtitleIndex = -1;
+window._videoSubtitlesCache = window._videoSubtitlesCache || {};
+
+function escapeSubtitleHtml(text) {
+    if (!text) return '';
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// Tải toàn bộ phụ đề / lời thoại ASR theo mốc thời gian của video
+async function loadVideoSubtitles(cleanVid) {
+    const subBar = document.getElementById('vid-subtitle-bar') || document.getElementById('vid-subtitle-overlay');
+    const overlayText = document.getElementById('vid-subtitle-text');
+    const timeEl = document.getElementById('vid-subtitle-time');
+
+    if (subBar) subBar.style.display = isSubtitleVisible ? 'flex' : 'none';
+    if (overlayText) overlayText.innerHTML = '<span class="sub-muted"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải phụ đề...</span>';
+    if (timeEl) timeEl.textContent = '--:--';
+    activeSubtitleIndex = -1;
+
+    if (window._videoSubtitlesCache[cleanVid]) {
+        currentVideoSubtitles = window._videoSubtitlesCache[cleanVid];
+        if (overlayText) {
+            overlayText.innerHTML = currentVideoSubtitles.length > 0 
+                ? '<span class="sub-muted"><i class="fa-solid fa-play"></i> Sẵn sàng phát phụ đề...</span>'
+                : '<span class="sub-muted">Video này chưa có phụ đề</span>';
+        }
+        return;
+    }
+
+    try {
+        const apiBase = window.API_BASE || 'http://localhost:8000';
+        const resp = await fetch(`${apiBase}/api/video_subtitles/${cleanVid}`);
+        if (resp.ok) {
+            const data = await resp.json();
+            currentVideoSubtitles = data.subtitles || [];
+            window._videoSubtitlesCache[cleanVid] = currentVideoSubtitles;
+            if (overlayText) {
+                overlayText.innerHTML = currentVideoSubtitles.length > 0 
+                    ? '<span class="sub-muted"><i class="fa-solid fa-play"></i> Sẵn sàng phát phụ đề...</span>'
+                    : '<span class="sub-muted">Không có phụ đề cho video này.</span>';
+            }
+        } else {
+            currentVideoSubtitles = [];
+            if (overlayText) overlayText.innerHTML = '<span class="sub-muted">Không có phụ đề cho video này.</span>';
+        }
+    } catch (e) {
+        console.warn("Could not load subtitles for video:", cleanVid, e);
+        currentVideoSubtitles = [];
+        if (overlayText) overlayText.innerHTML = '<span class="sub-muted">Không có phụ đề cho video này.</span>';
+    }
+}
+
+// Cập nhật phụ đề hiển thị ở thanh bên dưới video (phong cách YouTube CC)
+function updateActiveSubtitle(currentTime) {
+    const subBar = document.getElementById('vid-subtitle-bar') || document.getElementById('vid-subtitle-overlay');
+    const overlayText = document.getElementById('vid-subtitle-text');
+    const timeEl = document.getElementById('vid-subtitle-time');
+
+    if (!isSubtitleVisible) {
+        if (subBar) subBar.style.display = 'none';
+        return;
+    }
+
+    if (subBar && subBar.style.display === 'none') {
+        subBar.style.display = 'flex';
+    }
+
+    if (!currentVideoSubtitles || currentVideoSubtitles.length === 0) {
+        if (overlayText) overlayText.innerHTML = '<span class="sub-muted"><i class="fa-solid fa-microphone-slash"></i> Video chưa có dữ liệu phụ đề</span>';
+        if (timeEl) timeEl.textContent = '--:--';
+        return;
+    }
+
+    const matchIdx = currentVideoSubtitles.findIndex(seg => currentTime >= (seg.start - 0.2) && currentTime <= (seg.end + 0.3));
+
+    if (matchIdx !== -1) {
+        const currentSeg = currentVideoSubtitles[matchIdx];
+        
+        if (matchIdx !== activeSubtitleIndex) {
+            activeSubtitleIndex = matchIdx;
+            
+            const formatShortTime = (sec) => {
+                const m = Math.floor(sec / 60);
+                const s = Math.floor(sec % 60);
+                return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+            };
+            
+            if (overlayText) {
+                overlayText.innerHTML = `<span class="sub-active-text">${escapeSubtitleHtml(currentSeg.text)}</span>`;
+            }
+            if (timeEl) {
+                timeEl.textContent = `${formatShortTime(currentSeg.start)} - ${formatShortTime(currentSeg.end)}`;
+            }
+        }
+    } else {
+        if (activeSubtitleIndex !== -1) {
+            activeSubtitleIndex = -1;
+            if (overlayText) {
+                overlayText.innerHTML = '<span class="sub-muted">... (Không có lời thoại)</span>';
+            }
+            if (timeEl) {
+                timeEl.textContent = '--:--';
+            }
+        }
+    }
 }
 
 // Play video smoothly starting at target keyframe / pre-roll without forced auto-pause
@@ -212,6 +343,9 @@ async function playVideoAtTime(videoName, timeInSeconds) {
 
     console.log("Playing video:", cleanVid, "| Keyframe target:", targetTime.toFixed(3) + "s", "| Pre-roll start at:", startTime.toFixed(3) + "s");
 
+    // Nạp phụ đề / lời thoại cho video này
+    loadVideoSubtitles(cleanVid);
+
     if (!videoElement.playerInstance) {
         videoElement.playerInstance = new VideoPlayer('vid_details', videoSrc);
         player = videoElement.playerInstance;
@@ -238,13 +372,15 @@ async function playVideoAtTime(videoName, timeInSeconds) {
         videoElement.addEventListener('loadedmetadata', setTimeAndPlay, { once: true });
     }
 
-    // Cập nhật chỉ số thời gian chính xác từng mili-giây khi video đang phát
+    // Cập nhật chỉ số thời gian và phụ đề chính xác khi video đang phát
     videoElement.ontimeupdate = () => {
+        const cur = videoElement.currentTime || 0;
         const timeInd = document.getElementById('vid-time-indicator');
         if (timeInd) {
-            const cur = videoElement.currentTime || 0;
             timeInd.textContent = `(${formatTimeDisplay(cur)} / Target: ${formatTimeDisplay(targetTime)})`;
         }
+        // Cập nhật hiển thị phụ đề & dòng lời thoại đang nói
+        updateActiveSubtitle(cur);
     };
 
     // Đảm bảo nhấn vào màn hình video (Overlay) hoặc nút điều khiển để Tạm dừng / Phát tiếp video tức thì không bị double-click
@@ -293,11 +429,13 @@ async function playVideoAtTime(videoName, timeInSeconds) {
     const addBtn = document.getElementById('addCurrentMomentBtn');
     if (addBtn) {
         addBtn.onclick = async () => {
-            const curSec = videoElement.currentTime || targetTime;
-            const { frameId, seconds } = await getNearestKeyframeForVideo(videoName, curSec);
+            const curSec = videoElement.currentTime !== undefined ? videoElement.currentTime : targetTime;
+            const res = await getNearestKeyframeForVideo(cleanVid, curSec);
+            const frameId = res.frameId;
+            const seconds = res.seconds;
             const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
-            const imgSrc = `${keyframeBase}/${videoName}/keyframes/keyframe_${frameId}.webp`;
-            const frameInfo = `${videoName}-${seconds.toFixed(2)}`;
+            const imgSrc = `${keyframeBase}/${cleanVid}/keyframes/keyframe_${frameId}.webp`;
+            const frameInfo = `${cleanVid}-${seconds.toFixed(2)}`;
             const tsMs = Math.round(seconds * 1000);
 
             if (typeof addImageToExportArea === 'function') {
@@ -310,14 +448,16 @@ async function playVideoAtTime(videoName, timeInSeconds) {
     const jumpBtn = document.getElementById('jumpToKeyframeBtn');
     if (jumpBtn) {
         jumpBtn.onclick = async () => {
-            const curSec = videoElement.currentTime || targetTime;
-            const { frameId, seconds } = await getNearestKeyframeForVideo(videoName, curSec);
+            const curSec = videoElement.currentTime !== undefined ? videoElement.currentTime : targetTime;
+            const res = await getNearestKeyframeForVideo(cleanVid, curSec);
+            const frameId = res.frameId;
+            const seconds = res.seconds;
             const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
-            const imgSrc = `${keyframeBase}/${videoName}/keyframes/keyframe_${frameId}.webp`;
-            const frameInfo = `${videoName}-${seconds.toFixed(2)}`;
+            const imgSrc = `${keyframeBase}/${cleanVid}/keyframes/keyframe_${frameId}.webp`;
+            const frameInfo = `${cleanVid}-${seconds.toFixed(2)}`;
 
             if (typeof showVideoFramesByInfo === 'function') {
-                await showVideoFramesByInfo(videoName, frameId, imgSrc, frameInfo);
+                await showVideoFramesByInfo(cleanVid, frameId, imgSrc, frameInfo);
             } else if (typeof showVideoFrames === 'function') {
                 const fakeDiv = document.createElement('div');
                 fakeDiv.innerHTML = `<img src="${imgSrc}"><div class="infor">${frameInfo}</div>`;
@@ -333,16 +473,18 @@ async function playVideoAtTime(videoName, timeInSeconds) {
     const dresSubmitBtn = document.getElementById('submitCurrentMomentDresBtn');
     if (dresSubmitBtn) {
         dresSubmitBtn.onclick = async () => {
-            const curSec = videoElement.currentTime || targetTime;
-            const { frameId, seconds } = await getNearestKeyframeForVideo(videoName, curSec);
+            const curSec = videoElement.currentTime !== undefined ? videoElement.currentTime : targetTime;
+            const res = await getNearestKeyframeForVideo(cleanVid, curSec);
+            const frameId = res.frameId;
+            const seconds = res.seconds;
             const tsMs = Math.round(seconds * 1000);
             if (typeof submitSingleFrameToDres === 'function') {
-                await submitSingleFrameToDres(videoName, frameId, tsMs);
+                await submitSingleFrameToDres(cleanVid, frameId, tsMs);
             } else if (typeof submit_to_dres_v2 === 'function') {
                 // Thêm vào khay rồi gọi submit_to_dres_v2
                 const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
-                const imgSrc = `${keyframeBase}/${videoName}/keyframes/keyframe_${frameId}.webp`;
-                const frameInfo = `${videoName}-${seconds.toFixed(2)}`;
+                const imgSrc = `${keyframeBase}/${cleanVid}/keyframes/keyframe_${frameId}.webp`;
+                const frameInfo = `${cleanVid}-${seconds.toFixed(2)}`;
                 if (typeof addImageToExportArea === 'function') {
                     addImageToExportArea(frameId, imgSrc, frameInfo, true, tsMs);
                 }
@@ -355,12 +497,14 @@ async function playVideoAtTime(videoName, timeInSeconds) {
     const refineBtn = document.getElementById('refineFromCurrentVideoBtn');
     if (refineBtn) {
         refineBtn.onclick = async () => {
-            const curSec = videoElement.currentTime || targetTime;
-            const { frameId, seconds } = await getNearestKeyframeForVideo(videoName, curSec);
-            const vectorId = `${videoName}_${frameId}`;
+            const curSec = videoElement.currentTime !== undefined ? videoElement.currentTime : targetTime;
+            const res = await getNearestKeyframeForVideo(cleanVid, curSec);
+            const frameId = res.frameId;
+            const seconds = res.seconds;
+            const vectorId = `${cleanVid}_${frameId}`;
             const keyframeBase = window.KEYFRAME_BASE || 'http://localhost:8000/keyframes';
-            const imgSrc = `${keyframeBase}/${videoName}/keyframes/keyframe_${frameId}.webp`;
-            const frameInfo = `${videoName}-${seconds.toFixed(2)}`;
+            const imgSrc = `${keyframeBase}/${cleanVid}/keyframes/keyframe_${frameId}.webp`;
+            const frameInfo = `${cleanVid}-${seconds.toFixed(2)}`;
             const tsMs = Math.round(seconds * 1000);
 
             // Thêm vào khay chọn
@@ -375,7 +519,7 @@ async function playVideoAtTime(videoName, timeInSeconds) {
                     showNotification(`✨ Đang đưa khoảnh khắc ${frameInfo} (Frame ${frameId}) lên TOP 1!`, 'success');
                 }
             } else if (typeof performSimilaritySearch === 'function') {
-                performSimilaritySearch(vectorId, imgSrc, videoName, frameId);
+                performSimilaritySearch(vectorId, imgSrc, cleanVid, frameId);
             }
         };
     }
@@ -468,6 +612,28 @@ async function playVideoAtTime(videoName, timeInSeconds) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 executeVideoQA();
+            }
+        };
+    }
+
+    // 4. Xử lý Bật / Tắt Phụ Đề Trực Tiếp trên Video
+    const toggleSubBtn = document.getElementById('toggleSubtitleBtn');
+    if (toggleSubBtn) {
+        toggleSubBtn.onclick = () => {
+            isSubtitleVisible = !isSubtitleVisible;
+            const subText = document.getElementById('subToggleText');
+            const subBar = document.getElementById('vid-subtitle-bar') || document.getElementById('vid-subtitle-overlay');
+            if (subText) subText.textContent = isSubtitleVisible ? 'Phụ Đề: BẬT' : 'Phụ Đề: TẮT';
+            if (!isSubtitleVisible && subBar) {
+                subBar.style.display = 'none';
+            } else if (isSubtitleVisible && subBar) {
+                subBar.style.display = 'flex';
+                if (videoElement) {
+                    updateActiveSubtitle(videoElement.currentTime || 0);
+                }
+            }
+            if (typeof showNotification === 'function') {
+                showNotification(isSubtitleVisible ? '💬 Đã BẬT hiển thị phụ đề chạy theo video' : '💬 Đã TẮT hiển thị phụ đề', 'info');
             }
         };
     }
@@ -593,12 +759,19 @@ document.addEventListener("keydown", event => {
         if (event.key === 'Escape') {
             detailsDiv.style.display = 'none';
             document.getElementById('vid_details')?.pause();
+            const subBar = document.getElementById('vid-subtitle-bar') || document.getElementById('vid-subtitle-overlay');
+            if (subBar) subBar.style.display = 'none';
+            activeSubtitleIndex = -1;
         } else if (event.key === '+' || event.key === '=' || event.key === 'a' || event.key === 'A') {
             event.preventDefault();
             document.getElementById('addCurrentMomentBtn')?.click();
         } else if (event.key === 'r' || event.key === 'R') {
             event.preventDefault();
             document.getElementById('refineFromCurrentVideoBtn')?.click();
+        } else if (event.key === 'c' || event.key === 'C' || (event.altKey && (event.key === 't' || event.key === 'T'))) {
+            // Phím tắt Bật / Tắt phụ đề (C hoặc Alt + T)
+            event.preventDefault();
+            document.getElementById('toggleSubtitleBtn')?.click();
         } else if (event.key === 'ArrowLeft' || event.key === 'j' || event.key === 'J') {
             event.preventDefault();
             document.getElementById('rewindBtn')?.click();
@@ -630,6 +803,9 @@ document.getElementById("close-vid-modal")?.addEventListener("click", (e) => {
     e.stopPropagation();
     if (modal) modal.style.display = "none";
     if (video) video.pause();
+    const subBar = document.getElementById('vid-subtitle-bar') || document.getElementById('vid-subtitle-overlay');
+    if (subBar) subBar.style.display = 'none';
+    activeSubtitleIndex = -1;
 });
 
 // Move floating video modal freely across the whole screen

@@ -25,18 +25,38 @@ function showTemporaryAlert(message, type = 'info', duration = 4000) {
     alertElement.style.display = 'block';
 
     const msgLower = (message || '').toLowerCase();
-    if (type === 'success' || msgLower.includes('correct') || msgLower.includes('thành công') || msgLower.includes('chính xác')) {
-        alertElement.style.backgroundColor = '#15803d';
+    
+    // ƯU TIÊN KIỂM TRA LỖI / SAI TRƯỚC (Tránh 'chưa chính xác' bị match nhầm vào 'chính xác')
+    const isError = type === 'error' 
+        || msgLower.includes('wrong') 
+        || msgLower.includes('error') 
+        || msgLower.includes('thất bại') 
+        || msgLower.includes('chưa chính xác') 
+        || msgLower.includes('sai') 
+        || msgLower.includes('hết hạn')
+        || msgLower.includes('chưa chọn')
+        || msgLower.includes('chưa có');
+
+    const isSuccess = !isError && (
+        type === 'success' 
+        || msgLower.includes('correct') 
+        || msgLower.includes('thành công') 
+        || msgLower.includes('đã ghi nhận điểm')
+        || (msgLower.includes('chính xác') && !msgLower.includes('chưa chính xác'))
+    );
+
+    if (isSuccess) {
+        alertElement.style.backgroundColor = '#15803d'; // Xanh lá chuẩn
         alertElement.style.color = '#ffffff';
         alertElement.style.border = '2px solid #86efac';
         alertElement.style.boxShadow = '0 0 25px rgba(34, 197, 94, 0.6)';
-    } else if (type === 'error' || msgLower.includes('wrong') || msgLower.includes('error') || msgLower.includes('thất bại') || msgLower.includes('chưa') || msgLower.includes('sai')) {
-        alertElement.style.backgroundColor = '#b91c1c';
+    } else if (isError) {
+        alertElement.style.backgroundColor = '#b91c1c'; // Đỏ chuẩn
         alertElement.style.color = '#ffffff';
         alertElement.style.border = '2px solid #fca5a5';
         alertElement.style.boxShadow = '0 0 25px rgba(239, 68, 68, 0.6)';
     } else {
-        alertElement.style.backgroundColor = '#0f172a';
+        alertElement.style.backgroundColor = '#0f172a'; // Xanh dương / Dark slate
         alertElement.style.color = '#38bdf8';
         alertElement.style.border = '2px solid #38bdf8';
         alertElement.style.boxShadow = '0 0 25px rgba(56, 189, 248, 0.4)';
@@ -50,30 +70,61 @@ function showTemporaryAlert(message, type = 'info', duration = 4000) {
     }, duration);
 }
 
-// Trích xuất tên video chuẩn không có đuôi .mp4 và không dính đường dẫn thư mục
+// Trích xuất tên video chuẩn không có đuôi .mp4 và không dính đường dẫn thư mục hay keyframe
 function cleanDresVideoName(rawItem) {
     if (!rawItem) return 'video';
     let s = String(rawItem).trim();
-    // Bỏ tiền tố URL nếu có
+
+    // Nếu có dạng "L01_V001-14.8" hoặc "L01_V001_100" (tách theo timestamp nếu có)
+    if (s.includes('-') && !s.includes('/') && !s.includes('\\')) {
+        const p = s.split('-');
+        if (p.length > 1 && !isNaN(parseFloat(p[1]))) {
+            s = p[0].trim();
+        }
+    }
+
+    // Bỏ query string và protocol URL
     if (s.includes('://')) {
         try {
             const u = new URL(s);
             s = u.pathname;
         } catch (e) {}
     }
-    // Lấy phần tên sau dấu / hoặc \
-    const parts = s.split(/[/\\]/);
-    let name = parts.pop() || '';
-    // Nếu kết thúc bằng keyframe_xxx.jpg thì lấy tên thư mục cha
-    if (/^keyframe_\d+/i.test(name) || name.toLowerCase().endsWith('.jpg') || name.toLowerCase().endsWith('.webp') || name.toLowerCase().endsWith('.png')) {
-        const parent = parts.pop() || '';
-        if (parent && parent.toLowerCase() !== 'keyframes' && !parent.includes(':')) {
-            name = parent;
-        }
+
+    // 1. Dùng Regex chuẩn tìm mã định danh video Lxx_Vxxx
+    const lMatch = s.match(/(L\d+_V\d+)/i);
+    if (lMatch && lMatch[1]) {
+        return lMatch[1].toUpperCase();
     }
-    // Bỏ đuôi .mp4, .mkv,...
-    name = name.replace(/\.(mp4|mkv|avi|mov|webm)$/i, '').trim();
-    return name || 'video';
+
+    // 2. Dùng Regex chuẩn tìm video_xxx
+    const vMatch = s.match(/(video_\d+)/i);
+    if (vMatch && vMatch[1]) {
+        return vMatch[1];
+    }
+
+    // 3. Tách theo đường dẫn / hoặc \
+    const parts = s.split(/[/\\]/).filter(Boolean);
+    const kfIdx = parts.findIndex(p => p.toLowerCase() === 'keyframes');
+    if (kfIdx > 0 && parts[kfIdx - 1] && !parts[kfIdx - 1].includes(':')) {
+        s = parts[kfIdx - 1];
+    } else {
+        let last = parts.pop() || '';
+        if (/^keyframe_\d+/i.test(last) || last.toLowerCase().endsWith('.webp') || last.toLowerCase().endsWith('.jpg') || last.toLowerCase().endsWith('.png')) {
+            let prev = parts.pop() || '';
+            if (prev.toLowerCase() === 'keyframes') {
+                prev = parts.pop() || '';
+            }
+            if (prev && !prev.includes(':')) {
+                last = prev;
+            }
+        }
+        s = last;
+    }
+
+    // Bỏ đuôi .mp4, .mkv, .webm, .avi, .webp, .jpg
+    s = s.replace(/\.(mp4|mkv|avi|mov|webm|webp|jpg|jpeg|png)$/i, '').trim();
+    return s || 'video';
 }
 
 // Tính timestamp chính xác theo millisecond (ms)
@@ -313,7 +364,6 @@ async function submitFrameInfo(url, body) {
 
     try {
         let responseData = null;
-        let isSuccess = false;
         let isWrong = false;
 
         // 1. Thử gửi qua Backend Proxy trước để chống 100% lỗi CORS của trình duyệt
@@ -332,9 +382,8 @@ async function submitFrameInfo(url, body) {
                 const proxyData = await proxyResp.json();
                 if (proxyData.status === 'success') {
                     responseData = proxyData.dres_response;
-                    isSuccess = true;
                 } else if (proxyData.code) {
-                    if (proxyData.code === 404 || (proxyData.detail && proxyData.detail.includes('WRONG'))) {
+                    if (proxyData.code === 404 || (proxyData.detail && proxyData.detail.toUpperCase().includes('WRONG'))) {
                         isWrong = true;
                     }
                     responseData = { status: false, description: proxyData.detail };
@@ -345,7 +394,7 @@ async function submitFrameInfo(url, body) {
         }
 
         // 2. Fallback gửi trực tiếp nếu proxy chưa xử lý được
-        if (!responseData && !isSuccess) {
+        if (!responseData) {
             const response = await fetch(url, {
                 method: "POST",
                 headers: { 'Content-Type': 'application/json' },
@@ -355,7 +404,7 @@ async function submitFrameInfo(url, body) {
             if (!response.ok) {
                 let message;
                 if (response.status === 401) {
-                    message = "❌ Lỗi 401: Phiên đăng nhập DRES đã hết hạn. Vui lòng bấm 'DRES Live' trên thanh công cụ để đăng nhập lại!";
+                    message = "❌ Lỗi 401: Phiên đăng nhập DRES đã hết hạn. Vui lòng bấm 'DRES' trên thanh công cụ để đăng nhập lại!";
                 } else if (response.status === 404) {
                     message = "❌ Kết quả nộp bài: WRONG (Chưa chính xác)!";
                     isWrong = true;
@@ -369,15 +418,17 @@ async function submitFrameInfo(url, body) {
             responseData = await response.json();
         }
 
-        // 3. Đánh giá verdict từ máy chủ DRES
-        const verdict = (responseData?.submission || responseData?.status || '').toString().toUpperCase();
+        console.log("📥 Phản hồi từ máy chủ DRES:", responseData);
+
+        // 3. Đánh giá verdict từ máy chủ DRES (Theo OpenAPI DRES v2: status, submission, description)
+        const verdict = (responseData?.submission || '').toString().toUpperCase();
         const description = responseData?.description || '';
 
         if (isWrong || verdict === 'WRONG' || responseData?.status === false) {
             const desc = description ? ` (${description})` : '';
             showTemporaryAlert(`❌ Kết quả nộp bài DRES: <strong style="color:#FCA5A5">WRONG (Chưa chính xác)</strong>!${desc}`, "error", 5000);
             if (typeof sendAlertViaWebSocket === 'function') sendAlertViaWebSocket('Submission wrong!');
-        } else if (verdict === 'CORRECT' || verdict === 'SUCCESS' || isSuccess) {
+        } else if (verdict === 'CORRECT' || verdict === 'SUCCESS') {
             console.log('Submission Success:', responseData);
             showTemporaryAlert("🎉🎉 NỘP BÀI THÀNH CÔNG — <strong style=" + '"color:#86EFAC"' + ">CORRECT (ĐÃ GHI NHẬN ĐIỂM!)</strong>", "success", 6000);
             if (typeof sendAlertViaWebSocket === 'function') sendAlertViaWebSocket('Submission successful!');
@@ -386,8 +437,10 @@ async function submitFrameInfo(url, body) {
             setTimeout(() => {
                 if (typeof resetExportArea === 'function') resetExportArea();
             }, 1200);
+        } else if (verdict === 'INDETERMINATE' || verdict === 'UNDECIDABLE') {
+            showTemporaryAlert(`⏳ Đang chờ Giám khảo chấm: <strong>${verdict}</strong> (${description || 'Pending'})`, "info", 5000);
         } else {
-            showTemporaryAlert(`ℹ️ Đã gửi đáp án lên DRES: ${verdict || 'Đã nhận'} ${description}`, "info", 4000);
+            showTemporaryAlert(`ℹ️ Đã gửi đáp án lên DRES: ${verdict || (responseData?.status ? 'Đã nhận' : 'Chưa rõ')} ${description}`, "info", 4000);
         }
     } catch (error) {
         console.error('Error during DRES submission:', error);
@@ -581,12 +634,12 @@ function updateDresStatusBadge(isConnected) {
     if (isConnected) {
         btn.classList.add('connected');
         btn.classList.remove('disconnected');
-        btn.innerHTML = '<i class="fa-solid fa-bolt" style="color:#10B981"></i> DRES Live 🟢';
-        btn.title = `Đã kết nối DRES (${localStorage.getItem('dresBaseUrl') || 'Live'})`;
+        btn.innerHTML = '<i class="fa-solid fa-bolt" style="color:#10B981"></i> DRES 🟢';
+        btn.title = `Đã kết nối DRES (${localStorage.getItem('dresBaseUrl') || 'Connected'})`;
     } else {
         btn.classList.add('disconnected');
         btn.classList.remove('connected');
-        btn.innerHTML = '<i class="fa-solid fa-server"></i> DRES Live';
+        btn.innerHTML = '<i class="fa-solid fa-server"></i> DRES';
         btn.title = 'Nhấp để đăng nhập / cấu hình DRES';
     }
 }

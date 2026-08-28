@@ -275,25 +275,67 @@ async function fetchFullscreenMetaCached(videoName, frameId) {
   return { video: cleanVid, frame_id: frameId, ocr_text: '', asr_text: '' };
 }
 
-// Helper: Highlight matching search keywords inside text ONLY when quoted keywords are present
+function stripAccents(str) {
+  if (!str) return '';
+  return str
+    .toString()
+    .replace(/[đĐ]/g, 'd')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function makeAccentInsensitivePattern(word) {
+  if (!word) return '';
+  const charMap = {
+    'a': '[aàáảãạăằắẳẵặâầấẩẫậAÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬ]',
+    'e': '[eèéẻẽẹêềếểễệEÈÉẺẼẸÊỀẾỂỄỆ]',
+    'i': '[iìíỉĩịIÌÍỈĨỊ]',
+    'o': '[oòóỏõọôồốổỗộơờớởỡợOÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢ]',
+    'u': '[uùúủũụưừứửữựUÙÚỦŨỤƯỪỨỬỮỰ]',
+    'y': '[yỳýỷỹỵYỲÝỶỸỴ]',
+    'd': '[dđDĐ]'
+  };
+  let pattern = '';
+  const lowerWord = stripAccents(word);
+  for (let i = 0; i < lowerWord.length; i++) {
+    const ch = lowerWord[i];
+    if (charMap[ch]) {
+      pattern += charMap[ch];
+    } else {
+      pattern += ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+  }
+  return pattern;
+}
+
+// Helper: Highlight matching search keywords inside text for ASR, OCR, and Quoted Text
 function formatFullTextWithHighlight(fullText) {
   if (!fullText) return '';
-  const rawVal = document.querySelector('textarea[name="Text_Query"]')?.value || '';
-  const quoteMatch = rawVal.match(/["'“”«»](.*?)["'”»]/);
+  const rawText = document.querySelector('textarea[name="Text_Query"]')?.value || '';
+  const rawAsr = document.querySelector('textarea[name="Asm_Query"], textarea[name="Asr_Query"]')?.value || '';
+  const rawOcr = document.querySelector('textarea[name="Ocr_Query"]')?.value || '';
+
+  const quoteMatch = rawText.match(/["'“”«»](.*?)["'”»]/);
+  const quotedKeyword = (quoteMatch && quoteMatch[1].trim()) ? quoteMatch[1].trim() : '';
+
+  const searchKeyword = rawAsr.trim() || rawOcr.trim() || quotedKeyword || rawText.trim();
   
-  // Nếu trong câu mô tả KHÔNG có từ khóa trong dấu ngoặc kép -> Không bôi đậm từ nào
-  if (!quoteMatch || !quoteMatch[1].trim()) {
+  if (!searchKeyword) {
     return fullText;
   }
 
-  const cleanKeyword = quoteMatch[1].trim();
-  const words = cleanKeyword.split(/\s+/).filter(w => w.length >= 2);
+  const cleanKw = searchKeyword.replace(/^["'“”«»]+|["'”»]+$/g, '').trim();
+  const words = cleanKw.split(/\s+/).filter(w => w.length >= 2 && !['nguoi', 'dang', 'tren', 'trong', 'duoi'].includes(stripAccents(w)));
   if (words.length === 0) return fullText;
 
   try {
-    const regexPattern = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-    const regex = new RegExp(`(${regexPattern})`, 'gi');
-    return fullText.replace(regex, '<mark>$1</mark>');
+    const regexPatterns = words.map(makeAccentInsensitivePattern).filter(Boolean);
+    if (regexPatterns.length > 0) {
+      const regex = new RegExp(`(${regexPatterns.join('|')})`, 'gi');
+      return fullText.replace(regex, '<mark>$1</mark>');
+    }
+    return fullText;
   } catch (e) {
     return fullText;
   }
@@ -356,29 +398,40 @@ async function showFullscreenImage(src, isLeftPreview = false, targetElement = n
     getVideoFrameMap(videoName).then(mapData => {
       currentFullscreenContext.frameList = mapData.frames || [];
       currentFullscreenContext.timesMap = mapData.times || {};
+      if (titleEl) titleEl.textContent = `Video: ${videoName} | Khung hình: ${frameNumber}`;
+
+      // Lấy dữ liệu ASR & OCR ban đầu từ dataset hoặc qua API chuẩn xác
+      const matchedCard = document.querySelector(`.img-dis[data-video="${videoName}"][data-frame-id="${frameNumber}"]`);
+      let initialAsr = imgDis?.dataset.asr || matchedCard?.dataset.asr || '';
+      let initialOcr = imgDis?.dataset.ocr || matchedCard?.dataset.ocr || '';
+
+      if (initialAsr && asrBadge && asrTextEl) {
+        asrTextEl.innerHTML = formatFullTextWithHighlight(initialAsr);
+        asrBadge.style.display = 'inline-flex';
+      } else if (asrBadge) {
+        asrBadge.style.display = 'none';
+      }
+
+      if (initialOcr && ocrBadge && ocrTextEl) {
+        ocrTextEl.innerHTML = formatFullTextWithHighlight(initialOcr);
+        ocrBadge.style.display = 'inline-flex';
+      } else if (ocrBadge) {
+        ocrBadge.style.display = 'none';
+      }
+
+      // Tự động đồng bộ hóa nội dung thoại & chữ viết mới nhất cho frame này
+      fetchFullscreenMetaCached(videoName, frameNumber).then(meta => {
+        if (meta && meta.asr_text && asrBadge && asrTextEl) {
+          asrTextEl.innerHTML = formatFullTextWithHighlight(meta.asr_text);
+          asrBadge.style.display = 'inline-flex';
+        }
+        if (meta && meta.ocr_text && ocrBadge && ocrTextEl) {
+          ocrTextEl.innerHTML = formatFullTextWithHighlight(meta.ocr_text);
+          ocrBadge.style.display = 'inline-flex';
+        }
+      });
     });
   }
-
-  if (titleEl) titleEl.textContent = `Video: ${videoName} | Khung hình: ${frameNumber}`;
-  if (ocrBadge) ocrBadge.style.display = 'none';
-
-  // Lấy dữ liệu ASR ban đầu từ dataset hoặc qua API chuẩn xác
-  const matchedCard = document.querySelector(`.img-dis[data-video="${videoName}"][data-frame-id="${frameNumber}"]`);
-  let initialAsr = imgDis?.dataset.asr || matchedCard?.dataset.asr || '';
-  if (initialAsr && asrBadge && asrTextEl) {
-    asrTextEl.innerHTML = formatFullTextWithHighlight(initialAsr);
-    asrBadge.style.display = 'inline-flex';
-  } else if (asrBadge) {
-    asrBadge.style.display = 'none';
-  }
-
-  // Tự động đồng bộ hóa nội dung thoại mới nhất cho frame này
-  fetchFullscreenMetaCached(videoName, frameNumber).then(meta => {
-    if (meta && meta.asr_text && asrBadge && asrTextEl) {
-      asrTextEl.innerHTML = formatFullTextWithHighlight(meta.asr_text);
-      asrBadge.style.display = 'inline-flex';
-    }
-  });
 
   document.removeEventListener('keydown', handleEscapeKey);
   document.addEventListener('keydown', handleEscapeKey);
@@ -391,7 +444,7 @@ function hideFullscreenImage() {
   document.removeEventListener('keydown', handleEscapeKey);
 }
 
-// Handle Escape key press to exit fullscreen mode
+// Global escape key handler for fullscreen image preview
 function handleEscapeKey(event) {
   if (event.key === 'Escape') {
     hideFullscreenImage();
@@ -404,6 +457,7 @@ async function navigateFullscreenImage(direction) {
   const image = document.getElementById('fullscreen-image');
   const titleEl = document.getElementById('fullscreen-frame-title');
   const ocrBadge = document.getElementById('fullscreen-ocr-badge');
+  const ocrTextEl = document.getElementById('fullscreen-ocr-text');
   const asrBadge = document.getElementById('fullscreen-asr-badge');
   const asrTextEl = document.getElementById('fullscreen-asr-text');
   
@@ -436,15 +490,21 @@ async function navigateFullscreenImage(direction) {
 
     image.src = newSrc;
     if (titleEl) titleEl.textContent = `Video: ${videoName} | Khung hình: ${newFrameNumber} (${secVal.toFixed(2)}s) [${newIdx + 1}/${frames.length}]`;
-    if (ocrBadge) ocrBadge.style.display = 'none';
 
-    // Đồng bộ hóa trực tiếp lời thoại tương ứng với frame vừa chuyển đến
+    // Đồng bộ hóa trực tiếp lời thoại & chữ viết tương ứng với frame vừa chuyển đến
     const meta = await fetchFullscreenMetaCached(videoName, newFrameNumber);
     if (meta && meta.asr_text && asrBadge && asrTextEl) {
       asrTextEl.innerHTML = formatFullTextWithHighlight(meta.asr_text);
       asrBadge.style.display = 'inline-flex';
     } else if (asrBadge) {
       asrBadge.style.display = 'none';
+    }
+
+    if (meta && meta.ocr_text && ocrBadge && ocrTextEl) {
+      ocrTextEl.innerHTML = formatFullTextWithHighlight(meta.ocr_text);
+      ocrBadge.style.display = 'inline-flex';
+    } else if (ocrBadge) {
+      ocrBadge.style.display = 'none';
     }
 
     // Flash border effect

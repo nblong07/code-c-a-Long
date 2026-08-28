@@ -184,7 +184,7 @@ function clearAllHistory() {
  * Collect all queries currently typed in search boxes
  */
 function collectCurrentQueries() {
-    const textareas = document.querySelectorAll('textarea[name="Text_Query"], #Omni-Query-First, #Omni-Query-VQA-First, .event-description-input');
+    const textareas = document.querySelectorAll('textarea[name="Text_Query"], textarea[name="Ocr_Query"], textarea[name="Asm_Query"], #Omni-Query-First, #Omni-Query-VQA-First, .event-description-input');
     textareas.forEach(textarea => {
         if (textarea && textarea.value && textarea.value.trim()) {
             addUniqueQueryToHistory(textarea.value.trim());
@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter' && !e.shiftKey) {
             const activeElem = document.activeElement;
             if (activeElem && (activeElem.tagName === 'TEXTAREA' || activeElem.tagName === 'INPUT')) {
-                if (activeElem.name === 'Text_Query' || activeElem.id === 'Omni-Query-First' || activeElem.id === 'Omni-Query-VQA-First' || activeElem.classList.contains('event-description-input')) {
+                if (activeElem.name === 'Text_Query' || activeElem.name === 'Ocr_Query' || activeElem.name === 'Asm_Query' || activeElem.id === 'Omni-Query-First' || activeElem.id === 'Omni-Query-VQA-First' || activeElem.classList.contains('event-description-input')) {
                     collectCurrentQueries();
                 }
             }

@@ -332,45 +332,101 @@
 /*--------------------------------------------------------------------------*/
 /* Textareas */
 
+/* Multi-field search blocks (Visual, OCR, ASR) */
 .query-group {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.query-content-area {
+.query-field-block {
     display: flex;
     flex-direction: column;
-    position: relative;
+    gap: 4px;
+}
+
+.query-field-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 2px;
+}
+
+.query-field-label {
+    font-size: 11.5px;
+    font-weight: 800;
+    user-select: none;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.query-field-label.visual-label {
+    color: #00F2FE;
+    text-shadow: 0 0 8px rgba(0, 242, 254, 0.45);
+}
+
+.query-field-label.ocr-label {
+    color: #FBBF24;
+    text-shadow: 0 0 8px rgba(245, 158, 11, 0.45);
+}
+
+.query-field-label.asr-label {
+    color: #C084FC;
+    text-shadow: 0 0 8px rgba(192, 132, 252, 0.45);
 }
 
 textarea[name="Text_Query"], textarea[name="Ocr_Query"], textarea[name="Asm_Query"], textarea[name="QA_Query"] {
     background-color: #0F172A;
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 6px;
     color: #F8FAFC;
     font-weight: 500;
     width: 100%;
-    height: 76px;
-    padding: 8px 10px;
-    font-size: 12.5px;
-    line-height: 1.45;
+    height: 56px;
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1.4;
     resize: none;
     box-sizing: border-box;
     font-family: inherit;
     transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-textarea[name="Text_Query"]:focus, textarea[name="Ocr_Query"]:focus, textarea[name="Asm_Query"]:focus, textarea[name="QA_Query"]:focus {
-    border-color: var(--secondary-color);
+textarea[name="Text_Query"] {
+    border-left: 3px solid #00F2FE;
+}
+textarea[name="Text_Query"]:focus {
+    border-color: #00F2FE;
     outline: none;
     background-color: #0B1120;
-    box-shadow: 0 0 12px var(--secondary-glow);
+    box-shadow: 0 0 12px rgba(0, 242, 254, 0.4);
+}
+
+textarea[name="Ocr_Query"] {
+    border-left: 3px solid #F59E0B;
+}
+textarea[name="Ocr_Query"]:focus {
+    border-color: #F59E0B;
+    outline: none;
+    background-color: #0B1120;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+}
+
+textarea[name="Asm_Query"] {
+    border-left: 3px solid #A855F7;
+}
+textarea[name="Asm_Query"]:focus {
+    border-color: #A855F7;
+    outline: none;
+    background-color: #0B1120;
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
 }
 
 textarea[name="Text_Query"]::placeholder, textarea[name="Ocr_Query"]::placeholder, textarea[name="Asm_Query"]::placeholder, textarea[name="QA_Query"]::placeholder {
     color: var(--text-light);
     font-weight: 400;
+    font-size: 11.5px;
 }
 
 .ocr-container, .asm-container {

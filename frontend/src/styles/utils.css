@@ -338,3 +338,18 @@ input:checked + .slider:before {
     scrollbar-width: thin;
     scrollbar-color: #334155 #0B1120;
 }
+
+/* ==============================================================================
+   TRAKE MODE: Tự động ẩn toàn bộ các ô nhập & nhãn OCR, ASR
+   ============================================================================== */
+body.trake-mode .ocr-field-block,
+body.trake-mode .asr-field-block,
+body.trake-mode .ocr-container,
+body.trake-mode .asm-container,
+body.trake-mode .ocr-text-tag,
+body.trake-mode .asr-text-tag,
+body.trake-mode #scene-1-ocr-block,
+body.trake-mode #scene-1-asr-block {
+    display: none !important;
+}
+

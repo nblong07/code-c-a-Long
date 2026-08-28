@@ -797,8 +797,50 @@ class VectorSearchService:
                 except Exception as e:
                     self.logger.error(f"Lỗi nạp asr_results.jsonl: {e}")
 
-        # 4. Xây dựng Inverted Index + BM25 trên CPU RAM cho OCR & ASR
+        # 4. Nạp dữ liệu Phụ đề Lời thoại Video chi tiết (Segments)
+        self._load_video_subtitles()
+
+        # 5. Xây dựng Inverted Index + BM25 trên CPU RAM cho OCR & ASR
         self._build_inverted_indices()
+
+    def _load_video_subtitles(self):
+        """Nạp toàn bộ lời thoại / phụ đề phân đoạn (Segment Subtitles) theo dòng thời gian từ asr_results.jsonl"""
+        self.video_subtitles = defaultdict(list)
+        possible_asr_paths = [
+            os.path.abspath("asr_results.jsonl"),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "asr_results.jsonl")),
+        ]
+        asr_jsonl = next((p for p in possible_asr_paths if os.path.exists(p)), None)
+        if asr_jsonl:
+            try:
+                import json
+                with open(asr_jsonl, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        if not line.strip(): continue
+                        try:
+                            d = json.loads(line)
+                            txt = (d.get("text") or d.get("asr_text") or "").strip()
+                            if txt:
+                                vp = d.get("video_path", "").replace("\\", "/")
+                                parts = vp.split("/")
+                                filename = parts[-1].replace(".mp4", "").strip()
+                                start_sec = float(d.get("start", 0))
+                                end_sec = float(d.get("end", 0))
+                                seg = {
+                                    "start": start_sec,
+                                    "end": end_sec,
+                                    "text": txt,
+                                    "segment_id": d.get("segment_id", 0)
+                                }
+                                self.video_subtitles[filename].append(seg)
+                                self.video_subtitles[filename.lower()].append(seg)
+                        except Exception:
+                            pass
+                for k in self.video_subtitles:
+                    self.video_subtitles[k].sort(key=lambda x: x["start"])
+                self.logger.info(f"✅ Đã nạp phụ đề ASR chi tiết cho {len(self.video_subtitles) // 2:,} video.")
+            except Exception as e:
+                self.logger.error(f"Lỗi nạp phụ đề video: {e}")
 
     def _build_inverted_indices(self):
         """Xây dựng chỉ mục nghịch đảo đa cấp độ (Unigram + Bigram + BM25) trên RAM CPU (0 MB VRAM, < 2s)"""
@@ -1430,6 +1472,7 @@ class VectorSearchService:
         # Unigram & Bigram từ chính câu truy vấn (KHÔNG mở rộng từ đồng nghĩa)
         expanded_q_tokens = set(q_words)
         for i in range(len(raw_words) - 1):
+
             expanded_q_tokens.add(f"{raw_words[i]} {raw_words[i+1]}")
 
         # 1. Thu thập ứng viên từ Inverted Index trong < 1ms

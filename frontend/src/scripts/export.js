@@ -87,10 +87,22 @@ function toggleTask(task) {
 
   [kisBtn, vqaBtn, trakeBtn].forEach(b => { if (b) b.classList.remove('active'); });
 
+  const ocrBlock = document.getElementById('scene-1-ocr-block');
+  const asrBlock = document.getElementById('scene-1-asr-block');
+  const scene1Label = document.getElementById('scene-1-label');
+  const scene1Title = document.getElementById('scene-1-title');
+  const addMoreScenesContainer = document.getElementById('add-more-scenes-container');
+
   if (task === 'kis') {
     if (kisBtn) kisBtn.classList.add('active');
     if (exportImages) exportImages.classList.remove('vqa-mode');
     if (vqaQuickBar) vqaQuickBar.style.display = 'none';
+    document.body.classList.remove('trake-mode');
+    if (ocrBlock) ocrBlock.style.display = 'block';
+    if (asrBlock) asrBlock.style.display = 'block';
+    if (scene1Label) scene1Label.textContent = 'Text';
+    if (scene1Title) scene1Title.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Tìm kiếm';
+    if (addMoreScenesContainer) addMoreScenesContainer.style.display = 'none';
   } else if (task === 'vqa' || task === 'qa') {
     activeTask = 'vqa';
     if (vqaBtn) vqaBtn.classList.add('active');
@@ -100,10 +112,22 @@ function toggleTask(task) {
       const commonInput = document.getElementById('vqa-common-answer');
       if (commonInput) setTimeout(() => commonInput.focus(), 100);
     }
+    document.body.classList.remove('trake-mode');
+    if (ocrBlock) ocrBlock.style.display = 'block';
+    if (asrBlock) asrBlock.style.display = 'block';
+    if (scene1Label) scene1Label.textContent = 'Text';
+    if (scene1Title) scene1Title.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Tìm kiếm';
+    if (addMoreScenesContainer) addMoreScenesContainer.style.display = 'none';
   } else if (task === 'trake') {
     if (trakeBtn) trakeBtn.classList.add('active');
     if (exportImages) exportImages.classList.remove('vqa-mode');
     if (vqaQuickBar) vqaQuickBar.style.display = 'none';
+    document.body.classList.add('trake-mode');
+    if (ocrBlock) ocrBlock.style.display = 'none';
+    if (asrBlock) asrBlock.style.display = 'none';
+    if (scene1Label) scene1Label.textContent = 'Text (Sự kiện 1)';
+    if (scene1Title) scene1Title.innerHTML = '<i class="fa-solid fa-clock"></i> Sự kiện 1';
+    if (addMoreScenesContainer) addMoreScenesContainer.style.display = 'block';
   }
 
   // Tự động chuyển đổi layout tương ứng với Task
