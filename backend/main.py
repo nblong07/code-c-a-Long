@@ -1750,8 +1750,8 @@ class VectorSearchService:
         # Phân rã thông minh query bằng Smart Decomposer (0 MB VRAM, < 1ms)
         decomp = self.smart_decomposer.decompose(clean_q, current_topic=global_topic)
         visual_q = decomp.visual_query or clean_q
-        ocr_q = " ".join(decomp.ocr_keywords) if decomp.ocr_keywords else (clean_q if len(clean_q) <= 60 else "")
-        asr_q = " ".join(decomp.asr_keywords) if decomp.asr_keywords else (clean_q if len(clean_q) <= 60 else "")
+        ocr_q = " ".join(decomp.ocr_keywords) if decomp.ocr_keywords else ""
+        asr_q = " ".join(decomp.asr_keywords) if decomp.asr_keywords else ""
 
         # 1. Chạy song song cả 3 nhánh tìm kiếm
         async def _run_visual():
@@ -2296,6 +2296,17 @@ def create_app(config_file: str = None) -> FastAPI:
             "frame_id": frame_id,
             "ocr_text": ocr_txt,
             "asr_text": asr_txt
+        }
+
+    @app.get("/api/video_subtitles/{video_name}")
+    async def get_video_subtitles(video_name: str):
+        """Lấy toàn bộ phụ đề / phân đoạn lời thoại của một video theo dòng thời gian"""
+        clean_name = os.path.basename(video_name).replace(".mp4", "").strip()
+        subtitles = service.video_subtitles.get(clean_name) or service.video_subtitles.get(clean_name.lower()) or []
+        return {
+            "video": clean_name,
+            "count": len(subtitles),
+            "subtitles": subtitles
         }
 
     @app.get("/")

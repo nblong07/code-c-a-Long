@@ -191,7 +191,7 @@ async function stepCardFrame(imgDis, direction, event) {
         badgeBorder = 'rgba(255,255,255,0.3)';
         textColor = '#fef08a';
       }
-      // 3. Tìm kiếm Text có ngoặc kép ""
+      // 3. Tìm kiếm Text có ngoặc kép "" (chỉ hiển thị khi có từ khóa trong ngoặc kép)
       else if (quotedKeyword) {
         activeKeyword = quotedKeyword;
         const cleanKw = stripAccents(quotedKeyword);
@@ -221,17 +221,6 @@ async function stepCardFrame(imgDis, direction, event) {
           badgeBg = 'rgba(245, 158, 11, 0.95)';
           badgeBorder = 'rgba(255,255,255,0.3)';
           textColor = '#fef08a';
-        }
-      }
-      else if (rawTextVal.trim() && meta.asr_text) {
-        const rawWords = stripAccents(rawTextVal).split(/\s+/).filter(w => w.length >= 3 && !['nguoi', 'dang', 'tren', 'trong', 'duoi', 'chiec', 'doan', 'video'].includes(w));
-        if (rawWords.some(w => stripAccents(meta.asr_text).includes(w))) {
-          matchedText = meta.asr_text;
-          activeKeyword = rawTextVal;
-          iconClass = 'fa-microphone';
-          badgeBg = 'linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(126, 34, 206, 0.95))';
-          badgeBorder = 'rgba(192, 132, 252, 0.7)';
-          textColor = '#f3e8ff';
         }
       }
 
@@ -393,7 +382,7 @@ function makeAccentInsensitivePattern(word) {
       const cleanSnippet = getHighlightSnippet(info.ocrText, ocrSearchKeyword);
       quotedTextBadgeHtml = `<div class="ocr-text-tag asr-text-tag" style="bottom: 6px; left: 4px; right: 28px; z-index: 10; background: rgba(245, 158, 11, 0.95); border: 1px solid rgba(255,255,255,0.3); color: #fef08a;" title="🔤 Chữ viết: ${info.ocrText}"><i class="fa-solid fa-quote-left" style="font-size: 10px; margin-right: 4px;"></i> ${cleanSnippet}</div>`;
     }
-    // 3. Nếu tìm kiếm Text có dấu ngoặc kép ""
+    // 3. Nếu tìm kiếm Text có dấu ngoặc kép "" (chỉ hiển thị phụ đề/chữ viết khi người dùng nhập từ khóa trong ngoặc kép)
     else if (quotedKeyword) {
       const cleanKw = stripAccents(quotedKeyword);
       const kwWords = cleanKw.split(/\s+/).filter(w => w.length >= 2);
@@ -427,17 +416,6 @@ function makeAccentInsensitivePattern(word) {
         const cleanSnippet = getHighlightSnippet(matchedText, quotedKeyword);
         quotedTextBadgeHtml = `<div class="ocr-text-tag asr-text-tag" style="bottom: 6px; left: 4px; right: 28px; z-index: 10; background: ${badgeBg}; border: 1px solid ${badgeBorder}; color: ${textColor};" title="${matchedText}"><i class="fa-solid ${iconClass}" style="font-size: 10px; margin-right: 4px;"></i> ${cleanSnippet}</div>`;
       }
-    }
-    // 4. Nếu frame có dữ liệu lời thoại ASR (luôn hiển thị để hỗ trợ quan sát)
-    else if (info.asrText) {
-      const activeKw = asrSearchKeyword || rawTextVal;
-      const cleanSnippet = getHighlightSnippet(info.asrText, activeKw);
-      quotedTextBadgeHtml = `<div class="ocr-text-tag asr-text-tag" style="bottom: 6px; left: 4px; right: 28px; z-index: 10; background: linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(126, 34, 206, 0.95)); border: 1px solid rgba(192, 132, 252, 0.7); color: #f3e8ff;" title="🎙️ Lời thoại: ${info.asrText}"><i class="fa-solid fa-microphone" style="font-size: 10px; margin-right: 4px; color: #e9d5ff;"></i> ${cleanSnippet}</div>`;
-    }
-    // 5. Nếu frame có dữ liệu chữ viết OCR
-    else if (info.ocrText) {
-      const cleanSnippet = getHighlightSnippet(info.ocrText, ocrSearchKeyword || rawTextVal);
-      quotedTextBadgeHtml = `<div class="ocr-text-tag asr-text-tag" style="bottom: 6px; left: 4px; right: 28px; z-index: 10; background: rgba(245, 158, 11, 0.95); border: 1px solid rgba(255,255,255,0.3); color: #fef08a;" title="🔤 Chữ viết: ${info.ocrText}"><i class="fa-solid fa-quote-left" style="font-size: 10px; margin-right: 4px;"></i> ${cleanSnippet}</div>`;
     }
   }
 
@@ -508,28 +486,38 @@ function makeAccentInsensitivePattern(word) {
     });
   }
 
-  // Tự động kiểm tra và gắn phụ đề ASR nếu thẻ chưa có sẵn dữ liệu ASR ban đầu (Bỏ qua ở chế độ TRAKE)
+  // Tự động kiểm tra và gắn phụ đề ASR nếu thẻ chưa có sẵn dữ liệu ASR ban đầu (CHỈ KHI tìm kiếm ô ASR hoặc Text có dấu ngoặc kép)
   if ((typeof activeTask === 'undefined' || activeTask !== 'trake') && !info.asrText && typeof fetchFullscreenMetaCached === 'function') {
     fetchFullscreenMetaCached(info.video, info.frameId).then(meta => {
       if (meta && meta.asr_text) {
         div.dataset.asr = meta.asr_text;
-        let badge = div.querySelector('.asr-text-tag, .ocr-text-tag');
-        if (!badge) {
-          const rawAsr = document.querySelector('textarea[name="Asm_Query"], textarea[name="Asr_Query"]')?.value || '';
-          const rawText = document.querySelector('textarea[name="Text_Query"]')?.value || '';
-          const cleanSnippet = getHighlightSnippet(meta.asr_text, rawAsr.trim() || rawText.trim());
-          badge = document.createElement('div');
-          badge.className = 'ocr-text-tag asr-text-tag';
-          badge.style.bottom = '6px';
-          badge.style.left = '4px';
-          badge.style.right = '28px';
-          badge.style.zIndex = '10';
-          badge.style.background = 'linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(126, 34, 206, 0.95))';
-          badge.style.border = '1px solid rgba(192, 132, 252, 0.7)';
-          badge.style.color = '#f3e8ff';
-          badge.title = `🎙️ Lời thoại: ${meta.asr_text}`;
-          badge.innerHTML = `<i class="fa-solid fa-microphone" style="font-size: 10px; margin-right: 4px; color: #e9d5ff;"></i> ${cleanSnippet}`;
-          div.appendChild(badge);
+        const rawAsr = document.querySelector('textarea[name="Asm_Query"], textarea[name="Asr_Query"]')?.value || '';
+        const rawText = document.querySelector('textarea[name="Text_Query"]')?.value || '';
+        const qMatch = rawText.match(/["'“”«»](.*?)["'”»]/);
+        const quotedKw = (qMatch && qMatch[1].trim().length >= 2) ? qMatch[1].trim() : '';
+
+        if (rawAsr.trim() || quotedKw) {
+          const targetKw = rawAsr.trim() || quotedKw;
+          const cleanKw = stripAccents(targetKw);
+          const asrNoAcc = stripAccents(meta.asr_text);
+          if (asrNoAcc.includes(cleanKw) || cleanKw.split(/\s+/).some(w => w.length >= 2 && asrNoAcc.includes(w))) {
+            let badge = div.querySelector('.asr-text-tag, .ocr-text-tag');
+            if (!badge) {
+              const cleanSnippet = getHighlightSnippet(meta.asr_text, targetKw);
+              badge = document.createElement('div');
+              badge.className = 'ocr-text-tag asr-text-tag';
+              badge.style.bottom = '6px';
+              badge.style.left = '4px';
+              badge.style.right = '28px';
+              badge.style.zIndex = '10';
+              badge.style.background = 'linear-gradient(135deg, rgba(88, 28, 135, 0.95), rgba(126, 34, 206, 0.95))';
+              badge.style.border = '1px solid rgba(192, 132, 252, 0.7)';
+              badge.style.color = '#f3e8ff';
+              badge.title = `🎙️ Lời thoại: ${meta.asr_text}`;
+              badge.innerHTML = `<i class="fa-solid fa-microphone" style="font-size: 10px; margin-right: 4px; color: #e9d5ff;"></i> ${cleanSnippet}`;
+              div.appendChild(badge);
+            }
+          }
         }
       }
     });

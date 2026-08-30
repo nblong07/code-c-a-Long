@@ -319,7 +319,7 @@ function formatFullTextWithHighlight(fullText) {
   const quoteMatch = rawText.match(/["'“”«»](.*?)["'”»]/);
   const quotedKeyword = (quoteMatch && quoteMatch[1].trim()) ? quoteMatch[1].trim() : '';
 
-  const searchKeyword = rawAsr.trim() || rawOcr.trim() || quotedKeyword || rawText.trim();
+  const searchKeyword = rawAsr.trim() || rawOcr.trim() || quotedKeyword;
   
   if (!searchKeyword) {
     return fullText;

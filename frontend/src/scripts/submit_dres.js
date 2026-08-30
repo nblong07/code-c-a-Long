@@ -294,15 +294,22 @@ async function submit_to_dres_v2() {
                 const frameAnswers = perFrameRaw ? perFrameRaw.split(/[|;\n]/).map(s => s.trim()).filter(Boolean) : candidateAnswers;
 
                 for (let ans of frameAnswers) {
+                    // ✅ DRES Q&A spec (ApiClientAnswer):
+                    // - "text" = đáp án thuần túy (KHÔNG ghép video/timestamp vào đây)
+                    // - "mediaItemName" + "start" + "end" = vị trí video để DRES kiểm tra ngữ cảnh
                     payloadAnswers.push({
-                        "text": `${ans}-${item}-${frameMs}`
+                        "text": ans,
+                        "mediaItemName": item,
+                        "start": Math.max(0, frameMs - 2500),
+                        "end": frameMs + 2500
                     });
                 }
             }
         } else {
+            // Fallback: không có frame trong khay, chỉ gửi text đáp án
             for (let ans of candidateAnswers) {
                 payloadAnswers.push({
-                    "text": `${ans}`
+                    "text": ans
                 });
             }
         }
