@@ -39,3 +39,7 @@ pymilvus>=2.4.0
 python-dotenv>=1.0.0
 requests>=2.28.0
 tqdm>=4.65.0
+
+# Benchmark & Evaluation Tools (tùy chọn — dùng cho data_pipeline/benchmark_eval.py)
+jiwer>=3.0.0          # Tính WER (Word Error Rate) cho ASR evaluation
+rapidfuzz>=3.0.0      # Dependency của jiwer (string matching)

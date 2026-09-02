@@ -47,9 +47,14 @@ function updateSystemStatusBadge(status, message) {
 
 /**
  * Kết nối đến WebSocket chính (/ws).
- * Tự động kết nối lại sau 5 giây nếu bị ngắt.
+ * Tự động kết nối lại với exponential backoff nếu bị ngắt.
+ * Delay: 1s → 2s → 4s → 8s → 16s → tối đa 30s.
  */
 let isReconnecting = false;
+let wsRetryCount = 0;
+const WS_MAX_RETRIES = 10;
+const WS_BASE_DELAY_MS = 1000;
+const WS_MAX_DELAY_MS = 30000;
 
 function connectWebSocket() {
     if (!isReconnecting) {
@@ -62,6 +67,7 @@ function connectWebSocket() {
     socket.onopen = () => {
         console.log('WebSocket chính đã kết nối (/ws)');
         isReconnecting = false;
+        wsRetryCount = 0;  // Reset retry counter on successful connection
         updateSystemStatusBadge('connected', 'Hệ thống: Sẵn sàng 🟢');
     };
 
@@ -172,11 +178,21 @@ function connectWebSocket() {
     };
 
     socket.onclose = () => {
-        console.log('WebSocket chính bị đóng. Thử kết nối lại sau 5 giây...');
         isReconnecting = true;
-        updateSystemStatusBadge('disconnected', 'Hệ thống: Ngắt kết nối 🔴');
-        // Tự động kết nối lại
-        setTimeout(connectWebSocket, 5000);
+        wsRetryCount++;
+        if (wsRetryCount <= WS_MAX_RETRIES) {
+            // Exponential backoff: 1s, 2s, 4s, 8s, ..., tối đa 30s
+            const delay = Math.min(WS_BASE_DELAY_MS * Math.pow(2, wsRetryCount - 1), WS_MAX_DELAY_MS);
+            console.warn(`WebSocket chính bị đóng. Thử lại lần ${wsRetryCount}/${WS_MAX_RETRIES} sau ${delay}ms...`);
+            updateSystemStatusBadge('disconnected', `Hệ thống: Đang kết nối lại (${wsRetryCount}/${WS_MAX_RETRIES}) 🟡`);
+            setTimeout(connectWebSocket, delay);
+        } else {
+            console.error(`WebSocket: Đã thử ${WS_MAX_RETRIES} lần, không thể kết nối lại.`);
+            updateSystemStatusBadge('disconnected', 'Hệ thống: Mất kết nối 🔴 — Nhấn F5 để tải lại');
+            if (typeof showNotification === 'function') {
+                showNotification('❌ Mất kết nối server! Nhấn F5 để tải lại trang.', 'error');
+            }
+        }
     };
 }
 

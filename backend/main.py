@@ -665,6 +665,12 @@ class VectorSearchService:
         self.tot_agent = TreeOfThoughtsAgent()
         self.hippo_memory = HippoRAGMemory()
 
+        # Cấu trúc Caching & Tra cứu O(1) siêu tốc
+        self.text_embedding_cache: Dict[str, List[float]] = {}
+        self.translation_cache: Dict[str, str] = {}
+        self._keyframe_path_map: Dict[str, str] = {}
+        self.max_cache_size: int = 2000
+
         self.model_manager = MultiModelManager(self.device, self.logger)
         self._initialize_primary_model()
         self._initialize_database()
@@ -947,7 +953,25 @@ class VectorSearchService:
                 self.local_id_map[f"{vid_name}-{fid}"] = idx
                 self.local_id_map[f"{vid_name.lower()}-{fid}"] = idx
 
+                # Nạp đường dẫn thực tế vào memory map để tra cứu O(1) không cần duyệt ổ cứng
+                raw_p_str = str(raw_p)
+                self._keyframe_path_map[rel_filepath] = raw_p_str
+                self._keyframe_path_map[rel_filepath.lower()] = raw_p_str
+                self._keyframe_path_map[f"{vid_name}_{fid}"] = raw_p_str
+                self._keyframe_path_map[f"{vid_name.lower()}_{fid}"] = raw_p_str
+                self._keyframe_path_map[f"{vid_name}-{fid}"] = raw_p_str
+                self._keyframe_path_map[p.name] = raw_p_str
+
             self.logger.info(f"✅ Đã nạp thành công {len(self.local_metadata):,} vector đặc trưng SigLIP (1152d) lên {self.device}!")
+            # Log VRAM usage sau khi nạp xong features tensor
+            if self.device.type == "cuda":
+                allocated = torch.cuda.memory_allocated() / 1024**3
+                peak = torch.cuda.max_memory_allocated() / 1024**3
+                reserved = torch.cuda.memory_reserved() / 1024**3
+                self.logger.info(
+                    f"[VRAM] current={allocated:.2f}GB | peak={peak:.2f}GB | reserved={reserved:.2f}GB "
+                    f"(tổng={torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f}GB)"
+                )
         except Exception as e:
             self.logger.error(f"Lỗi nạp vector đặc trưng: {e}")
 
@@ -963,11 +987,19 @@ class VectorSearchService:
         if q_str in self.translation_cache:
             return self.translation_cache[q_str]
 
+        # Hàm phụ lưu cache có kiểm soát dung lượng
+        def _set_cache(k: str, v: str):
+            if hasattr(self, 'translation_cache'):
+                if len(self.translation_cache) > 3000:
+                    for old_k in list(self.translation_cache.keys())[:500]:
+                        self.translation_cache.pop(old_k, None)
+                self.translation_cache[k] = v
+
         # 2. ƯU TIÊN SỐ 1: Từ điển thị giác chuẩn hóa SigLIP (0.0001s, chính xác 100%, không phụ thuộc mạng)
         try:
             offline_visual_en = self.smart_decomposer.translate_to_visual_english(q_str)
             if offline_visual_en:
-                self.translation_cache[q_str] = offline_visual_en
+                _set_cache(q_str, offline_visual_en)
                 return offline_visual_en
         except Exception:
             pass
@@ -975,7 +1007,7 @@ class VectorSearchService:
         # 3. Kiểm tra nhanh: Nếu không có ký tự tiếng Việt, bỏ qua bước dịch
         import re
         if not re.search(r'[àáãạảăắằẳẵặâấầẩẫậèéẹẻẽêềếểễệđìíĩỉịòóõọỏôốồổỗộơớờởỡợùúũụủưứừửữựỳýỹỷỵ]', q_str.lower()):
-            self.translation_cache[q_str] = q_str
+            _set_cache(q_str, q_str)
             return q_str
 
         # 4. Thử dịch qua Google Translate API với timeout ngắn (0.8s)
@@ -990,7 +1022,7 @@ class VectorSearchService:
                 translated = "".join([item[0] for item in res[0] if item and item[0]])
                 if translated and translated.strip():
                     clean_res = translated.strip()
-                    self.translation_cache[q_str] = clean_res
+                    _set_cache(q_str, clean_res)
                     return clean_res
         except Exception:
             pass
@@ -1004,12 +1036,12 @@ class VectorSearchService:
                 mm_trans = res_mm.get("responseData", {}).get("translatedText", "")
                 if mm_trans and mm_trans.strip() and not mm_trans.startswith("MYMEMORY WARNING"):
                     clean_mm = mm_trans.strip()
-                    self.translation_cache[q_str] = clean_mm
+                    _set_cache(q_str, clean_mm)
                     return clean_mm
         except Exception:
             pass
 
-        self.translation_cache[q_str] = q_str
+        _set_cache(q_str, q_str)
         return q_str
 
     def load_image_from_input(self, image_input: Any) -> Image.Image:
@@ -1030,15 +1062,22 @@ class VectorSearchService:
     def encode_clip_text(self, query: str, model_name: str = "clip") -> List[float]:
         """
         Mã hóa câu truy vấn nâng cao với:
-        1. Mở rộng từ đồng nghĩa tiếng Việt (Synonym Expansion).
-        2. Dịch tự động sang tiếng Anh.
-        3. DUNG HỢP VECTOR SONG NGỮ (Cross-Lingual Dual-Embedding Blending): 0.45 * Vi + 0.55 * En.
+        1. Memory Embedding Cache (< 0.1ms cho truy vấn lặp).
+        2. Mở rộng từ đồng nghĩa tiếng Việt (Synonym Expansion).
+        3. Dịch tự động sang tiếng Anh.
+        4. DUNG HỢP VECTOR SONG NGỮ (Cross-Lingual Dual-Embedding Blending): 0.45 * Vi + 0.55 * En.
         """
         if not query or not query.strip():
             return []
 
         import re
         q_clean = query.strip()
+        cache_key = f"{model_name}:{q_clean}"
+
+        # 0. Kiểm tra Embedding Cache
+        if hasattr(self, 'text_embedding_cache') and cache_key in self.text_embedding_cache:
+            return self.text_embedding_cache[cache_key]
+
         model, _, tokenizer, spec = self.model_manager.get_model(model_name)
 
         # Kiểm tra xem query có tiếng Việt hay không
@@ -1080,11 +1119,95 @@ class VectorSearchService:
                 feat = F.normalize(feat.float(), p=2, dim=-1)
                 vec = feat.squeeze(0).cpu().numpy().tolist()
 
+            # Lưu vào Embedding Cache
+            if hasattr(self, 'text_embedding_cache'):
+                if len(self.text_embedding_cache) > 2000:
+                    for old_k in list(self.text_embedding_cache.keys())[:400]:
+                        self.text_embedding_cache.pop(old_k, None)
+                self.text_embedding_cache[cache_key] = vec
+
             # VRAM Safety Guard: dọn dẹp nhẹ bộ nhớ GPU
             if self.device.type == "cuda":
                 torch.cuda.empty_cache()
 
             return vec
+
+    def encode_clip_text_batch(self, queries: List[str], model_name: str = "clip") -> List[List[float]]:
+        """
+        Mã hóa hàng loạt (Batch Inference) N câu truy vấn trên GPU song song trong 1 forward pass.
+        Tối ưu hóa độ trễ cho chuỗi thời gian Temporal TRAKE (N stages).
+        """
+        if not queries:
+            return []
+
+        results: List[Optional[List[float]]] = [None] * len(queries)
+        uncached_indices = []
+        uncached_queries = []
+
+        for idx, q in enumerate(queries):
+            q_clean = (q or "").strip()
+            if not q_clean:
+                results[idx] = []
+                continue
+            cache_key = f"{model_name}:{q_clean}"
+            if hasattr(self, 'text_embedding_cache') and cache_key in self.text_embedding_cache:
+                results[idx] = self.text_embedding_cache[cache_key]
+            else:
+                uncached_indices.append(idx)
+                uncached_queries.append(q_clean)
+
+        if not uncached_queries:
+            return [r if r is not None else [] for r in results]
+
+        import re
+        vi_pattern = re.compile(r'[àáãạảăắằẳẵặâấầẩẫậèéẹẻẽêềếểễệđìíĩỉịòóõọỏôốồổỗộơớờởỡợùúũụủưứừửữựỳýỹỷỵ]', re.IGNORECASE)
+        model, _, tokenizer, spec = self.model_manager.get_model(model_name)
+
+        with torch.inference_mode():
+            for orig_idx, q_clean in zip(uncached_indices, uncached_queries):
+                is_vietnamese = bool(vi_pattern.search(q_clean))
+                if is_vietnamese:
+                    q_vi_expanded = expand_text_synonyms(q_clean)
+                    inputs_vi = tokenizer([q_vi_expanded if len(q_vi_expanded) < 70 else q_clean]).to(self.device)
+                    q_en = self.translate_query(q_clean)
+                    inputs_en = tokenizer([q_en]).to(self.device)
+
+                    if self.device.type == "cuda":
+                        with torch.amp.autocast(device_type="cuda"):
+                            feat_vi = model.encode_text(inputs_vi)
+                            feat_en = model.encode_text(inputs_en)
+                    else:
+                        feat_vi = model.encode_text(inputs_vi)
+                        feat_en = model.encode_text(inputs_en)
+
+                    feat_vi = F.normalize(feat_vi.float(), p=2, dim=-1)
+                    feat_en = F.normalize(feat_en.float(), p=2, dim=-1)
+                    fused_features = 0.45 * feat_vi + 0.55 * feat_en
+                    fused_features = F.normalize(fused_features, p=2, dim=-1)
+                    vec = fused_features.squeeze(0).cpu().numpy().tolist()
+                else:
+                    inputs_en = tokenizer([q_clean]).to(self.device)
+                    if self.device.type == "cuda":
+                        with torch.amp.autocast(device_type="cuda"):
+                            feat = model.encode_text(inputs_en)
+                    else:
+                        feat = model.encode_text(inputs_en)
+                    feat = F.normalize(feat.float(), p=2, dim=-1)
+                    vec = feat.squeeze(0).cpu().numpy().tolist()
+
+                cache_key = f"{model_name}:{q_clean}"
+                if hasattr(self, 'text_embedding_cache'):
+                    if len(self.text_embedding_cache) > 2000:
+                        for old_k in list(self.text_embedding_cache.keys())[:400]:
+                            self.text_embedding_cache.pop(old_k, None)
+                    self.text_embedding_cache[cache_key] = vec
+
+                results[orig_idx] = vec
+
+            if self.device.type == "cuda":
+                torch.cuda.empty_cache()
+
+        return [r if r is not None else [] for r in results]
 
     def encode_clip_image(self, image_input: Any, model_name: str = "clip") -> List[float]:
         if not image_input:
@@ -1177,9 +1300,31 @@ class VectorSearchService:
                         "entity": meta
                     })
                 return results
-            except Exception as e:
-                self.logger.error(f"Lỗi tìm kiếm vector: {e}")
-                return []
+            except torch.cuda.OutOfMemoryError:
+                self.logger.warning("⚠️ CUDA OOM during vector search! Chạy cleanup + fallback CPU...")
+                import gc
+                gc.collect()
+                torch.cuda.empty_cache()
+                try:
+                    # CPU fallback — chậm hơn nhưng đảm bảo trả kết quả
+                    q_np = q_tensor.cpu().float().numpy()
+                    f_np = self.local_features.cpu().float().numpy()
+                    sims_np = f_np @ q_np
+                    top_k = min(limit, len(self.local_metadata))
+                    top_indices_np = sims_np.argsort()[-top_k:][::-1]
+                    top_scores_np = sims_np[top_indices_np]
+                    results = []
+                    for score, idx in zip(top_scores_np, top_indices_np):
+                        meta = self.local_metadata[idx]
+                        results.append({
+                            "id": str(meta["frame_id"]),
+                            "distance": float(score),
+                            "entity": meta
+                        })
+                    return results
+                except Exception as fallback_err:
+                    self.logger.error(f"CPU fallback cũng thất bại: {fallback_err}")
+                    return []
 
         return []
 
@@ -1263,7 +1408,7 @@ class VectorSearchService:
             if vid_id_str.startswith(vid_prefix_1) or vid_id_str.startswith(vid_prefix_2) or clean_vid == vid_id_str.split("_")[0]:
                 matching_indices.append(idx)
 
-        q_vec = self.encode_clip_text(query)
+        q_vec = await asyncio.to_thread(self.encode_clip_text, query)
         results = []
 
         if matching_indices and q_vec:
@@ -1398,31 +1543,42 @@ class VectorSearchService:
         }
 
     def resolve_keyframe_path(self, target: str) -> Optional[str]:
-        """Tìm đường dẫn tệp keyframe thực tế trên ổ cứng từ vectorId, URL hoặc filename"""
+        """Tìm đường dẫn tệp keyframe thực tế trên ổ cứng từ vectorId, URL hoặc filename (O(1) Fast Cache)"""
         if not target:
             return None
+
+        clean_target = str(target).replace("\\", "/").strip("/")
+        # Xóa prefix domain nếu có
+        for prefix in ["http://localhost:8000/keyframes/", "http://127.0.0.1:8000/keyframes/", "http://localhost:8000/", "http://127.0.0.1:8000/", "keyframes/"]:
+            if clean_target.startswith(prefix):
+                clean_target = clean_target[len(prefix):]
+
+        # 0. Tra cứu nhanh trong Memory Map (0.001ms)
+        if hasattr(self, '_keyframe_path_map') and self._keyframe_path_map:
+            if clean_target in self._keyframe_path_map:
+                cand = self._keyframe_path_map[clean_target]
+                if os.path.isfile(cand):
+                    return cand
+            clean_lower = clean_target.lower()
+            if clean_lower in self._keyframe_path_map:
+                cand = self._keyframe_path_map[clean_lower]
+                if os.path.isfile(cand):
+                    return cand
+
         kf_dir = getattr(self.config, 'keyframes_dir', None) or getattr(self.config.server, 'keyframes_dir', './data-keyframes')
         kf_dir = os.path.abspath(kf_dir)
 
-        # Xóa prefix domain nếu có
-        for prefix in ["http://localhost:8000/keyframes/", "http://127.0.0.1:8000/keyframes/", "http://localhost:8000/", "http://127.0.0.1:8000/"]:
-            if target.startswith(prefix):
-                target = target[len(prefix):]
-        target = target.replace("\\", "/").strip("/")
-
         # 1. Đường dẫn trực tiếp
-        cand1 = os.path.join(kf_dir, target)
+        cand1 = os.path.join(kf_dir, clean_target)
         if os.path.isfile(cand1):
+            if hasattr(self, '_keyframe_path_map'):
+                self._keyframe_path_map[clean_target] = cand1
             return cand1
-        if target.startswith("keyframes/"):
-            cand2 = os.path.join(kf_dir, target[len("keyframes/"):])
-            if os.path.isfile(cand2):
-                return cand2
 
         # 2. Xử lý path dạng l26/L26_V151/keyframes/keyframe_4030.webp hoặc L26_V151_4030
-        parts = target.replace("\\", "/").split("/")
+        parts = clean_target.split("/")
         img_name = parts[-1]
-        if not img_name.endswith(".webp") and not img_name.endswith(".jpg") and not img_name.endswith(".png"):
+        if not img_name.endswith((".webp", ".jpg", ".png")):
             if "_" in img_name:
                 fid = img_name.rsplit("_", 1)[-1]
                 img_name = f"keyframe_{fid}.webp"
@@ -1433,11 +1589,20 @@ class VectorSearchService:
                 vid_name = p.upper()
                 break
 
+        if hasattr(self, '_keyframe_path_map') and img_name in self._keyframe_path_map:
+            cand = self._keyframe_path_map[img_name]
+            if os.path.isfile(cand):
+                return cand
+
+        # 3. Quét đĩa dự phòng (chỉ khi không có trong memory map) và lưu lại cache
         if img_name:
             for root, _, files in os.walk(kf_dir):
                 if img_name in files:
                     if not vid_name or vid_name.lower() in root.lower().replace("\\", "/"):
-                        return os.path.join(root, img_name)
+                        full_p = os.path.join(root, img_name)
+                        if hasattr(self, '_keyframe_path_map'):
+                            self._keyframe_path_map[clean_target] = full_p
+                        return full_p
 
         return None
 
@@ -1733,7 +1898,8 @@ class VectorSearchService:
         model_name: str = "clip",
         limit: int = 1000,
         global_topic: str = "",
-        k_rrf: int = 60
+        k_rrf: int = 60,
+        custom_weights: Optional[Dict[str, float]] = None
     ) -> List[Dict[str, Any]]:
         """
         Reciprocal Rank Fusion (RRF) Hybrid Search Engine + Smart Query Decomposer:
@@ -1799,9 +1965,14 @@ class VectorSearchService:
         doc_map: Dict[str, Dict[str, Any]] = {}
         rrf_scores: Dict[str, float] = {}
 
-        w_visual = 2.00
-        w_ocr = 1.20 if decomp.ocr_keywords else 0.95
-        w_asr = 1.20 if decomp.asr_keywords else 0.90
+        if custom_weights and isinstance(custom_weights, dict):
+            w_visual = float(custom_weights.get("visual", 2.00))
+            w_ocr = float(custom_weights.get("ocr", 1.20 if decomp.ocr_keywords else 0.95))
+            w_asr = float(custom_weights.get("asr", 1.20 if decomp.asr_keywords else 0.90))
+        else:
+            w_visual = 2.00
+            w_ocr = 1.20 if decomp.ocr_keywords else 0.95
+            w_asr = 1.20 if decomp.asr_keywords else 0.90
 
         def get_item_key(item: Dict[str, Any]) -> str:
             ent = item.get("entity", {})
@@ -1926,7 +2097,8 @@ class VectorSearchService:
         second_query: str = "",
         model_name: str = "clip",
         limit: int = 1000,
-        global_topic: str = ""
+        global_topic: str = "",
+        custom_weights: Optional[Dict[str, float]] = None
     ) -> List[Dict[str, Any]]:
         start_time = time.time()
         try:
@@ -1962,13 +2134,10 @@ class VectorSearchService:
 
             # 2. Xử lý trường hợp 1 cảnh đơn lẻ (KIS Mode - Sử dụng Hybrid Search + RRF)
             if len(enriched_queries) == 1:
-                result = await self.hybrid_search_rrf(enriched_queries[0], model_name=model_name, limit=limit, global_topic=clean_topic)
+                result = await self.hybrid_search_rrf(enriched_queries[0], model_name=model_name, limit=limit, global_topic=clean_topic, custom_weights=custom_weights)
             else:
-                # 3. Mã hóa song song toàn bộ N câu truy vấn đã được lồng ghép chủ đề chung
-                encoded_tasks = [
-                    asyncio.to_thread(self.encode_clip_text, q, model_name) for q in enriched_queries
-                ]
-                encoded_list = await asyncio.gather(*encoded_tasks)
+                # 3. Mã hóa hàng loạt N câu truy vấn trên GPU trong 1 batch duy nhất
+                encoded_list = await asyncio.to_thread(self.encode_clip_text_batch, enriched_queries, model_name)
 
                 # 4. Truy vấn Milvus song song cho toàn bộ N cảnh
                 query_tasks = [
@@ -2085,7 +2254,9 @@ class VectorSearchService:
                     stage_frames = v_chain["frames_per_stage"][stage_idx]
                     stage_frames.sort(key=lambda x: x["fid"])
                     for f_entry in stage_frames:
-                        res_item = copy.deepcopy(f_entry["item"])
+                        res_item = dict(f_entry["item"])
+                        if "entity" in res_item and isinstance(res_item["entity"], dict):
+                            res_item["entity"] = dict(res_item["entity"])
                         res_item["trake_stage"] = stage_idx + 1
                         res_item["trake_video_rank"] = v_rank + 1
                         res_item["distance"] = f_entry["score"]
@@ -2097,7 +2268,9 @@ class VectorSearchService:
                 for it in results_list[0]:
                     key = f"{it.get('entity', {}).get('video_id')}_{it.get('entity', {}).get('frame_id')}"
                     if key not in existing_keys:
-                        fallback_item = copy.deepcopy(it)
+                        fallback_item = dict(it)
+                        if "entity" in fallback_item and isinstance(fallback_item["entity"], dict):
+                            fallback_item["entity"] = dict(fallback_item["entity"])
                         fallback_item["trake_stage"] = 1
                         final_trake_results.append(fallback_item)
             # Gắn kèm nguyên văn ASR / OCR nếu có trong tập dữ liệu cho từng frame
@@ -2397,6 +2570,30 @@ def create_app(config_file: str = None) -> FastAPI:
             "routing_info": routing_info,
             "total_coarse": len(coarse_results),
             "results": final_results
+        }
+
+    class StandardSearchRequest(BaseModel):
+        query: str
+        limit: Optional[int] = 100
+        model: Optional[str] = "clip"
+        global_topic: Optional[str] = ""
+        rrf_weights: Optional[Dict[str, float]] = None
+
+    @app.post("/search")
+    async def standard_search_endpoint(payload: StandardSearchRequest):
+        """API Tìm kiếm chuẩn hóa (POST /search) phục vụ Benchmark, Grid Search & REST Clients"""
+        results = await service.process_temporal_query(
+            first_query=payload.query,
+            model_name=payload.model or "clip",
+            limit=payload.limit or 100,
+            global_topic=payload.global_topic or "",
+            custom_weights=payload.rrf_weights
+        )
+        return {
+            "status": "success",
+            "query": payload.query,
+            "count": len(results),
+            "results": results
         }
 
     # ==========================================

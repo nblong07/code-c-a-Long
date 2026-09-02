@@ -131,7 +131,7 @@ def extract_clip_main():
 
     # Sử dụng batch size tối ưu (24 cho 6GB VRAM) để đạt mức chiếm dụng 70-78% VRAM (~4.5GB), tối đa hóa Tensor Cores
     eff_batch_size = args.batch_size if args.batch_size <= 28 else 24
-    print(f"⚡ Tối ưu VRAM: Sử dụng Batch Size = {eff_batch_size} (Tải 75% VRAM ~4.5GB, an toàn 100% chống OOM)")
+    print(f"⚡ Tối ưu VRAM: Sử dụng Batch Size = {eff_batch_size} (Tải ~75% VRAM, có cleanup_vram() guard)")
 
     # PyTorch DataLoader đa luồng với persistent workers và DMA Pin Memory
     dataset = KeyframeDataset(image_paths, preprocess)

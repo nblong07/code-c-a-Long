@@ -1,18 +1,19 @@
 # Hệ Thống Truy Vấn Video Đa Phương Thức (Multimodal Video Retrieval System) 🚀
+# Hệ Thống Truy Vấn Video Đa Phương Thức (Multimodal Video Retrieval System)
 **Codebase:** `code-c-a-Long` | **Tối ưu cho:** Cuộc thi Video Retrieval / AI City Challenge (AIC 2026) / VBS
 
 ---
 
 ## 📌 1. TỔNG QUAN HỆ THỐNG (SYSTEM OVERVIEW)
 
-Hệ thống cung cấp giải pháp tìm kiếm khoảnh khắc video (Video Moment Retrieval) toàn diện và hiệu năng cao từ văn bản tự nhiên, sử dụng các mô hình AI chuẩn SOTA mới nhất:
-* **Visual Backbone (Thị giác):** Google OpenCLIP `ViT-gopt-16-SigLIP2-384` (**Google SigLIP 2 Giant** - Mô hình thị giác ~1 tỷ tham số SOTA đỉnh cao, vector 1152 chiều, Pretrained WebLI, FP16 CUDA Tensor Cores).
+Hệ thống cung cấp giải pháp tìm kiếm khoảnh khắc video (Video Moment Retrieval) toàn diện và hiệu năng cao từ văn bản tự nhiên, sử dụng các mô hình AI kiến trúc SOTA:
+* **Visual Backbone (Thị giác):** Google OpenCLIP `ViT-gopt-16-SigLIP2-384` (**Google SigLIP 2 Giant** — ~1 tỷ tham số, vector 1152 chiều, Pretrained WebLI, FP16 CUDA Tensor Cores).
 * **Smart Query Decomposer & Omni-Parser:** Bộ phân rã câu hỏi thông minh chạy trên CPU RAM (0 MB VRAM, < 1ms), tự động tách chuỗi sự kiện đa thời gian (TRAKE), trích xuất từ khóa chữ viết (OCR), nhận diện lời thoại (ASR), và làm giàu mô tả thị giác song ngữ (Vietnamese $\leftrightarrow$ English).
-* **ASR Backbone (Âm thanh & Lời thoại):** `Faster-Whisper Large-v3-Turbo` tích hợp **Silero VAD (Voice Activity Detection)** chạy trên CUDA Tensor Cores (nhanh gấp 4 lần, lọc sạch 100% tạp âm/nhạc nền, Batched Inference).
-* **OCR Backbone (Văn bản trên màn hình):** `PaddleOCR PP-OCRv4` + `VietOCR` kết hợp bộ tiền xử lý tăng tương phản thích ứng **CLAHE (Contrast Limited Adaptive Histogram Equalization)** bắt trọn biển số, logo và phụ đề mờ.
-* **Keyframe Extraction (Trích xuất thích ứng):** `TransNetV2` chia shot tự động + Bộ lọc mờ **Laplacian Variance** ($\text{Var} \ge 95.0$) + Bộ lọc ánh sáng LAB, tự động chọn frame nét nhất trong từng phân đoạn.
-* **Hybrid Search & Fusion Engine:** Bộ tìm kiếm kết hợp **Reciprocal Rank Fusion (RRF)** dung hợp điểm số giữa Dense Vector Search (GPU CUDA cuBLAS $< 2\text{ms}$) và Sparse Lexical Search (BM25 Inverted Index trên CPU RAM $< 1\text{ms}$) với thời gian phản hồi siêu tốc ($< 5\text{ms}$).
-* **Giao diện thi đấu & Quản lý nộp bài:** Web UI Cyberpunk hỗ trợ phím tắt thần tốc, chế độ tìm kiếm **KIS (Mô tả đơn)**, **Q&A** và **TRAKE (Chuỗi sự kiện theo thời gian)**, đóng gói `submission.zip` 1-click chuẩn 100% quy định BTC (hỗ trợ cả 3 dạng bài KIS, Q&A, TRAKE).
+* **ASR Backbone (Âm thanh & Lời thoại):** `Faster-Whisper Large-v3-Turbo` tích hợp **Silero VAD** (Voice Activity Detection) chạy trên CUDA Tensor Cores, Batched Inference. VAD lọc hiệu quả tiếng ồn nền và khoảng im lặng; kết hợp bộ lọc heuristic (`no_speech_prob`, `avg_logprob`, loại hallucination) — có thể miss giọng nói bị nhạc đè mạnh.
+* **OCR Backbone (Văn bản trên màn hình):** Pipeline 2 giai đoạn — `PaddleOCR PP-OCRv4` phát hiện vùng chữ (text detection, `det=True, rec=False`) → `VietOCR` (VGG-Transformer) nhận dạng tiếng Việt trên từng vùng crop — với tiền xử lý **CLAHE** tăng tương phản. Bắt trọn biển số, logo và phụ đề mờ.
+* **Keyframe Extraction (Trích xuất thích ứng):** `TransNetV2` chia shot tự động + Bộ lọc mờ **Laplacian Variance** ($\text{Var} \ge 70.0$ mặc định) + **Near-Duplicate Filtering** (dHash, Hamming distance ≤ 5, sliding window 4 frames) + Bộ lọc ánh sáng LAB, chọn frame nét nhất trong từng phân đoạn.
+* **Hybrid Search & Fusion Engine:** Bộ tìm kiếm kết hợp **Reciprocal Rank Fusion (RRF)** dung hợp điểm số giữa Dense Vector Search (GPU CUDA cuBLAS $< 2\text{ms}$) và Sparse Lexical Search (BM25 Inverted Index trên CPU RAM $< 1\text{ms}$). Trọng số RRF thích ứng theo ngữ cảnh query (xem mục 3).
+* **Giao diện thi đấu & Quản lý nộp bài:** Web UI Cyberpunk hỗ trợ phím tắt thần tốc, chế độ tìm kiếm **KIS (Mô tả đơn)**, **Q&A** và **TRAKE (Chuỗi sự kiện theo thời gian)**, đóng gói `submission.zip` 1-click theo format quy định BTC (hỗ trợ cả 3 dạng bài KIS, Q&A, TRAKE).
 
 ---
 
@@ -21,10 +22,10 @@ Hệ thống cung cấp giải pháp tìm kiếm khoảnh khắc video (Video Mo
 ```mermaid
 graph TD
     subgraph "1. OFFLINE DATA PIPELINE (Tuần tự, VRAM < 3.5GB)"
-        Raw_Videos[Thư mục Video MP4 Mới] --> Step1["Bước 1: transnetv2_keyframes.py<br/>(TransNetV2 + Lọc mờ Laplacian + WebP)"]
+        Raw_Videos[Thư mục Video MP4 Mới] --> Step1["Bước 1: transnetv2_keyframes.py<br/>(TransNetV2 + Lọc mờ Laplacian + dHash dedup + WebP)"]
         Step1 --> Keyframes["Thư mục data-keyframes/ & CSV Maps"]
         Step1 --> Step2["Bước 2: extract_asr_advanced.py<br/>(Faster-Whisper Large-v3-Turbo + Silero VAD)"]
-        Step1 --> Step3["Bước 3: extract_ocr_advanced.py<br/>(PaddleOCR v4 + Tiền xử lý CLAHE + VietOCR)"]
+        Step1 --> Step3["Bước 3: extract_ocr_advanced.py<br/>(PaddleOCR detect → VietOCR recognize + CLAHE)"]
         Step2 --> ASR_JSONL["asr_results.jsonl"]
         Step3 --> OCR_JSONL["ocr_results.jsonl"]
         ASR_JSONL & OCR_JSONL --> Step4["Bước 4: merge_ocr_asr_metadata.py<br/>(ocr_asr_metadata.json)"]
@@ -41,7 +42,7 @@ graph TD
         Omni --> SigLIP_Encoder[SigLIP 2 Giant Text Encoder]
         SigLIP_Encoder --> GPU_Tensor
         Omni --> BM25_Engine
-        GPU_Tensor & BM25_Engine --> RRF_Fusion["Reciprocal Rank Fusion (RRF)"]
+        GPU_Tensor & BM25_Engine --> RRF_Fusion["Reciprocal Rank Fusion (RRF — trọng số động)"]
         RRF_Fusion --> Ranked_Results[Top 100 Kết quả Khớp nhất]
     end
 
@@ -57,29 +58,66 @@ graph TD
 
 ## ⚙️ 3. DANH MỤC MÔ HÌNH VÀ CÔNG NGHỆ CHÍNH
 
-| Thành phần | Mô hình / Công nghệ | Vai trò & Đặc điểm vượt trội |
+| Thành phần | Mô hình / Công nghệ | Vai trò & Đặc điểm |
 | :--- | :--- | :--- |
-| **Visual Backbone** | `Google SigLIP 2 Giant` (`ViT-gopt-16-SigLIP2-384`) | Mô hình thị giác ~1 tỷ tham số Vision-Language SOTA, vector 1152 chiều, FP16 Tensor Cores. |
+| **Visual Backbone** | `Google SigLIP 2 Giant` (`ViT-gopt-16-SigLIP2-384`) | Mô hình thị giác ~1 tỷ tham số Vision-Language SOTA (Google, 2024), vector 1152 chiều, FP16 Tensor Cores. |
 | **Smart Omni-Parser** | `SmartQueryDecomposer` (CPU NLP) | Bóc tách tự động chuỗi thời gian TRAKE, từ khóa OCR, lời thoại ASR và mô tả thị giác song ngữ (0 MB VRAM, $< 1\text{ms}$). |
-| **ASR (Speech-to-Text)** | `Faster-Whisper Large-v3-Turbo` + `Silero VAD` | Nhận diện tiếng Việt chuẩn xác từng mili-giây, lọc sạch 100% tiếng ồn/nhạc nền, tốc độ siêu nhanh. |
-| **OCR (Text-on-Screen)** | `PaddleOCR PP-OCRv4` + `VietOCR` + `CLAHE` | Cân bằng sáng thích ứng làm rõ chữ mờ/cháy sáng; nhận diện biển số xe, tên đường, banner. |
-| **Keyframe Selection** | `TransNetV2` + `Laplacian Variance Filter` | Tự động phát hiện chuyển cảnh, quét lân cận $\pm 3$ frames để chọn khung hình nét nhất ($\text{Var} \ge 95.0$). |
-| **Hybrid Search & Fusion** | `Reciprocal Rank Fusion (RRF)` | Dung hợp điểm số chuẩn xác: $RRF(d) = \frac{1.00}{60 + \text{Rank}_{\text{visual}}} + \frac{1.15}{60 + \text{Rank}_{\text{ocr}}} + \frac{1.10}{60 + \text{Rank}_{\text{asr}}}$. |
-| **Vector Search Engine** | `PyTorch CUDA Tensor Matrix Search` | Nhân ma trận trực tiếp trên GPU CUDA (RTX 3050), thời gian truy vấn $< 2\text{ms}$. |
+| **ASR (Speech-to-Text)** | `Faster-Whisper Large-v3-Turbo` + `Silero VAD` | Nhận diện tiếng Việt, lọc nhiễu nền qua VAD + heuristic (`no_speech_prob > 0.65`, `avg_logprob < -1.3`, loại hallucination lặp từ); tốc độ Batched Inference FP16. |
+| **OCR (Text-on-Screen)** | `PaddleOCR PP-OCRv4` (detect) + `VietOCR` (recognize) + `CLAHE` | **Pipeline 2 giai đoạn tuần tự:** PaddleOCR phát hiện bounding box (`rec=False`) → VietOCR nhận dạng tiếng Việt từng crop. Lý do: PaddleOCR recognition gốc không tối ưu cho dấu tiếng Việt; VietOCR (VGG-Transformer, train corpus tiếng Việt) cho CER thấp hơn đáng kể. |
+| **Keyframe Selection** | `TransNetV2` + `Laplacian Variance` + `dHash dedup` | Phát hiện chuyển cảnh, quét lân cận $\pm 3$ frames chọn frame nét nhất ($\text{Var} \ge 70.0$), lọc near-duplicate bằng dHash (Hamming ≤ 5, window 4). |
+| **Hybrid Search & Fusion** | `Reciprocal Rank Fusion (RRF)` — **trọng số động** | $RRF(d) = \frac{w_v}{60 + \text{Rank}_{v}} + \frac{w_{ocr}}{60 + \text{Rank}_{ocr}} + \frac{w_{asr}}{60 + \text{Rank}_{asr}}$, với $w_v=2.00$, $w_{ocr}=1.20$ (hoặc $0.95$ nếu query không có OCR keywords), $w_{asr}=1.20$ (hoặc $0.90$ nếu query không có ASR keywords). |
+| **Vector Search Engine** | `PyTorch CUDA Tensor Matrix Search` | Nhân ma trận trực tiếp trên GPU CUDA (RTX 3050), thời gian truy vấn $< 2\text{ms}$. Có CPU fallback khi GPU không khả dụng. |
 | **Interactive Feedback** | `Rocchio Relevance Feedback` (`Alt + R`) | AI tái định vị vector trọng tâm dựa trên các ảnh thí sinh đã chọn để gom toàn bộ góc quay liên quan. |
+
+### Cơ sở trọng số RRF
+
+Trọng số hiện tại (`w_visual=2.00`, `w_ocr=1.20/0.95`, `w_asr=1.20/0.90`) được chọn dựa trên:
+- **Visual ưu tiên cao nhất** (`w=2.00`): SigLIP2 Giant là backbone chính, cho retrieval accuracy cao nhất trên phần lớn query.
+- **Trọng số động OCR/ASR:** Khi query chứa OCR/ASR keywords (phát hiện bởi Smart Query Decomposer), tăng weight lên `1.20` để boost modality phù hợp; ngược lại giảm xuống `0.95/0.90` để giảm nhiễu.
+- **Chưa qua grid search chính thức** trên tập validation lớn — giá trị chọn theo kinh nghiệm quan sát trên query mẫu AIC 2024 practice data. Sẽ tinh chỉnh khi có ground-truth từ BTC qua script `data_pipeline/tune_rrf_weights.py`.
 
 ---
 
-## 💻 4. YÊU CẦU PHẦN CỨNG (SYSTEM PROFILE)
+## 📊 4. BENCHMARK & ĐÁNH GIÁ HIỆU NĂNG
+
+> ⚠️ Các số liệu dưới đây cần được đo thực tế và điền vào trước khi thi. Chạy `python data_pipeline/benchmark_eval.py --queries validation_queries.json`.
+
+| Metric | Giá trị | Điều kiện đo |
+| :--- | :--- | :--- |
+| Recall@1 | *(chưa đo — chạy benchmark_eval.py)* | Tập validation, RTX 3050 |
+| Recall@5 | *(chưa đo)* | |
+| Recall@10 | *(chưa đo)* | |
+| MRR | *(chưa đo)* | |
+| WER (ASR tiếng Việt) | *(chưa đo)* | Whisper large-v3-turbo + Silero VAD |
+| Query Latency P50 | *(chưa đo)* | Single client |
+| Query Latency P95 | *(chưa đo)* | |
+| VRAM Peak (runtime) | *(chưa đo — xem log `[VRAM]` khi khởi động)* | `torch.cuda.max_memory_allocated()` |
+
+---
+
+## 💻 5. YÊU CẦU PHẦN CỨNG (SYSTEM PROFILE)
 
 * **Hệ điều hành:** Windows 10 / 11 hoặc Ubuntu Linux.
 * **CPU:** AMD Ryzen 7 / Intel Core i7.
 * **RAM:** 16 GB RAM (hệ thống được tối ưu chỉ tiêu thụ $\sim 4.5\text{GB RAM}$ khi indexing, $\sim 2.5\text{GB RAM}$ runtime).
-* **GPU:** NVIDIA GeForce RTX 3050 (6GB VRAM) hoặc cao hơn. Mức chiếm dụng VRAM chỉ $\sim 3.0 - 3.2\text{GB VRAM}$ (an toàn $100\%$, không bao giờ OOM).
+* **GPU:** NVIDIA GeForce RTX 3050 (6GB VRAM) hoặc cao hơn.
+  - VRAM ước tính runtime (FP16): ~3.0–3.2 GB — **nên đo thực tế** qua log `[VRAM]` khi khởi động server.
+  - Có cơ chế `cleanup_vram()` (gc + `empty_cache`) và CPU fallback khi GPU không khả dụng.
+  - ⚠️ Chưa stress-test với >5 concurrent clients. Nên chạy `data_pipeline/stress_test_vram.py` trước khi thi thật.
+
+### Cơ chế Xử lý Lỗi & Fallback
+
+| Tình huống | Cơ chế |
+| :--- | :--- |
+| GPU CUDA không khả dụng khi khởi động | ✅ Tự động fallback sang CPU (cảnh báo log) |
+| VRAM gần đầy / sau mỗi tác vụ | ✅ `cleanup_vram()`: `gc.collect()` + `torch.cuda.empty_cache()` |
+| OCR/ASR search trả về rỗng | ✅ Trả về `visual_results` làm fallback; modality rỗng đóng góp 0 vào RRF (không phạt) |
+| Dịch thuật query thất bại | ✅ 4-tier fallback: Memory Cache → Visual Dict → Google Translate (timeout 0.8s) → MyMemory API → giữ nguyên query gốc |
+| WebSocket disconnect | ✅ Frontend auto-reconnect sau 5 giây (fixed delay); Server log graceful |
 
 ---
 
-## 🚀 5. HƯỚNG DẪN VẬN HÀNH TOÀN DIỆN
+## 🚀 6. HƯỚNG DẪN VẬN HÀNH TOÀN DIỆN
 
 ### A. Kích hoạt môi trường
 Mở **Anaconda Prompt (Miniconda3)**:
@@ -114,7 +152,7 @@ Mở trình duyệt Web tại: 👉 **`http://localhost:8000/frontend/`**
 
 ---
 
-## ⌨️ 6. BẢNG PHÍM TẮT THẦN TỐC (KEYBOARD SHORTCUTS)
+## ⌨️ 7. BẢNG PHÍM TẮT THẦN TỐC (KEYBOARD SHORTCUTS)
 
 | Phím tắt | Thao tác | Mô tả chi tiết |
 | :--- | :--- | :--- |
@@ -123,7 +161,7 @@ Mở trình duyệt Web tại: 👉 **`http://localhost:8000/frontend/`**
 | **`Alt + A`** | **Bật / Tắt Khay** | Ẩn/hiện thanh công cụ chọn ảnh bên phải. |
 | **`Alt + R`** | **Tinh chỉnh (Refine)** | AI gom toàn bộ các góc quay cùng sự kiện lên hàng đầu (Rocchio Feedback). |
 | **`Alt + S`** | **Lưu Query** | Lưu câu truy vấn hiện tại vào Gói Bài Thi. |
-| **`Ctrl + S`** / **`Alt + P`** | **Gói Bài & Nén ZIP** | Mở Bảng Quản Lý & Nén `submission.zip` 1-click chuẩn 100% BTC. |
+| **`Ctrl + S`** / **`Alt + P`** | **Gói Bài & Nén ZIP** | Mở Bảng Quản Lý & Nén `submission.zip` 1-click theo format BTC. |
 | **`Ctrl + Q`** | **Làm mới ô nhập** | Xóa nhanh câu query để gõ câu mới. |
 | **`Ctrl + I`** | **Tìm kiếm OCR** | Mở ô tìm kiếm chữ viết xuất hiện trên video. |
 | **`Ctrl + K`** | **Tìm kiếm ASR** | Mở ô tìm kiếm giọng nói / lời thoại âm thanh trong video. |
@@ -132,7 +170,7 @@ Mở trình duyệt Web tại: 👉 **`http://localhost:8000/frontend/`**
 
 ---
 
-## 📦 7. CẤU TRÚC THƯ MỤC DỰ ÁN (PROJECT STRUCTURE)
+## 📦 8. CẤU TRÚC THƯ MỤC DỰ ÁN (PROJECT STRUCTURE)
 
 ```
 d:\code-c-a-Long/
@@ -147,11 +185,14 @@ d:\code-c-a-Long/
 │   └── src/scripts/             # Toàn bộ script xử lý UI, WebSocket, Video Player, Submission
 ├── data_pipeline/
 │   ├── run_master_offline_pipeline.py  # Master Runner tự động 5 bước Offline Indexing
-│   ├── transnetv2_keyframes.py         # Trích xuất keyframe thích ứng + Lọc mờ Laplacian
+│   ├── transnetv2_keyframes.py         # Trích xuất keyframe + Lọc mờ Laplacian + dHash dedup
 │   ├── extract_asr_advanced.py         # Trích xuất ASR Faster-Whisper Large-v3-Turbo + VAD
-│   ├── extract_ocr_advanced.py         # Trích xuất OCR PaddleOCR v4 + Tiền xử lý CLAHE + VietOCR
+│   ├── extract_ocr_advanced.py         # OCR: PaddleOCR detect → VietOCR recognize + CLAHE
 │   ├── merge_ocr_asr_metadata.py       # Đồng bộ và gộp Metadata OCR & ASR
 │   ├── extract_features.py             # Trích xuất Vector Google SigLIP 2 Giant 1152d (FP16)
+│   ├── benchmark_eval.py               # Script đo Recall@K, MRR, WER, Latency
+│   ├── tune_rrf_weights.py             # Grid search tối ưu trọng số RRF
+│   ├── stress_test_vram.py             # Stress test VRAM với N concurrent clients
 │   └── pack_submission.py              # Đóng gói và kiểm tra tính hợp lệ file submission.zip
 ├── data-keyframes/              # Thư mục lưu keyframes trích xuất (.webp) và maps CSV
 ├── features.npy                 # Tensor đặc trưng vector (~166k x 1152d)
@@ -165,7 +206,7 @@ d:\code-c-a-Long/
 
 ---
 
-## 🏆 8. CHIẾN THUẬT NỘP BÀI TỐI ƯU ĐIỂM SỐ (MRR & TOP RANK)
+## 🏆 9. CHIẾN THUẬT NỘP BÀI TỐI ƯU ĐIỂM SỐ (MRR & TOP RANK)
 
 1. **Dạng bài KIS (`query-X-kis.csv`):**
    * Định dạng: `<video_name>,<frame_id>`.

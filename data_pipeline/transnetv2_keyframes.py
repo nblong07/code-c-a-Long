@@ -270,7 +270,7 @@ def extract_with_transnet(model, video_path, output_dir, resize_factor=0.5, qual
                 pass
         os.rename(csv_temp_path, csv_path)
         
-    print(f"✨ Trích xuất thành công {saved_count} keyframes (Đảm bảo 100% không mất cảnh) cho {video_name}")
+    print(f"✨ Trích xuất thành công {saved_count} keyframes (đã lọc mờ Laplacian + near-dup dHash) cho {video_name}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

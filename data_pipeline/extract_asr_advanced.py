@@ -257,7 +257,7 @@ def main():
 
     print(f"📊 Tổng video: {len(videos)} | Đã xong: {len(completed)} | Cần xử lý: {len(pending)}", flush=True)
     if not pending:
-        print("🎉 Toàn bộ video đã được bóc băng ASR hoàn tất 100%!", flush=True)
+        print("🎉 Toàn bộ video đã được bóc băng ASR hoàn tất!", flush=True)
         return
 
     for attempt in range(1, MAX_VIDEO_RETRIES + 2):
