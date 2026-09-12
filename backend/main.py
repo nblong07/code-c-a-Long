@@ -182,7 +182,7 @@ class TextQueryRequest(BaseModel):
     First_query: Optional[str] = Field("", alias="firstQuery", description="Mô tả sự kiện văn bản chính")
     Next_query: Optional[str] = Field("", alias="secondQuery", description="Mô tả sự kiện tiếp theo (Temporal)")
     text_query: Optional[str] = Field("", description="Mô tả văn bản trực tiếp")
-    model: Optional[str] = Field("ViT-gopt-16-SigLIP2-384", description="Google SigLIP 2 Giant (1152d FP16)")
+    model: Optional[str] = Field("ViT-gopt-16-SigLIP2-384", description="Google SigLIP 2 Giant (1536d FP16)")
     top_k: Optional[int] = Field(50, description="Số lượng kết quả cần trả về")
 
 
@@ -226,21 +226,12 @@ class ModelConfig:
 
 @dataclass
 class DatabaseConfig:
-    uri: str = "http://localhost:283710"
-    host: str = "localhost"
-    port: int = 283710
-    database: str = "default"
-    collection_name: str = "AIC26_fullbatch1"
     search_limit: int = 1000
-    replica_number: int = 1
-    hnsw_m: int = 16
-    hnsw_ef_construction: int = 128
-    hnsw_ef_search: int = 64
+    nprobe: int = 64
 
 
 @dataclass
 class FilterConfig:
-    enable_adaptive_router: bool = False
     enable_heuristics_filter: bool = True
     blur_threshold: float = 95.0
     min_luminance: float = 20.0
@@ -294,21 +285,9 @@ class Config:
             device=dev
         )
 
-        milvus_host = os.getenv("MILVUS_HOST", config_data.get("milvus_host", "localhost"))
-        milvus_port = int(os.getenv("MILVUS_PORT", config_data.get("milvus_port", 283710)))
-        default_uri = f"http://{milvus_host}:{milvus_port}"
-
         self.database = DatabaseConfig(
-            uri=os.getenv("MILVUS_URI", config_data.get("milvus_uri", default_uri)),
-            host=milvus_host,
-            port=milvus_port,
-            database=os.getenv("MILVUS_DATABASE", config_data.get("milvus_database", "default")),
-            collection_name=os.getenv("COLLECTION_NAME", config_data.get("collection_name", "AIC26_fullbatch1")),
             search_limit=int(os.getenv("SEARCH_LIMIT", config_data.get("search_limit", 1000))),
-            replica_number=int(os.getenv("REPLICA_NUMBER", config_data.get("replica_number", 1))),
-            hnsw_m=int(config_data.get("hnsw_m", 16)),
-            hnsw_ef_construction=int(config_data.get("hnsw_ef_construction", 128)),
-            hnsw_ef_search=int(config_data.get("hnsw_ef_search", 64))
+            nprobe=int(config_data.get("hnsw_ef_search", 64))
         )
 
         v_dirs_raw = config_data.get("video_dirs", "C:/video_test")
@@ -330,7 +309,6 @@ class Config:
         )
 
         self.filter = FilterConfig(
-            enable_adaptive_router=bool(config_data.get("enable_adaptive_router", False)),
             enable_heuristics_filter=bool(config_data.get("enable_heuristics_filter", True)),
             blur_threshold=float(config_data.get("blur_threshold", 95.0)),
             min_luminance=float(config_data.get("min_luminance", 20.0)),
@@ -351,7 +329,7 @@ AppConfig = Config
 # PRIMARY MODEL MANAGER
 # ==========================================
 class PrimaryModelManager:
-    """Quản lý mô hình: Google SigLIP 2 ViT-gopt-16-SigLIP2-384 (1152 chiều, FP16 CUDA)"""
+    """Quản lý mô hình: Google SigLIP 2 ViT-gopt-16-SigLIP2-384 (1536 chiều, FP16 CUDA)"""
 
     def __init__(self, device: torch.device, logger: logging.Logger):
         self.device = device
@@ -374,7 +352,7 @@ class PrimaryModelManager:
         model_name = getattr(self.config.model, "clip_model_name", "ViT-gopt-16-SigLIP2-384") if hasattr(self, "config") and hasattr(self.config, "model") else "ViT-gopt-16-SigLIP2-384"
         pretrained = getattr(self.config.model, "clip_pretrained", "webli") if hasattr(self, "config") and hasattr(self.config, "model") else "webli"
 
-        self.logger.info(f"Đang tải mô hình SigLIP 2 ({model_name}, pretrained={pretrained}, 1152d) lên thiết bị {self.device}...")
+        self.logger.info(f"Loading {model_name} (pretrained={pretrained}, 1536d) on {self.device}...")
         model, _, preprocess = open_clip.create_model_and_transforms(
             model_name,
             pretrained=pretrained
@@ -387,12 +365,9 @@ class PrimaryModelManager:
             self.model = model.to(self.device).eval()
         self.preprocess = preprocess
         self.tokenizer = tokenizer
-        self.logger.info("✅ Mô hình Google SigLIP 2 Giant đã nạp thành công (FP16 CUDA)!")
+        self.logger.info("SigLIP 2 ViT-gopt-16-SigLIP2-384 loaded (FP16 CUDA).")
         return self.model, self.preprocess, self.tokenizer, self.spec
 
-
-# Alias giữ tương thích ngược
-MultiModelManager = PrimaryModelManager
 
 
 
@@ -442,7 +417,7 @@ class SemanticResultCache:
 # 8. VECTOR SEARCH SERVICE CORE
 # ==========================================
 class VectorSearchService:
-    """Dịch vụ chính quản lý kết nối Milvus DB, mã hóa vector và điều hướng mô hình"""
+    """FAISS ANN + BM25 hybrid search service. Model: SigLIP 2 ViT-gopt-16-SigLIP2-384 (1536d FP16)."""
 
     def __init__(self, config: Config):
         self.config = config
@@ -458,7 +433,7 @@ class VectorSearchService:
         if self.device.type == "cuda":
             self.logger.info(f"Tên GPU: {torch.cuda.get_device_name(0)} | Tổng dung lượng VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
 
-        # ThreadPoolExecutor tận dụng 80%-90% luồng CPU AMD 7000 Series (16 Threads)
+        # ThreadPoolExecutor: max(config.max_workers, OPTIMAL_CPU_THREADS)
         effective_workers = max(self.config.server.max_workers, OPTIMAL_CPU_THREADS)
         self.thread_pool = ThreadPoolExecutor(max_workers=effective_workers)
         self.active_connections: List[WebSocket] = []
@@ -498,7 +473,7 @@ class VectorSearchService:
     def _warmup_model(self):
         """Khởi động ấm (Warmup) SigLIP 2 Text Encoder trong VRAM ngay khi server khởi động để triệt tiêu cold start"""
         try:
-            self.logger.info("🔥 Đang khởi động ấm (Warmup) SigLIP 2 Text Encoder trong VRAM...")
+            self.logger.info("Warming up SigLIP 2 text encoder...")
             t0 = time.perf_counter()
             with torch.inference_mode():
                 dummy_tokens = self.clip_tokenizer(["Khởi động hệ thống video retrieval", "Startup query English"]).to(self.device)
@@ -509,7 +484,7 @@ class VectorSearchService:
                 else:
                     _ = self.clip_model.encode_text(dummy_tokens)
             dt = (time.perf_counter() - t0) * 1000
-            self.logger.info(f"✅ SigLIP 2 Text Encoder đã sẵn sàng trong VRAM (Warmup: {dt:.1f}ms)!")
+            self.logger.info(f"Text encoder warm-up done ({dt:.1f}ms).")
         except Exception as e:
             self.logger.warning(f"Lỗi warmup mô hình: {e}")
 
@@ -554,8 +529,7 @@ class VectorSearchService:
                             pass
             self.logger.info(f"✅ Đã nạp {len(self.time_map):,} ánh xạ timestamp (Seconds & Milliseconds) từ CSDL video maps.")
 
-        # 2. Nạp trực tiếp Bộ Vector Đặc Trưng SigLIP 1152d lên GPU CUDA
-        self.milvus_client = None
+        # 2. Load feature vectors and FAISS index
         self._load_local_features()
 
         # 3. Nạp dữ liệu OCR & ASR Metadata (từ ocr_asr_metadata.json)
@@ -768,19 +742,18 @@ class VectorSearchService:
             if faiss_path and os.path.exists(faiss_path):
                 t0 = time.perf_counter()
                 self.faiss_index = faiss.read_index(faiss_path)
-                # Tối ưu nprobe từ cấu hình hnsw_ef_search (mặc định 64)
-                self.faiss_index.nprobe = getattr(self.config.database, "hnsw_ef_search", 64)
-                self.logger.info(f"⚡ Đã nạp thành công Chỉ mục Lượng tử hóa FAISS ANN ({self.faiss_index.ntotal:,} vectors, nprobe={self.faiss_index.nprobe}) từ {faiss_path} trong {(time.perf_counter() - t0)*1000:.1f}ms!")
+                self.faiss_index.nprobe = self.config.database.nprobe
+                self.logger.info(f"FAISS IVF-SQ8 loaded: {self.faiss_index.ntotal:,} vectors, nprobe={self.faiss_index.nprobe} ({faiss_path}) in {(time.perf_counter() - t0)*1000:.1f}ms")
             else:
-                self.logger.info("⚠️ Chưa có features.faiss, tiến hành tự động xây dựng chỉ mục IVF-SQ8...")
+                self.logger.warning("features.faiss not found. Building IVF-SQ8 index automatically...")
                 try:
                     from data_pipeline.build_faiss_index import build_faiss_index
                     build_target = os.path.abspath(os.path.join(os.path.dirname(feats_path), "features.faiss"))
                     if build_faiss_index(feats_path, build_target):
                         self.faiss_index = faiss.read_index(build_target)
-                        self.faiss_index.nprobe = getattr(self.config.database, "hnsw_ef_search", 64)
+                        self.faiss_index.nprobe = self.config.database.nprobe
                 except Exception as b_err:
-                    self.logger.warning(f"Không thể build features.faiss ({b_err}), sử dụng mmap array!")
+                    self.logger.warning(f"Cannot build features.faiss ({b_err}). Falling back to mmap brute-force.")
 
             self.local_metadata = []
             self.local_id_map = {}
@@ -1123,10 +1096,10 @@ class VectorSearchService:
 
     async def query_milvus(self, query_vector: Any, limit: int = None, query_str: str = "") -> List[Dict[str, Any]]:
         """
-        Truy vấn Vector Search Top-K:
-        1. Semantic Result Cache: cosine similarity >= 0.965, độ trễ < 0.1ms.
-        2. FAISS ANN Index: IVF-SQ8, 8-bit scalar quantization, 1152d, độ trễ 4-6ms.
-        3. CPU mmap: Dot-product trên mảng features.npy (1152d FP16).
+        Top-K vector retrieval pipeline:
+        1. SemanticResultCache: cosine similarity >= 0.965 → returns in <0.1ms.
+        2. FAISS IVF-SQ8: 8-bit scalar quantization, 1536d, ~4-6ms.
+        3. CPU mmap fallback: dot-product on features.npy (1536d float32).
         """
         if not query_vector:
             return []
@@ -2529,7 +2502,7 @@ def create_app(config_file: str = None) -> FastAPI:
             from fastapi.responses import FileResponse
             return FileResponse(index_file)
         return {
-            "system": "Video Retrieval System (Google SigLIP 2 ViT-gopt-16-SigLIP2-384, 1152d)",
+            "system": "Video Retrieval System (Google SigLIP 2 ViT-gopt-16-SigLIP2-384, 1536d)",
             "version": "3.2.0",
             "hardware_allocation": "AMD 7000 Series (13-14 threads) | 16GB RAM | NVIDIA RTX 3050 6GB (limit 88% VRAM)",
             "status": "online",

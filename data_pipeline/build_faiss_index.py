@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Xây dựng chỉ mục FAISS IVF-SQ8
-Cấu hình: 8-bit Scalar Quantization (SQ8), khoảng cách Inner Product, vector 1152 chiều.
-Tối ưu phần cứng: CPU OpenMP đa luồng (85% số luồng CPU).
+Build FAISS IVF-SQ8 index from features.npy.
+Index type: IndexIVFScalarQuantizer (SQ8, Inner Product), 1536d.
+CPU: OpenMP multi-threaded (85% of logical cores).
 """
 import os
 import sys

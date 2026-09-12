@@ -1,3 +1,7 @@
+"""
+TransNetV2 shot boundary detection + keyframe extraction.
+Backend priority: PyTorch GPU > TensorFlow.
+"""
 import os
 import sys
 import cv2
@@ -7,15 +11,16 @@ import argparse
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 
-# Thiết lập biến môi trường để triệt tiêu cảnh báo deterministic của CuBLAS
+# Suppress CuBLAS determinism warnings
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
+# CPU thread allocation: 85% of logical cores
 _cpu_cores = os.cpu_count() or 8
 OPTIMAL_CPU_THREADS = max(1, int(_cpu_cores * 0.85))
 if hasattr(cv2, "setNumThreads"):
     cv2.setNumThreads(OPTIMAL_CPU_THREADS)
 
-# Nạp model TransNetV2 theo độ ưu tiên backend (PyTorch GPU > TensorFlow)
+# Load TransNetV2: PyTorch GPU preferred, fallback to TensorFlow
 MODEL_TYPE = "unknown"
 try:
     from transnetv2_pytorch import TransNetV2
@@ -129,14 +134,13 @@ def extract_with_transnet(model, video_path, output_dir, resize_factor=0.5, qual
     video_name = os.path.splitext(os.path.basename(video_path))[0]
     csv_path = os.path.join(output_dir, "maps", f"{video_name}_map.csv")
     
-    # Tự động kiểm tra Resume / Skip nếu video đã xử lý xong
+    # Skip if already processed
     if os.path.exists(csv_path) and os.path.getsize(csv_path) > 100:
-        print(f"⏩ [SKIP] Đã trích xuất trước đó: {video_name}")
+        print(f"[SKIP] Already extracted: {video_name}")
         return
 
-    print(f"🎬 Processing {os.path.basename(video_path)}...")
+    print(f"[INFO] Processing {os.path.basename(video_path)}...")
     
-    # Tối ưu hóa: Tận dụng batch_size lớn trên GPU để inference nhanh gấp 2-3 lần
     if hasattr(model, "predict_video"):
         try:
             video_frames, single_frame_predictions, all_frame_predictions = model.predict_video(video_path, batch_size=batch_size)
@@ -145,7 +149,7 @@ def extract_with_transnet(model, video_path, output_dir, resize_factor=0.5, qual
     else:
         video_frames, single_frame_predictions, all_frame_predictions = model.predict_video(video_path)
     
-    # Hỗ trợ mượt mà cả PyTorch Tensor lẫn NumPy array
+    # Support both PyTorch Tensor and NumPy array outputs
     if hasattr(single_frame_predictions, "cpu"):
         single_frame_predictions = single_frame_predictions.cpu().numpy()
     if hasattr(single_frame_predictions, "numpy"):
@@ -266,7 +270,7 @@ def extract_with_transnet(model, video_path, output_dir, resize_factor=0.5, qual
                         saved_count += 1
                 
     cap.release()
-    # Atomic Rename: Chỉ đổi tên thành file chính thức khi toàn bộ quá trình đã ghi xong 100% không lỗi
+    # Atomic rename: only finalize CSV after all frames are written successfully
     if os.path.exists(csv_temp_path):
         if os.path.exists(csv_path):
             try:
@@ -275,7 +279,7 @@ def extract_with_transnet(model, video_path, output_dir, resize_factor=0.5, qual
                 pass
         os.rename(csv_temp_path, csv_path)
         
-    print(f"✨ Trích xuất thành công {saved_count} keyframes (đã lọc mờ Laplacian + near-dup dHash) cho {video_name}")
+    print(f"[OK] Extracted {saved_count} keyframes (Laplacian blur + dHash dedup) for {video_name}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -289,7 +293,6 @@ if __name__ == "__main__":
     parser.add_argument("--parallel-videos", type=int, default=1, help="Số video xử lý song song (tận dụng tối đa GPU/CPU)")
     args = parser.parse_args()
     
-    # Quét toàn bộ video đệ quy trong thư mục cha và các thư mục con
     extensions = (".mp4", ".mkv", ".avi", ".mov", ".webm", ".flv")
     videos = []
     if os.path.isdir(args.input_folder):
@@ -300,20 +303,20 @@ if __name__ == "__main__":
     videos = sorted(set(videos))
     
     if not videos:
-        print(f"Không tìm thấy video nào trong '{args.input_folder}' (kể cả các thư mục con).")
+        print(f"[WARN] No videos found in '{args.input_folder}'.")
         sys.exit(0)
 
-    print(f"🎬 Tìm thấy tổng cộng {len(videos)} video cần xử lý.")
-    print(f"Khởi tạo TransNetV2 (Backend: {MODEL_TYPE.upper()})...")
+    print(f"[INFO] Found {len(videos)} videos.")
+    print(f"[INFO] Initializing TransNetV2 (backend: {MODEL_TYPE.upper()})...")
     if TransNetV2 is None:
-        print("Lỗi: Chưa cài đặt thư viện TransNetV2. Vui lòng cài transnetv2-pytorch hoặc transnetv2.")
+        print("[ERROR] TransNetV2 not installed. Install transnetv2-pytorch or transnetv2.")
         sys.exit(1)
         
     model = TransNetV2()
 
     if args.parallel_videos > 1:
         from concurrent.futures import ProcessPoolExecutor, as_completed
-        print(f"⚡ Đang chạy song song {args.parallel_videos} video cùng lúc...")
+        print(f"[INFO] Running {args.parallel_videos} videos in parallel...")
         with ThreadPoolExecutor(max_workers=args.parallel_videos) as video_pool:
             futures = [
                 video_pool.submit(
@@ -329,10 +332,10 @@ if __name__ == "__main__":
                 )
                 for v in videos
             ]
-            for f in tqdm(as_completed(futures), total=len(videos), desc="Tổng tiến độ Video"):
+            for f in tqdm(as_completed(futures), total=len(videos), desc="Total progress"):
                 f.result()
     else:
-        for v in tqdm(videos, desc="Đang trích xuất Video Keyframes"):
+        for v in tqdm(videos, desc="Extracting keyframes"):
             extract_with_transnet(
                 model, 
                 v, 

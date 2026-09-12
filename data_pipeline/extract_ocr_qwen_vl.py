@@ -21,7 +21,7 @@ import torch
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="ignore")
 
-# Cấu hình tối ưu phần cứng (80-90% công suất: ~13-14 luồng CPU và ~5.1-5.3 GB VRAM trên RTX 3050 6GB)
+# CPU thread allocation: 85% of logical cores (~13-14 threads); VRAM cap: 88% of 6 GB = 5.28 GB
 _cpu_cores = os.cpu_count() or 8
 OPTIMAL_CPU_THREADS = max(1, int(_cpu_cores * 0.85))
 torch.set_num_threads(OPTIMAL_CPU_THREADS)
@@ -256,7 +256,7 @@ def main():
                 v = line.strip()
                 if v:
                     done_videos.add(v)
-        logger.info(f"⏩ Đã nạp {len(done_videos):,} video đã hoàn thành trước đó (Resume Mode).")
+        logger.info(f"[SKIP] Loaded {len(done_videos):,} previously completed videos (resume mode).")
 
     # Quét tất cả các thư mục video chứa keyframes
     pattern = os.path.join(args.keyframes_dir, "**", "keyframes")

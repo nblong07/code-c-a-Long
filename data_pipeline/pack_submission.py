@@ -1,7 +1,6 @@
-r"""
-AIC 2026 Batch Submission Auto-Packer & Validator CLI
-Tự động quét, kiểm tra định dạng và đóng gói thư mục submission/ thành submission.zip tại D:\code-c-a-Long
-====================================================================================================
+"""
+AIC 2026 Batch Submission Auto-Packer & Validator CLI.
+Scans, validates, and zips submission/ into submission.zip at D:\code-c-a-Long.
 """
 
 import os
@@ -11,7 +10,6 @@ import csv
 import zipfile
 from pathlib import Path
 
-# Đảm bảo stdout hỗ trợ UTF-8 trên Windows console
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -28,18 +26,18 @@ def validate_and_pack_submission(project_root: str = "D:\\code-c-a-Long", zip_na
     
     if not sub_dir.exists():
         sub_dir.mkdir(parents=True, exist_ok=True)
-        print(f"\n⚠️ Thư mục 'submission/' chưa tồn tại. Đã tự động tạo: {sub_dir}")
-        print("👉 Hãy xuất các file query-X.csv vào thư mục này rồi chạy lại lệnh!")
+        print(f"\n[WARN] 'submission/' not found. Created: {sub_dir}")
+        print("[INFO] Export query-X.csv files to this directory, then re-run.")
         return False
         
     csv_files = sorted(list(sub_dir.glob("*.csv")))
     
     if not csv_files:
-        print(f"\n❌ Không tìm thấy file CSV nào trong {sub_dir}!")
-        print("👉 Hãy lưu ít nhất 1 câu truy vấn (ví dụ: query-1-kis.csv) vào thư mục submission/")
+        print(f"\n[ERROR] No CSV files found in {sub_dir}.")
+        print("[INFO] Save at least one query CSV (e.g. query-1-kis.csv) to submission/.")
         return False
         
-    print(f"\n🔍 Tìm thấy {len(csv_files)} file CSV trong thư mục 'submission/':\n")
+    print(f"\n[INFO] Found {len(csv_files)} CSV files in 'submission/':\n")
     
     total_valid = 0
     total_warnings = 0
@@ -52,21 +50,21 @@ def validate_and_pack_submission(project_root: str = "D:\\code-c-a-Long", zip_na
         try:
             content = f.read_text(encoding="utf-8")
         except UnicodeDecodeError:
-            errors.append("Mã hóa không phải UTF-8 chuẩn!")
+            errors.append("Encoding is not valid UTF-8.")
             content = f.read_text(encoding="utf-8", errors="ignore")
             
         lines = [l.strip() for l in content.split("\n") if l.strip()]
         
         # 1. Row count check
         if len(lines) > 100:
-            warnings.append(f"Có {len(lines)} dòng (vượt quá giới hạn 100 dòng của BTC, sẽ chỉ lấy 100 dòng đầu).")
+            warnings.append(f"Has {len(lines)} rows (exceeds 100-row limit; only first 100 will be used).")
             lines = lines[:100]
         elif len(lines) == 0:
-            errors.append("File rỗng!")
+            errors.append("File is empty.")
             
         # 2. Header check
         if lines and any(h in lines[0].lower() for h in ["video", "frame", "answer", "mediaitem"]):
-            warnings.append("Phát hiện dòng Header. Đã tự động loại bỏ.")
+            warnings.append("Header row detected and removed.")
             lines = lines[1:]
             
         # 3. Check each row
@@ -78,59 +76,59 @@ def validate_and_pack_submission(project_root: str = "D:\\code-c-a-Long", zip_na
             vname = parts[0]
             if vname.lower().endswith(".mp4"):
                 vname = re.sub(r'\.mp4$', '', vname, flags=re.IGNORECASE)
-                warnings.append(f"Dòng {row_idx}: Tên video chứa đuôi '.mp4', đã tự động xóa.")
+                warnings.append(f"Row {row_idx}: Removed '.mp4' suffix from video name.")
                 parts[0] = vname
                 
             # Check KIS
             if "kis" in fname.lower():
                 if len(parts) < 2:
-                    errors.append(f"Dòng {row_idx}: Format KIS sai, thiếu frame_id (Cần: <video>,<frame_id>).")
+                    errors.append(f"Row {row_idx}: KIS format error — missing frame_id (<video>,<frame_id>).")
                 elif not parts[1].isdigit():
-                    errors.append(f"Dòng {row_idx}: Frame ID '{parts[1]}' không phải số nguyên.")
+                    errors.append(f"Row {row_idx}: Frame ID '{parts[1]}' is not an integer.")
             # Check QA
             elif "qa" in fname.lower():
                 if len(parts) < 3:
-                    warnings.append(f"Dòng {row_idx}: Thiếu trường câu trả lời Q&A (sẽ dùng mặc định '0').")
+                    warnings.append(f"Row {row_idx}: Missing Q&A answer field (defaulting to '0').")
                 else:
                     ans = ",".join(parts[2:]).strip()
                     if (ans.startswith('"') and ans.endswith('"')) or (ans.startswith("'") and ans.endswith("'")):
                         ans = ans[1:-1].strip()
                     if len(ans) > 100:
-                        warnings.append(f"Dòng {row_idx}: Câu trả lời vượt quá 100 ký tự (sẽ cắt ngắn).")
+                        warnings.append(f"Row {row_idx}: Answer exceeds 100 chars (truncated).")
                         ans = ans[:100]
                     ans = ans.replace('"', '""')
                     parts = [parts[0], parts[1], f'"{ans}"']
             # Check TRAKE
             elif "trake" in fname.lower():
                 if len(parts) < 2:
-                    errors.append(f"Dòng {row_idx}: Format TRAKE sai, cần ít nhất 1 frame (Cần: <video>,<frame_1>,<frame_2>...).")
+                    errors.append(f"Row {row_idx}: TRAKE format error — need <video>,<frame_1>,<frame_2>...")
                 else:
                     f_nums = []
                     for p in parts[1:]:
                         if p.isdigit():
                             f_nums.append(int(p))
                         else:
-                            warnings.append(f"Dòng {row_idx}: Bỏ qua frame không hợp lệ '{p}'.")
+                            warnings.append(f"Row {row_idx}: Skipping invalid frame '{p}'.")
                     if f_nums:
                         f_nums = sorted(list(set(f_nums)))
                         parts = [parts[0]] + [str(x) for x in f_nums]
                     else:
-                        errors.append(f"Dòng {row_idx}: Không có frame_id hợp lệ cho sự kiện TRAKE.")
+                        errors.append(f"Row {row_idx}: No valid frame_ids for TRAKE event.")
                     
             clean_lines.append(",".join(parts))
             
         # Rewrite cleaned content
         f.write_text("\n".join(clean_lines) + "\n", encoding="utf-8")
         
-        status_icon = "✅" if not errors else "❌"
-        print(f"  {status_icon} [{fname}] -> {len(clean_lines)} dòng hợp lệ")
+        status = "[OK]" if not errors else "[ERROR]"
+        print(f"  {status} [{fname}] -> {len(clean_lines)} valid rows")
         if warnings:
             for w in warnings[:3]:
-                print(f"     ⚠️  {w}")
+                print(f"     [WARN] {w}")
             total_warnings += len(warnings)
         if errors:
             for e in errors:
-                print(f"     ❌  {e}")
+                print(f"     [ERROR] {e}")
         else:
             total_valid += 1
             
@@ -138,18 +136,17 @@ def validate_and_pack_submission(project_root: str = "D:\\code-c-a-Long", zip_na
     
     # Pack into zip
     zip_path = root / zip_name
-    print(f"\n📦 Đang nén các file vào: {zip_path}...")
+    print(f"\n[INFO] Packing files into: {zip_path}...")
     
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for csv_file in csv_files:
-            # ARC_NAME MUST BE submission/<filename.csv>
+            # Arc name must be submission/<filename.csv>
             arcname = f"submission/{csv_file.name}"
             zf.write(csv_file, arcname=arcname)
             
     zip_size_kb = zip_path.stat().st_size / 1024.0
-    print(f"🎉 ĐÃ ĐÓNG GÓI THÀNH CÔNG FILE SUBMISSION.ZIP ({zip_size_kb:.1f} KB)!")
-    print(f"📁 Đường dẫn file nộp: {zip_path}")
-    print(f"🏆 Cấu trúc chuẩn 100%: Bên trong zip có thư mục gốc 'submission/' chứa {total_valid} file CSV.")
+    print(f"[OK] submission.zip created ({zip_size_kb:.1f} KB): {zip_path}")
+    print(f"[OK] Archive root: submission/ — {total_valid} CSV files.")
     print("=" * 65)
     return True
 

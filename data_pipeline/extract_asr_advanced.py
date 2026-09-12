@@ -1,3 +1,7 @@
+"""
+ASR extraction using Faster-Whisper large-v3-turbo (CTranslate2, FP16).
+Hardware: AMD 7000 Series (13-14 CPU threads, 85% of 16 cores) + NVIDIA RTX 3050 6GB VRAM.
+"""
 import os
 import sys
 import re
@@ -9,7 +13,7 @@ import multiprocessing as mp
 import torch
 from faster_whisper import WhisperModel
 
-# ================= CẤU HÌNH PHẦN CỨNG (80-90% AMD 7000 Series + 6GB VRAM) =================
+# CPU thread allocation: 85% of logical cores
 _cpu_cores = os.cpu_count() or 8
 OPTIMAL_CPU_THREADS = max(1, int(_cpu_cores * 0.85))
 
@@ -73,34 +77,34 @@ def is_junk_asr_segment(segment, text: str) -> bool:
 class FasterWhisperASR:
     def __init__(self):
         clean_vram()
-        print("⚡ Khởi tạo Faster-Whisper Large-v3-Turbo / Large-v3 (int8_float16 GPU Tensor Cores) cho 6GB VRAM...")
+        print("[INFO] Loading Faster-Whisper large-v3-turbo (int8_float16, CUDA) for 6GB VRAM...")
         model_candidates = ["deepdml/faster-whisper-large-v3-turbo", "large-v3-turbo", "large-v3"]
         self.model = None
         self.batched_model = None
         
         for m_name in model_candidates:
             try:
-                print(f"🔄 Thử nạp model ASR: {m_name}...")
+                print(f"[INFO] Trying model: {m_name}...")
                 self.model = WhisperModel(m_name, device="cuda", compute_type="int8_float16", cpu_threads=OPTIMAL_CPU_THREADS)
-                print(f"✅ Nạp thành công model: {m_name} trên CUDA Tensor Cores!")
+                print(f"[OK] Loaded: {m_name} (CUDA int8_float16)")
                 break
             except Exception as e:
                 try:
                     self.model = WhisperModel(m_name, device="cuda", compute_type="float16", cpu_threads=OPTIMAL_CPU_THREADS)
-                    print(f"✅ Nạp thành công model: {m_name} trên CUDA (float16)!")
+                    print(f"[OK] Loaded: {m_name} (CUDA float16)")
                     break
                 except Exception:
                     continue
         
         if self.model is None:
-            print("⚠️ Chuyển sang nạp Whisper Large-v3 trên CPU (int8)...")
+            print("[WARN] Falling back to CPU (int8)...")
             self.model = WhisperModel("large-v3", device="cpu", compute_type="int8", cpu_threads=OPTIMAL_CPU_THREADS)
             
-        # Thử kích hoạt BatchedInferencePipeline để tăng tốc bóc băng song song theo batch audio
+        # Activate BatchedInferencePipeline for parallel audio batch transcription
         try:
             from faster_whisper import BatchedInferencePipeline
             self.batched_model = BatchedInferencePipeline(model=self.model)
-            print(f"🚀 Đã kích hoạt Faster-Whisper BatchedInferencePipeline (Batch Size={ASR_BATCH_SIZE})!")
+            print(f"[INFO] BatchedInferencePipeline active (batch_size={ASR_BATCH_SIZE})")
         except Exception:
             self.batched_model = None
             
@@ -126,7 +130,7 @@ class FasterWhisperASR:
                 except Exception as batch_err:
                     clean_vram()
                     if "out of memory" in str(batch_err).lower() or "cuda" in str(batch_err).lower():
-                        print(f"\n⚠️ Batched ASR gặp lỗi bộ nhớ, tự động fallback sang Standard ASR...")
+                        print(f"\n[WARN] Batched ASR OOM, falling back to standard ASR...")
                         segments = None
                     else:
                         raise batch_err
@@ -271,39 +275,39 @@ def main():
     completed = load_completed_videos()
     pending = [{"video_path": p, "attempt": 1} for p in videos if p not in completed]
 
-    print(f"📊 Tổng video: {len(videos)} | Đã xong: {len(completed)} | Cần xử lý: {len(pending)}", flush=True)
+    print(f"[INFO] Total videos: {len(videos)} | Done: {len(completed)} | Pending: {len(pending)}", flush=True)
     if not pending:
-        print("🎉 Toàn bộ video đã được bóc băng ASR hoàn tất!", flush=True)
+        print("[OK] All videos transcribed.", flush=True)
         return
 
     for attempt in range(1, MAX_VIDEO_RETRIES + 2):
         if not pending:
             break
-        print(f"\n--- Lần chạy {attempt} ({len(pending)} video cần xử lý) ---", flush=True)
+        print(f"\n--- Attempt {attempt} ({len(pending)} videos pending) ---", flush=True)
 
         init_worker()
         next_pending = []
         total_pending = len(pending)
         for idx, job in enumerate(pending, 1):
             vid_name = os.path.basename(job["video_path"])
-            print(f"[{idx}/{total_pending}] 🎙️ Đang nghe: {vid_name}...", end="", flush=True)
+            print(f"[{idx}/{total_pending}] Transcribing: {vid_name}...", end="", flush=True)
             result = process_worker(job)
             write_result(result)
             if result.get("status") == "completed":
                 dur = result.get("duration_sec", 0)
                 segs = result.get("num_segments", 0)
                 elapsed = result.get("elapsed_sec", 0)
-                print(f" -> ✅ Xong! ({dur/60:.1f} phút | {segs} câu thoại | mất {elapsed:.1f}s)", flush=True)
+                print(f" -> [OK] ({dur/60:.1f} min | {segs} segments | {elapsed:.1f}s)", flush=True)
             else:
-                err = result.get("error", "Lỗi")
-                print(f" -> ❌ Thất bại: {err}", flush=True)
+                err = result.get("error", "unknown error")
+                print(f" -> [ERROR] {err}", flush=True)
                 job["attempt"] += 1
                 next_pending.append(job)
                 
-                # Nếu gặp lỗi CUDA, giải phóng và khởi tạo lại ASR engine để không làm lỗi dây chuyền các video sau
+                # On CUDA errors, release and reinitialize ASR engine to prevent cascading failures
                 err_str = str(err).lower()
                 if "cuda" in err_str or "out of memory" in err_str or "invalid device" in err_str:
-                    print("⚠️ Phát hiện lỗi CUDA context, đang giải phóng VRAM và tái tạo engine...", flush=True)
+                    print("[WARN] CUDA error detected; releasing VRAM and reinitializing engine...", flush=True)
                     try:
                         del _worker_engine
                     except Exception:
@@ -313,7 +317,7 @@ def main():
                     init_worker()
         pending = next_pending
 
-    print("\n🎉 Bóc băng giọng nói (ASR) đã hoàn tất toàn bộ!", flush=True)
+    print("\n[OK] ASR transcription complete.", flush=True)
 
 
 if __name__ == "__main__":
