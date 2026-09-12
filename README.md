@@ -43,7 +43,6 @@ D:\code-c-a-Long/
 │   ├── pack_submission.py             # Đóng gói và kiểm tra file submission.zip
 │   ├── benchmark_eval.py              # Đánh giá độ chính xác (Recall, MRR)
 │   ├── tune_rrf_weights.py            # Tối ưu bộ trọng số RRF
-│   ├── stress_test_vram.py            # Kiểm thử tải WebSocket
 │   └── README.md                      # Hướng dẫn chi tiết data_pipeline
 ├── data-keyframes/             # Thư mục chứa keyframes (.webp) và maps CSV
 ├── features.faiss              # Chỉ mục không gian vector FAISS IVF-SQ8

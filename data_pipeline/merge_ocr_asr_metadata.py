@@ -10,6 +10,11 @@ import json
 import glob
 from pathlib import Path
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OCR_FILE = os.path.join(BASE_DIR, "ocr_results.jsonl")
 ASR_FILE = os.path.join(BASE_DIR, "asr_results.jsonl")
@@ -17,7 +22,7 @@ OUTPUT_METADATA = os.path.join(BASE_DIR, "ocr_asr_metadata.json")
 
 def merge_metadata():
     print("=" * 60)
-    print("🔄 ĐANG ĐỒNG BỘ VÀ GỘP METADATA OCR & ASR...")
+    print("[METADATA] Dong bo va gop metadata OCR & ASR...")
     print("=" * 60)
 
     ocr_map = {}
@@ -42,14 +47,14 @@ def merge_metadata():
                         ocr_map[rel] = txt
                 except Exception:
                     pass
-        print(f"✅ Đã đọc {len(ocr_map):,} bản ghi OCR.")
+        print(f"[OK] Da doc {len(ocr_map):,} ban ghi OCR.")
     else:
-        print(f"⚠️ Không tìm thấy {OCR_FILE}")
+        print(f"[WARN] Khong tim thay {OCR_FILE}")
 
     asr_map = {}
     asr_subtitles = {}
     if os.path.exists(ASR_FILE):
-        print(f"📖 Đang đọc {ASR_FILE}...")
+        print(f"[INFO] Dang doc {ASR_FILE}...")
         with open(ASR_FILE, "r", encoding="utf-8") as f:
             for line in f:
                 if not line.strip():
@@ -70,9 +75,9 @@ def merge_metadata():
                         asr_subtitles[vid].append({"start": start, "end": end, "text": txt})
                 except Exception:
                     pass
-        print(f"✅ Đã nạp dữ liệu ASR cho {len(asr_map):,} video.")
+        print(f"[OK] Da nap du lieu ASR cho {len(asr_map):,} video.")
     else:
-        print(f"⚠️ Không tìm thấy {ASR_FILE}")
+        print(f"[WARN] Khong tim thay {ASR_FILE}")
 
     merged = {
         "ocr": ocr_map,
@@ -84,7 +89,7 @@ def merge_metadata():
         json.dump(merged, f, ensure_ascii=False, indent=2)
 
     size_mb = os.path.getsize(OUTPUT_METADATA) / (1024 * 1024)
-    print(f"🎉 Đã lưu thành công {OUTPUT_METADATA} ({size_mb:.2f} MB)!")
+    print(f"[OK] Da luu thanh cong {OUTPUT_METADATA} ({size_mb:.2f} MB)!")
     print("=" * 60)
     return True
 

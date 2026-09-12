@@ -90,11 +90,6 @@ Tìm kiếm lưới giá trị tham số tối ưu cho bộ ba trọng số ($w_
 python data_pipeline/tune_rrf_weights.py --queries data_pipeline/validation_queries.json --top-k 10 --server http://localhost:8000
 ```
 
-### Kiểm tra tải đồng thời WebSocket (Stress Test VRAM)
-Đo độ trễ và mức tiêu thụ VRAM khi có $N$ kết nối WebSocket truy vấn đồng thời:
-```bash
-python data_pipeline/stress_test_vram.py --n-clients 5 --ws-url ws://localhost:8000/ws
-```
 
 ### Đóng gói bài thi (Submission Validator & Packer)
 Kiểm tra tính hợp lệ định dạng CSV của 3 dạng bài thi (KIS, Q&A, TRAKE) và nén thành file `submission.zip`:

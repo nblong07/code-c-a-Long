@@ -1,6 +1,6 @@
 """
 FastAPI Vector Search Service
-Mô hình thị giác: Google SigLIP 2 ViT-gopt-16-SigLIP2-384 (1152 chiều, FP16 CUDA).
+Mô hình thị giác: Google SigLIP 2 ViT-gopt-16-SigLIP2-384 (1536 chiều, FP16 CUDA).
 Cấu hình phần cứng: AMD 7000 Series (16 luồng, cấp phát 13-14 luồng) | 16GB RAM DDR5 | NVIDIA RTX 3050 Laptop 6GB VRAM (ngưỡng 88% ~5.28 GB).
 Chỉ mục vector: FAISS IVF-SQ8 (8-bit Scalar Quantization, Inner Product).
 Xử lý văn bản: BM25 Inverted Index cho OCR và ASR trên RAM.
@@ -361,9 +361,9 @@ class PrimaryModelManager:
         self.tokenizer = None
         self.spec = {
             "name": "ViT-gopt-16-SigLIP2-384",
-            "dimension": 1152,
+            "dimension": 1536,
             "architecture": "OpenCLIP ViT-gopt-16-SigLIP2-384 (Google SigLIP 2 Giant)",
-            "objective": "Google SigLIP 2 Giant (1152d)"
+            "objective": "Google SigLIP 2 Giant (1536d)"
         }
         self.model_specs = {"clip": self.spec}
 
@@ -524,7 +524,7 @@ class VectorSearchService:
         ]
         kf_root = next((p for p in possible_kf_roots if p and os.path.exists(p)), None)
         
-        if os.path.exists(kf_root):
+        if kf_root and os.path.exists(kf_root):
             import csv
             for root, _, files in os.walk(kf_root):
                 for f in files:
@@ -2378,13 +2378,26 @@ def create_app(config_file: str = None) -> FastAPI:
 
         @app.get("/keyframes/{rest_of_path:path}")
         async def dynamic_keyframe_handler(rest_of_path: str):
-            # 1. Đường dẫn trực tiếp
-            cand = os.path.join(kf_path, rest_of_path)
+            clean_rel = rest_of_path.replace("\\", "/").strip("/")
+            # 1. Tra cuu O(1) tu _keyframe_path_map
+            if hasattr(service, "_keyframe_path_map") and service._keyframe_path_map:
+                if clean_rel in service._keyframe_path_map:
+                    return FileResponse(service._keyframe_path_map[clean_rel])
+                clean_rel_lower = clean_rel.lower()
+                if clean_rel_lower in service._keyframe_path_map:
+                    return FileResponse(service._keyframe_path_map[clean_rel_lower])
+                parts = clean_rel.split("/")
+                img_name = parts[-1]
+                if img_name in service._keyframe_path_map:
+                    return FileResponse(service._keyframe_path_map[img_name])
+
+            # 2. Duong dan truc tiep tu kf_path
+            cand = os.path.join(kf_path, clean_rel)
             if os.path.isfile(cand):
                 return FileResponse(cand)
 
-            # 2. Tìm kiếm thông minh theo filename và video name
-            parts = rest_of_path.replace("\\", "/").split("/")
+            # 3. Tim kiem filename va video name
+            parts = clean_rel.split("/")
             img_name = parts[-1]
             vid_name = ""
             for p in parts:
@@ -2410,11 +2423,27 @@ def create_app(config_file: str = None) -> FastAPI:
     from fastapi.responses import FileResponse, Response
     @app.get("/videos/{video_name}")
     async def dynamic_video_handler(video_name: str):
-        for vdir in config.server.video_dirs:
-            if os.path.exists(vdir):
-                for root, _, files in os.walk(vdir):
-                    if video_name in files:
-                        return FileResponse(os.path.join(root, video_name), media_type="video/mp4")
+        if not hasattr(service, "_video_path_map") or not service._video_path_map:
+            service._video_path_map = {}
+            for vdir in config.server.video_dirs:
+                if os.path.exists(vdir):
+                    for root, _, files in os.walk(vdir):
+                        for f in files:
+                            if f.lower().endswith((".mp4", ".mkv", ".avi", ".webm")):
+                                full_p = os.path.join(root, f)
+                                service._video_path_map[f] = full_p
+                                service._video_path_map[f.lower()] = full_p
+                                service._video_path_map[os.path.splitext(f)[0]] = full_p
+                                service._video_path_map[os.path.splitext(f)[0].lower()] = full_p
+
+        clean_name = video_name.strip()
+        matched = service._video_path_map.get(clean_name) or service._video_path_map.get(clean_name.lower())
+        if not matched and not clean_name.lower().endswith(".mp4"):
+            matched = service._video_path_map.get(f"{clean_name}.mp4") or service._video_path_map.get(f"{clean_name.lower()}.mp4")
+
+        if matched and os.path.exists(matched):
+            return FileResponse(matched, media_type="video/mp4")
+        raise HTTPException(status_code=404, detail=f"Video '{video_name}' khong ton tai tren he thong")
     @app.get("/api/frame_metadata")
     async def get_frame_metadata(video: str, frame_id: int):
         """Lấy thông tin phụ đề OCR & Lời thoại ASR chuẩn xác cho từng frame cụ thể"""
@@ -2576,7 +2605,7 @@ def create_app(config_file: str = None) -> FastAPI:
     # DRES COMPETITION PROXY (BYPASS CORS 100%)
     # ==========================================
     class DresLoginRequest(BaseModel):
-        dres_url: str = "http://192.168.28.151:5000"
+        dres_url: str = ""
         username: str
         password: str
 
@@ -2631,7 +2660,7 @@ def create_app(config_file: str = None) -> FastAPI:
         return await service.search_video_qa(req.video_id, req.query, top_k=req.top_k)
 
     class DresSubmitRequest(BaseModel):
-        dres_url: str = "http://192.168.28.151:5000"
+        dres_url: str = ""
         evaluation_id: str
         session_id: str
         payload: Dict[str, Any]
@@ -2668,7 +2697,7 @@ def create_app(config_file: str = None) -> FastAPI:
             }
 
     class DresStatusRequest(BaseModel):
-        dres_url: str = "http://192.168.28.151:5000"
+        dres_url: str = ""
         session_id: Optional[str] = None
 
     @app.post("/api/dres/status")

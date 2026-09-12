@@ -3,7 +3,7 @@
   "clip_pretrained": "webli",
   "device": "cuda",
   "search_limit": 1000,
-  "cors_origins": "http://localhost:3000",
+  "cors_origins": "http://localhost:8000",
   "max_workers": 14,
   "log_level": "INFO",
   "gzip_minimum_size": 1000,

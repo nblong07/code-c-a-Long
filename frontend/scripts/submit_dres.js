@@ -203,7 +203,13 @@ async function submit_to_dres_v2() {
 
     const evaluationID = (localStorage.getItem('evaluationID') || '').trim();
     const contestSessionID = (localStorage.getItem('contestSessionID') || '').trim();
-    const dresBaseUrl = (localStorage.getItem('dresBaseUrl') || 'http://192.168.28.151:5000').replace(/\/+$/, '');
+    const dresBaseUrl = (localStorage.getItem('dresBaseUrl') || '').replace(/\/+$/, '');
+
+    if (!dresBaseUrl) {
+        showTemporaryAlert("⚠️ Chưa có địa chỉ DRES Server URL! Đang mở bảng Cấu hình...", "error");
+        openDresConfigModal();
+        return;
+    }
 
     if (!contestSessionID) {
         showTemporaryAlert("⚠️ Chưa có Session ID DRES! Đang mở bảng Cấu hình để bạn đăng nhập...", "error");
@@ -330,9 +336,9 @@ async function submit_to_dres_v2() {
 async function submitSingleFrameToDres(videoName, frameId, timestampMs, imageSrc) {
     const evaluationID = (localStorage.getItem('evaluationID') || '').trim();
     const contestSessionID = (localStorage.getItem('contestSessionID') || '').trim();
-    const dresBaseUrl = (localStorage.getItem('dresBaseUrl') || 'http://192.168.28.151:5000').replace(/\/+$/, '');
+    const dresBaseUrl = (localStorage.getItem('dresBaseUrl') || '').replace(/\/+$/, '');
 
-    if (!contestSessionID || !evaluationID) {
+    if (!dresBaseUrl || !contestSessionID || !evaluationID) {
         showTemporaryAlert("⚠️ Chưa kết nối phiên thi DRES! Đang mở bảng Cấu hình...", "error");
         openDresConfigModal();
         return;
@@ -367,7 +373,7 @@ async function submitSingleFrameToDres(videoName, frameId, timestampMs, imageSrc
 async function submitFrameInfo(url, body) {
     const evaluationID = localStorage.getItem('evaluationID');
     const contestSessionID = localStorage.getItem('contestSessionID');
-    const dresBaseUrl = (localStorage.getItem('dresBaseUrl') || 'http://192.168.28.151:5000').replace(/\/+$/, '');
+    const dresBaseUrl = (localStorage.getItem('dresBaseUrl') || '').replace(/\/+$/, '');
 
     try {
         let responseData = null;
@@ -468,7 +474,7 @@ function openDresConfigModal() {
     }
 
     // Load saved values
-    const savedUrl = localStorage.getItem('dresBaseUrl') || 'http://192.168.28.151:5000';
+    const savedUrl = localStorage.getItem('dresBaseUrl') || '';
     const savedUser = localStorage.getItem('userName') || '';
     const savedSession = localStorage.getItem('contestSessionID') || '';
     const savedEval = localStorage.getItem('evaluationID') || '';
@@ -498,8 +504,17 @@ async function testDresConnection() {
     const statusBox = document.getElementById('dres-modal-status');
     const evalSelect = document.getElementById('dres_modal_eval_select');
 
-    const dresUrl = (urlInp?.value || 'http://192.168.28.151:5000').trim().replace(/\/+$/, '');
+    const dresUrl = (urlInp?.value || '').trim().replace(/\/+$/, '');
     const sessionId = (sessInp?.value || '').trim();
+
+    if (!dresUrl) {
+        if (statusBox) {
+            statusBox.style.display = 'block';
+            statusBox.className = 'dres-status-error';
+            statusBox.innerHTML = '⚠️ Vui lòng nhập địa chỉ DRES Server URL trước khi kiểm tra kết nối!';
+        }
+        return;
+    }
 
     if (statusBox) {
         statusBox.style.display = 'block';
@@ -556,9 +571,18 @@ async function loginDresFromModal() {
     const evalInp = document.getElementById('dres_modal_eval');
     const statusBox = document.getElementById('dres-modal-status');
 
-    const dresUrl = (urlInp?.value || 'http://192.168.28.151:5000').trim().replace(/\/+$/, '');
+    const dresUrl = (urlInp?.value || '').trim().replace(/\/+$/, '');
     const username = (userInp?.value || '').trim();
     const password = (passInp?.value || '').trim();
+
+    if (!dresUrl) {
+        if (statusBox) {
+            statusBox.style.display = 'block';
+            statusBox.className = 'dres-status-error';
+            statusBox.innerHTML = '⚠️ Vui lòng nhập địa chỉ DRES Server URL!';
+        }
+        return;
+    }
 
     if (!username || !password) {
         if (statusBox) {
@@ -620,12 +644,12 @@ function saveDresManualConfig() {
     const sessInp = document.getElementById('dres_modal_session');
     const evalInp = document.getElementById('dres_modal_eval');
 
-    const dresUrl = (urlInp?.value || 'http://192.168.28.151:5000').trim().replace(/\/+$/, '');
+    const dresUrl = (urlInp?.value || '').trim().replace(/\/+$/, '');
     const username = (userInp?.value || '').trim();
     const sessionId = (sessInp?.value || '').trim();
     const evaluationId = (evalInp?.value || '').trim();
 
-    localStorage.setItem('dresBaseUrl', dresUrl);
+    if (dresUrl) localStorage.setItem('dresBaseUrl', dresUrl);
     if (username) localStorage.setItem('userName', username);
     if (sessionId) localStorage.setItem('contestSessionID', sessionId);
     if (evaluationId) localStorage.setItem('evaluationID', evaluationId);
