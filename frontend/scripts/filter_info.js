@@ -85,7 +85,7 @@ async function handleFilterAction(event) {
 
     try {
         requestTime = performance.now();
-        toggleLoadingIndicator(true);
+        if (typeof toggleLoadingIndicator === 'function') toggleLoadingIndicator(true);
 
         // Fetch selected model if available
         const activeModelBtn = document.querySelector('.model-option button.active');
@@ -135,15 +135,27 @@ async function handleFilterAction(event) {
             setTimeout(() => {
                 if (typeof filterSocket !== 'undefined' && filterSocket && filterSocket.readyState === WebSocket.OPEN) {
                     filterSocket.send(jsonString);
+                } else if (typeof socket !== 'undefined' && socket && socket.readyState === WebSocket.OPEN) {
+                    const firstQueryStr = (allTextQueries[0]?.content) || "";
+                    const secondQueryStr = (allTextQueries[1]?.content) || "";
+                    socket.send(JSON.stringify({
+                        type: "text_query",
+                        firstQuery: firstQueryStr,
+                        secondQuery: secondQueryStr,
+                        qaQuery: allQaQueries[0] || "",
+                        globalTopic: trakeTopic,
+                        trakeTopic: trakeTopic,
+                        model: activeModel
+                    }));
                 } else {
-                    toggleLoadingIndicator(false);
+                    if (typeof toggleLoadingIndicator === 'function') toggleLoadingIndicator(false);
                 }
             }, 800);
         }
 
     } catch (error) {
         console.error('Filter query error:', error);
-        toggleLoadingIndicator(false);
+        if (typeof toggleLoadingIndicator === 'function') toggleLoadingIndicator(false);
     }
 }
 

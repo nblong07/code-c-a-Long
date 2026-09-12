@@ -16,6 +16,8 @@ import base64
 import logging
 import asyncio
 import warnings
+import mimetypes
+mimetypes.add_type("image/webp", ".webp")
 from collections import defaultdict, deque, Counter
 from enum import Enum
 from typing import List, Optional, Dict, Any, Union, Tuple
@@ -797,12 +799,27 @@ class VectorSearchService:
 
                 # Nạp đường dẫn thực tế vào memory map để tra cứu O(1) không cần duyệt ổ cứng
                 raw_p_str = str(raw_p)
+                if not os.path.exists(raw_p_str):
+                    if "_" in vid_name:
+                        batch = vid_name.split("_")[0]
+                        candidate = raw_p_str.replace(f"\\{vid_name}\\", f"\\{batch}\\{vid_name}\\").replace(f"/{vid_name}/", f"/{batch}/{vid_name}/")
+                        if os.path.exists(candidate):
+                            raw_p_str = candidate
+                        elif hasattr(self, 'config') and hasattr(self.config, 'server') and os.path.exists(self.config.server.keyframes_dir):
+                            c2 = os.path.join(self.config.server.keyframes_dir, batch, vid_name, "keyframes", p.name)
+                            if os.path.exists(c2):
+                                raw_p_str = c2
+
                 self._keyframe_path_map[rel_filepath] = raw_p_str
                 self._keyframe_path_map[rel_filepath.lower()] = raw_p_str
                 self._keyframe_path_map[f"{vid_name}_{fid}"] = raw_p_str
                 self._keyframe_path_map[f"{vid_name.lower()}_{fid}"] = raw_p_str
                 self._keyframe_path_map[f"{vid_name}-{fid}"] = raw_p_str
                 self._keyframe_path_map[p.name] = raw_p_str
+                if "_" in vid_name:
+                    batch = vid_name.split("_")[0]
+                    self._keyframe_path_map[f"{batch}/{rel_filepath}"] = raw_p_str
+                    self._keyframe_path_map[f"{batch}/{rel_filepath}".lower()] = raw_p_str
 
             self.logger.info(f"✅ Đã nạp thành công {len(self.local_metadata):,} metadata keyframes (FAISS ANN Index: {'Active' if self.faiss_index else 'Standby'})!")
             if self.device.type == "cuda":
@@ -1442,6 +1459,16 @@ class VectorSearchService:
                 self._keyframe_path_map[clean_target] = cand1
             return cand1
 
+        # 1b. Đường dẫn kèm thư mục batch (vd: data-keyframes/L21/L21_V001/keyframes/...)
+        parts = clean_target.split("/")
+        if parts and "_" in parts[0]:
+            batch = parts[0].split("_")[0]
+            cand_batch = os.path.join(kf_dir, batch, clean_target)
+            if os.path.isfile(cand_batch):
+                if hasattr(self, '_keyframe_path_map'):
+                    self._keyframe_path_map[clean_target] = cand_batch
+                return cand_batch
+
         # 2. Xử lý path dạng l26/L26_V151/keyframes/keyframe_4030.webp hoặc L26_V151_4030
         parts = clean_target.split("/")
         img_name = parts[-1]
@@ -2080,9 +2107,13 @@ class VectorSearchService:
                 # 5. Thực thi thuật toán chuỗi thời gian đa cảnh PyTorch GPU
                 result = self._process_multi_temporal_relationships(results_list)
 
-            # Lưu vết tương tác vào bộ nhớ HippoRAG Context Memory
-            retrieved_vids = [item.get('entity', {}).get('video_id', '') for item in result[:5] if item.get('entity')]
-            self.hippo_memory.add_interaction(queries_list[0], retrieved_vids)
+            # Lưu vết tương tác vào bộ nhớ HippoRAG Context Memory (nếu có cấu hình)
+            if hasattr(self, 'hippo_memory') and self.hippo_memory is not None:
+                try:
+                    retrieved_vids = [item.get('entity', {}).get('video_id', '') for item in result[:5] if item.get('entity')]
+                    self.hippo_memory.add_interaction(queries_list[0], retrieved_vids)
+                except Exception as mem_err:
+                    self.logger.warning(f"Lỗi lưu Hippo Memory: {mem_err}")
 
             return result
         except Exception as e:
@@ -2344,6 +2375,9 @@ def create_app(config_file: str = None) -> FastAPI:
 
         @app.get("/keyframes/maps/{map_name}")
         async def dynamic_map_handler(map_name: str):
+            cand = os.path.join(kf_path, "maps", map_name)
+            if os.path.isfile(cand):
+                return FileResponse(cand)
             for root, _, files in os.walk(kf_path):
                 if "maps" in root and map_name in files:
                     return FileResponse(os.path.join(root, map_name))
@@ -2352,25 +2386,41 @@ def create_app(config_file: str = None) -> FastAPI:
         @app.get("/keyframes/{rest_of_path:path}")
         async def dynamic_keyframe_handler(rest_of_path: str):
             clean_rel = rest_of_path.replace("\\", "/").strip("/")
+
+            def _file_resp(p: str):
+                ext = os.path.splitext(p)[1].lower()
+                mt = "image/webp" if ext == ".webp" else ("image/jpeg" if ext in [".jpg", ".jpeg"] else ("image/png" if ext == ".png" else None))
+                return FileResponse(p, media_type=mt)
+
+            # 0. Tra cuu tu service.resolve_keyframe_path
+            if hasattr(service, "resolve_keyframe_path"):
+                resolved = service.resolve_keyframe_path(clean_rel)
+                if resolved and os.path.isfile(resolved):
+                    return _file_resp(resolved)
+
             # 1. Tra cuu O(1) tu _keyframe_path_map
             if hasattr(service, "_keyframe_path_map") and service._keyframe_path_map:
-                if clean_rel in service._keyframe_path_map:
-                    return FileResponse(service._keyframe_path_map[clean_rel])
-                clean_rel_lower = clean_rel.lower()
-                if clean_rel_lower in service._keyframe_path_map:
-                    return FileResponse(service._keyframe_path_map[clean_rel_lower])
                 parts = clean_rel.split("/")
                 img_name = parts[-1]
-                if img_name in service._keyframe_path_map:
-                    return FileResponse(service._keyframe_path_map[img_name])
+                for key in (clean_rel, clean_rel.lower(), img_name):
+                    cand = service._keyframe_path_map.get(key)
+                    if cand and os.path.isfile(cand):
+                        return _file_resp(cand)
 
             # 2. Duong dan truc tiep tu kf_path
             cand = os.path.join(kf_path, clean_rel)
             if os.path.isfile(cand):
-                return FileResponse(cand)
+                return _file_resp(cand)
+
+            # 2b. Duong dan kem thu muc batch tu kf_path (vd: kf_path/L21/L21_V001/keyframes/...)
+            parts = clean_rel.split("/")
+            if parts and "_" in parts[0]:
+                batch = parts[0].split("_")[0]
+                cand_batch = os.path.join(kf_path, batch, clean_rel)
+                if os.path.isfile(cand_batch):
+                    return _file_resp(cand_batch)
 
             # 3. Tim kiem filename va video name
-            parts = clean_rel.split("/")
             img_name = parts[-1]
             vid_name = ""
             for p in parts:
@@ -2382,7 +2432,10 @@ def create_app(config_file: str = None) -> FastAPI:
                 for root, _, files in os.walk(kf_path):
                     if img_name in files:
                         if not vid_name or vid_name.lower() in root.lower().replace("\\", "/"):
-                            return FileResponse(os.path.join(root, img_name))
+                            found = os.path.join(root, img_name)
+                            if hasattr(service, "_keyframe_path_map"):
+                                service._keyframe_path_map[clean_rel] = found
+                            return _file_resp(found)
 
             return Response(status_code=404)
 
@@ -3146,87 +3199,96 @@ def create_app(config_file: str = None) -> FastAPI:
         try:
             while True:
                 data = await websocket.receive_json()
-                req_type = data.get("type")
-                model_choice = service.config.model.clip_model_name
+                try:
+                    req_type = data.get("type")
+                    model_choice = service.config.model.clip_model_name
 
-                if req_type in ("text_query", "image_query", "hybrid_query", "multi_query"):
-                    queries = data.get("queries", [])
-                    first_q = ""
-                    second_q = ""
+                    if req_type in ("text_query", "image_query", "hybrid_query", "multi_query"):
+                        queries = data.get("queries", [])
+                        first_q = ""
+                        second_q = ""
 
-                    if queries and isinstance(queries, list):
-                        if len(queries) >= 1:
-                            q1 = queries[0]
-                            if isinstance(q1, dict):
-                                first_q = q1.get("content", "") or q1.get("text", "")
-                            elif isinstance(q1, str):
-                                first_q = q1
-                        if len(queries) >= 2:
-                            q2 = queries[1]
-                            if isinstance(q2, dict):
-                                second_q = q2.get("content", "") or q2.get("text", "")
-                            elif isinstance(q2, str):
-                                second_q = q2
+                        if queries and isinstance(queries, list):
+                            if len(queries) >= 1:
+                                q1 = queries[0]
+                                if isinstance(q1, dict):
+                                    first_q = q1.get("content", "") or q1.get("text", "")
+                                elif isinstance(q1, str):
+                                    first_q = q1
+                            if len(queries) >= 2:
+                                q2 = queries[1]
+                                if isinstance(q2, dict):
+                                    second_q = q2.get("content", "") or q2.get("text", "")
+                                elif isinstance(q2, str):
+                                    second_q = q2
 
-                    if not first_q:
-                        first_q = data.get("firstQuery", "") or data.get("first_query", "") or data.get("query", "") or data.get("text", "")
-                    if not second_q:
-                        second_q = data.get("secondQuery", "") or data.get("second_query", "") or data.get("nextQuery", "")
+                        if not first_q:
+                            first_q = data.get("firstQuery", "") or data.get("first_query", "") or data.get("query", "") or data.get("text", "")
+                        if not second_q:
+                            second_q = data.get("secondQuery", "") or data.get("second_query", "") or data.get("nextQuery", "")
 
-                    target_vid = data.get("video_scope") or data.get("target_video") or data.get("video_id")
-                    if target_vid:
-                        # Truy vấn sâu trong đúng 1 video được chọn
-                        v_res = await service.search_video_qa(target_vid, first_q or second_q, top_k=500)
+                        target_vid = data.get("video_scope") or data.get("target_video") or data.get("video_id")
+                        if target_vid:
+                            # Truy vấn sâu trong đúng 1 video được chọn
+                            v_res = await service.search_video_qa(target_vid, first_q or second_q, top_k=500)
+                            await websocket.send_json({
+                                "kq": v_res["results"],
+                                "model": model_choice,
+                                "qa_answer": v_res.get("qa_answer", ""),
+                                "qa_source": v_res.get("qa_source", ""),
+                                "video_id": target_vid
+                            })
+                            continue
+
+                        # Thực thi truy vấn với Hybrid Search (SigLIP GPU + BM25 OCR/ASR + RRF Score Fusion)
+                        global_topic = data.get("globalTopic") or data.get("trakeTopic") or ""
+                        service.logger.info(f"🔍 [Main WS Query] Q1: '{first_q}' | Q2: '{second_q}' | Topic: '{global_topic}'")
+                        result = await service.process_temporal_query(first_q, second_q, model_name=model_choice, global_topic=global_topic)
+
+                        decomp_res = service.smart_decomposer.decompose(first_q or second_q, current_topic=global_topic)
+
                         await websocket.send_json({
-                            "kq": v_res["results"],
+                            "kq": result,
                             "model": model_choice,
-                            "qa_answer": v_res.get("qa_answer", ""),
-                            "qa_source": v_res.get("qa_source", ""),
-                            "video_id": target_vid
+                            "qa_answer": "",
+                            "qa_source": "",
+                            "latency_audit": service.last_latency_audit,
+                            "decomposed": {
+                                "mode": decomp_res.mode,
+                                "global_topic": decomp_res.global_topic,
+                                "stages": decomp_res.stages,
+                                "ocr_keywords": decomp_res.ocr_keywords,
+                                "asr_keywords": decomp_res.asr_keywords,
+                                "visual_query_en": decomp_res.visual_query_en,
+                                "explanation": decomp_res.explanation
+                            }
                         })
-                        continue
 
-                    # Thực thi truy vấn với Hybrid Search (SigLIP GPU + BM25 OCR/ASR + RRF Score Fusion)
-                    global_topic = data.get("globalTopic") or data.get("trakeTopic") or ""
-                    result = await service.process_temporal_query(first_q, second_q, model_name=model_choice, global_topic=global_topic)
+                    elif req_type == "refine_query":
+                        rel_vectors = await service.get_vectors_by_ids(data.get("relevant_ids", []))
+                        non_rel_vectors = await service.get_vectors_by_ids(data.get("non_relevant_ids", []))
 
-                    decomp_res = service.smart_decomposer.decompose(first_q or second_q, current_topic=global_topic)
+                        new_vector = service.compute_rocchio_vector(
+                            original_vec=data.get("original_vector", []),
+                            relevant_vecs=rel_vectors,
+                            non_relevant_vecs=non_rel_vectors,
+                            alpha=data.get("alpha", 1.0),
+                            beta=data.get("beta", 0.75),
+                            gamma=data.get("gamma", 0.15),
+                        )
 
+                        new_results = await service.query_milvus(new_vector, limit=data.get("top_k", 1000))
+                        await websocket.send_json({
+                            "type": "refine_result",
+                            "new_vector": new_vector,
+                            "kq": new_results,
+                        })
+                except Exception as proc_err:
+                    service.logger.error(f"Lỗi xử lý câu truy vấn Main WS: {proc_err}", exc_info=True)
                     await websocket.send_json({
-                        "kq": result,
-                        "model": model_choice,
-                        "qa_answer": "",
-                        "qa_source": "",
-                        "latency_audit": service.last_latency_audit,
-                        "decomposed": {
-                            "mode": decomp_res.mode,
-                            "global_topic": decomp_res.global_topic,
-                            "stages": decomp_res.stages,
-                            "ocr_keywords": decomp_res.ocr_keywords,
-                            "asr_keywords": decomp_res.asr_keywords,
-                            "visual_query_en": decomp_res.visual_query_en,
-                            "explanation": decomp_res.explanation
-                        }
-                    })
-
-                elif req_type == "refine_query":
-                    rel_vectors = await service.get_vectors_by_ids(data.get("relevant_ids", []))
-                    non_rel_vectors = await service.get_vectors_by_ids(data.get("non_relevant_ids", []))
-
-                    new_vector = service.compute_rocchio_vector(
-                        original_vec=data.get("original_vector", []),
-                        relevant_vecs=rel_vectors,
-                        non_relevant_vecs=non_rel_vectors,
-                        alpha=data.get("alpha", 1.0),
-                        beta=data.get("beta", 0.75),
-                        gamma=data.get("gamma", 0.15),
-                    )
-
-                    new_results = await service.query_milvus(new_vector, limit=data.get("top_k", 1000))
-                    await websocket.send_json({
-                        "type": "refine_result",
-                        "new_vector": new_vector,
-                        "kq": new_results,
+                        "kq": [],
+                        "status": "error",
+                        "error": str(proc_err)
                     })
         except WebSocketDisconnect:
             service.logger.info("Main WebSocket disconnected")
@@ -3242,93 +3304,102 @@ def create_app(config_file: str = None) -> FastAPI:
         try:
             while True:
                 data = await websocket.receive_json()
-                model_choice = service.config.model.clip_model_name
+                try:
+                    model_choice = service.config.model.clip_model_name
 
-                text_queries = data.get("textQueries", [])
-                ocr_texts = data.get("ocrtext", [])
-                asm_texts = data.get("asmtext", [])
+                    text_queries = data.get("textQueries", [])
+                    ocr_texts = data.get("ocrtext", [])
+                    asm_texts = data.get("asmtext", [])
 
-                # 1. Parse all textQueries (Hỗ trợ 1, 2, 3, 4... N cảnh chuỗi thời gian)
-                all_text_q_list = []
-                if isinstance(text_queries, list):
-                    for q_item in text_queries:
-                        if isinstance(q_item, dict):
-                            val = q_item.get("content", "") or q_item.get("text", "")
-                            if val and val.strip():
-                                all_text_q_list.append(val.strip())
-                        elif isinstance(q_item, str) and q_item.strip():
-                            all_text_q_list.append(q_item.strip())
+                    # 1. Parse all textQueries (Hỗ trợ 1, 2, 3, 4... N cảnh chuỗi thời gian)
+                    all_text_q_list = []
+                    if isinstance(text_queries, list):
+                        for q_item in text_queries:
+                            if isinstance(q_item, dict):
+                                val = q_item.get("content", "") or q_item.get("text", "")
+                                if val and val.strip():
+                                    all_text_q_list.append(val.strip())
+                            elif isinstance(q_item, str) and q_item.strip():
+                                all_text_q_list.append(q_item.strip())
 
-                first_q = all_text_q_list[0] if len(all_text_q_list) >= 1 else ""
+                    first_q = all_text_q_list[0] if len(all_text_q_list) >= 1 else ""
 
-                # 2. Parse OCR & ASR texts
-                ocr_query_str = ""
-                for o_text in ocr_texts:
-                    if isinstance(o_text, str) and o_text.strip():
-                        ocr_query_str = o_text.strip()
-                        break
+                    # 2. Parse OCR & ASR texts
+                    ocr_query_str = ""
+                    for o_text in ocr_texts:
+                        if isinstance(o_text, str) and o_text.strip():
+                            ocr_query_str = o_text.strip()
+                            break
 
-                asr_query_str = ""
-                for a_text in asm_texts:
-                    if isinstance(a_text, str) and a_text.strip():
-                        asr_query_str = a_text.strip()
-                        break
+                    asr_query_str = ""
+                    for a_text in asm_texts:
+                        if isinstance(a_text, str) and a_text.strip():
+                            asr_query_str = a_text.strip()
+                            break
 
-                # Câu truy vấn hiệu dụng để tìm kiếm ngữ nghĩa SigLIP
-                effective_query = all_text_q_list if all_text_q_list else (ocr_query_str or asr_query_str or "scenery overview")
-                global_topic = data.get("globalTopic") or data.get("trakeTopic") or ""
-                result = []
+                    # Câu truy vấn hiệu dụng để tìm kiếm ngữ nghĩa SigLIP
+                    effective_query = all_text_q_list if all_text_q_list else (ocr_query_str or asr_query_str or "scenery overview")
+                    global_topic = data.get("globalTopic") or data.get("trakeTopic") or ""
+                    service.logger.info(f"🔍 [Filter Query] Text: '{first_q}' | OCR: '{ocr_query_str}' | ASR: '{asr_query_str}' | Topic: '{global_topic}'")
+                    result = []
 
-                # Nếu chỉ tìm kiếm chuyên biệt trên ô OCR hoặc ASR thuần túy (không có mô tả chính)
-                if not all_text_q_list and ocr_query_str:
-                    result = await service.search_ocr(ocr_query_str, limit=1000)
-                    # Nếu OCR không có hoặc có ít kết quả, tự động mở rộng sang ASR & Visual Hybrid
-                    if len(result) < 20:
-                        extra_asr = await service.search_asr(ocr_query_str, limit=1000)
-                        extra_visual = await service.process_temporal_query(ocr_query_str, model_name=model_choice, global_topic=global_topic)
-                        seen_keys = {f"{r.get('video_id')}_{r.get('frame_id')}" for r in result}
-                        for item in (extra_asr or []) + (extra_visual or []):
-                            k = f"{item.get('video_id')}_{item.get('frame_id')}"
-                            if k not in seen_keys:
-                                seen_keys.add(k)
-                                result.append(item)
-                elif not all_text_q_list and asr_query_str:
-                    result = await service.search_asr(asr_query_str, limit=1000)
-                    if len(result) < 20:
-                        extra_ocr = await service.search_ocr(asr_query_str, limit=1000)
-                        extra_visual = await service.process_temporal_query(asr_query_str, model_name=model_choice, global_topic=global_topic)
-                        seen_keys = {f"{r.get('video_id')}_{r.get('frame_id')}" for r in result}
-                        for item in (extra_ocr or []) + (extra_visual or []):
-                            k = f"{item.get('video_id')}_{item.get('frame_id')}"
-                            if k not in seen_keys:
-                                seen_keys.add(k)
-                                result.append(item)
-                else:
-                    # Mặc định sử dụng bộ tìm kiếm đa phương thức Hybrid RRF + Temporal TRAKE
-                    combined_query = list(all_text_q_list)
-                    if ocr_query_str and ocr_query_str not in combined_query:
-                        combined_query.append(f'"{ocr_query_str}"')
-                    if asr_query_str and asr_query_str not in combined_query:
-                        combined_query.append(f'"{asr_query_str}"')
-                    result = await service.process_temporal_query(combined_query or effective_query, model_name=model_choice, global_topic=global_topic)
+                    # Nếu chỉ tìm kiếm chuyên biệt trên ô OCR hoặc ASR thuần túy (không có mô tả chính)
+                    if not all_text_q_list and ocr_query_str:
+                        result = await service.search_ocr(ocr_query_str, limit=1000)
+                        # Nếu OCR không có hoặc có ít kết quả, tự động mở rộng sang ASR & Visual Hybrid
+                        if len(result) < 20:
+                            extra_asr = await service.search_asr(ocr_query_str, limit=1000)
+                            extra_visual = await service.process_temporal_query(ocr_query_str, model_name=model_choice, global_topic=global_topic)
+                            seen_keys = {f"{r.get('video_id')}_{r.get('frame_id')}" for r in result}
+                            for item in (extra_asr or []) + (extra_visual or []):
+                                k = f"{item.get('video_id')}_{item.get('frame_id')}"
+                                if k not in seen_keys:
+                                    seen_keys.add(k)
+                                    result.append(item)
+                    elif not all_text_q_list and asr_query_str:
+                        result = await service.search_asr(asr_query_str, limit=1000)
+                        if len(result) < 20:
+                            extra_ocr = await service.search_ocr(asr_query_str, limit=1000)
+                            extra_visual = await service.process_temporal_query(asr_query_str, model_name=model_choice, global_topic=global_topic)
+                            seen_keys = {f"{r.get('video_id')}_{r.get('frame_id')}" for r in result}
+                            for item in (extra_ocr or []) + (extra_visual or []):
+                                k = f"{item.get('video_id')}_{item.get('frame_id')}"
+                                if k not in seen_keys:
+                                    seen_keys.add(k)
+                                    result.append(item)
+                    else:
+                        # Mặc định sử dụng bộ tìm kiếm đa phương thức Hybrid RRF + Temporal TRAKE
+                        combined_query = list(all_text_q_list)
+                        if ocr_query_str and ocr_query_str not in combined_query:
+                            combined_query.append(f'"{ocr_query_str}"')
+                        if asr_query_str and asr_query_str not in combined_query:
+                            combined_query.append(f'"{asr_query_str}"')
+                        result = await service.process_temporal_query(combined_query or effective_query, model_name=model_choice, global_topic=global_topic)
 
-                primary_q = first_q or (all_text_q_list[0] if all_text_q_list else (ocr_query_str or asr_query_str or ""))
-                decomp_res = service.smart_decomposer.decompose(primary_q, current_topic=global_topic)
+                    primary_q = first_q or (all_text_q_list[0] if all_text_q_list else (ocr_query_str or asr_query_str or ""))
+                    decomp_res = service.smart_decomposer.decompose(primary_q, current_topic=global_topic)
 
-                await websocket.send_json({
-                    "kq": result,
-                    "model": model_choice,
-                    "status": "success",
-                    "decomposed": {
-                        "mode": decomp_res.mode,
-                        "global_topic": decomp_res.global_topic,
-                        "stages": decomp_res.stages,
-                        "ocr_keywords": decomp_res.ocr_keywords,
-                        "asr_keywords": decomp_res.asr_keywords,
-                        "visual_query_en": decomp_res.visual_query_en,
-                        "explanation": decomp_res.explanation
-                    }
-                })
+                    await websocket.send_json({
+                        "kq": result,
+                        "model": model_choice,
+                        "status": "success",
+                        "decomposed": {
+                            "mode": decomp_res.mode,
+                            "global_topic": decomp_res.global_topic,
+                            "stages": decomp_res.stages,
+                            "ocr_keywords": decomp_res.ocr_keywords,
+                            "asr_keywords": decomp_res.asr_keywords,
+                            "visual_query_en": decomp_res.visual_query_en,
+                            "explanation": decomp_res.explanation
+                        }
+                    })
+                except Exception as proc_err:
+                    service.logger.error(f"Lỗi xử lý câu truy vấn filter: {proc_err}", exc_info=True)
+                    await websocket.send_json({
+                        "kq": [],
+                        "status": "error",
+                        "error": str(proc_err)
+                    })
         except WebSocketDisconnect:
             service.logger.info("Filter WebSocket disconnected")
         except Exception as e:

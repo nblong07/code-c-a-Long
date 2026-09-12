@@ -8,7 +8,11 @@ const link = document.querySelector("link[rel~='icon']") || (() => {
   const newLink = document.createElement('link');
   newLink.rel = 'icon';
   document.head.appendChild(newLink);
-link.href = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>';
+  return newLink;
+})();
+if (link) {
+  link.href = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>';
+}
 
 
 
@@ -45,12 +49,50 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-// Function to toggle loading indicator
+// Function to toggle loading indicator with rich visual feedback
 function toggleLoadingIndicator(show) {
+  // 1. Popup card ở góc trên phải
   const indicator = document.getElementById('loading-indicator');
   if (indicator) {
     indicator.style.display = show ? 'flex' : 'none';
   }
+
+  // 2. Nút tìm kiếm đổi trạng thái xoay spinner + disabled
+  const searchBtn = document.getElementById('card-search-button');
+  if (searchBtn) {
+    if (show) {
+      if (!searchBtn.dataset.originalHtml) {
+        searchBtn.dataset.originalHtml = searchBtn.innerHTML;
+      }
+      searchBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ĐANG TRUY VẤN...';
+      searchBtn.classList.add('searching');
+      searchBtn.disabled = true;
+    } else {
+      searchBtn.innerHTML = searchBtn.dataset.originalHtml || '<i class="fas fa-search"></i> TÌM KIẾM ⚡';
+      searchBtn.classList.remove('searching');
+      searchBtn.disabled = false;
+    }
+  }
+
+  // 3. Thanh tiến trình chạy ở đỉnh trang (Top Progress Bar)
+  let topBar = document.getElementById('top-search-progress-bar');
+  if (!topBar) {
+    topBar = document.createElement('div');
+    topBar.id = 'top-search-progress-bar';
+    topBar.className = 'top-search-progress-bar';
+    document.body.prepend(topBar);
+  }
+  topBar.style.display = show ? 'block' : 'none';
+
+  // 4. Đổi con trỏ chuột sang 'wait'
+  document.body.style.cursor = show ? 'wait' : '';
+
+  // 5. Hiệu ứng phát sáng viền ô Text
+  const textInputs = document.querySelectorAll('textarea[name="Text_Query"], textarea[name="Ocr_Query"], textarea[name="Asm_Query"]');
+  textInputs.forEach(inp => {
+    if (show) inp.classList.add('input-searching-glow');
+    else inp.classList.remove('input-searching-glow');
+  });
 }
 
 

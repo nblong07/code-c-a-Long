@@ -336,8 +336,12 @@ let filterSocket; // WebSocket cho lọc kết quả
  * Dùng để lọc lại kết quả tìm kiếm hiện tại (filter theo object, OCR, v.v.)
  */
 function connectFilterWebSocket() {
+    if (filterSocket && (filterSocket.readyState === WebSocket.OPEN || filterSocket.readyState === WebSocket.CONNECTING)) {
+        return;
+    }
     const tokenParam = window.API_KEY ? `?token=${encodeURIComponent(window.API_KEY)}` : '';
-    filterSocket = new WebSocket(`ws://localhost:8000/ws/filter_query${tokenParam}`);
+    const wsBase = window.WS_URL || `ws://${window.location.host || 'localhost:8000'}`;
+    filterSocket = new WebSocket(`${wsBase}/ws/filter_query${tokenParam}`);
     
     filterSocket.onopen = () => {
         console.log('Filter WebSocket đã kết nối (/ws/filter_query)');
@@ -348,7 +352,7 @@ function connectFilterWebSocket() {
         console.log(`Filter: dữ liệu nhận. Thời gian: ${receiveTime - requestTime} ms`);
         
         try {
-            data = JSON.parse(event.data);
+            const data = JSON.parse(event.data);
             if (data.kq) {
                 updateUIWithSearchResults(data.kq);
                 const updateCompleteTime = performance.now();
@@ -369,16 +373,23 @@ function connectFilterWebSocket() {
                 toggleLoadingIndicator(false);
             } else if (data.error) {
                 console.error("Lỗi từ server:", data.error);
+                if (typeof showNotification === 'function') {
+                    showNotification(`Lỗi tìm kiếm: ${data.error}`, 'error');
+                }
+                toggleLoadingIndicator(false);
             } else {
                 console.error("Dữ liệu không có thuộc tính 'kq':", data);
+                toggleLoadingIndicator(false);
             }
         } catch (error) {
             console.error("Lỗi parse dữ liệu filter:", error);
+            toggleLoadingIndicator(false);
         }
     };
 
     filterSocket.onerror = (error) => {
         console.error('Lỗi Filter WebSocket:', error);
+        toggleLoadingIndicator(false);
     };
 
     filterSocket.onclose = () => {

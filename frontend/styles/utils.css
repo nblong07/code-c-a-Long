@@ -353,3 +353,40 @@ body.trake-mode #scene-1-asr-block {
     display: none !important;
 }
 
+/* ==============================================================================
+   SEARCHING VISUAL FEEDBACK (PROGRESS BAR, BUTTON SPINNER, INPUT GLOW)
+   ============================================================================== */
+.top-search-progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3.5px;
+    background: linear-gradient(90deg, #00F2FE, #4FACFE, #A855F7, #00F2FE);
+    background-size: 200% 100%;
+    animation: topProgressAnim 1.2s ease-in-out infinite;
+    z-index: 99999;
+    box-shadow: 0 0 12px rgba(0, 242, 254, 0.8);
+}
+
+@keyframes topProgressAnim {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.card-search-btn.searching {
+    background: linear-gradient(135deg, rgba(2, 132, 199, 0.8), rgba(3, 105, 161, 0.9)) !important;
+    border-color: #00F2FE !important;
+    box-shadow: 0 0 16px rgba(0, 242, 254, 0.5) !important;
+    cursor: wait !important;
+    pointer-events: none;
+    opacity: 0.9;
+}
+
+.input-searching-glow {
+    border-color: #00F2FE !important;
+    box-shadow: 0 0 14px rgba(0, 242, 254, 0.35) !important;
+    transition: all 0.2s ease;
+}
+
