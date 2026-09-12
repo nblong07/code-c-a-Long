@@ -9,7 +9,10 @@ import multiprocessing as mp
 import torch
 from faster_whisper import WhisperModel
 
-# ================= CẤU HÌNH =================
+# ================= CẤU HÌNH PHẦN CỨNG (80-90% AMD 7000 Series + 6GB VRAM) =================
+_cpu_cores = os.cpu_count() or 8
+OPTIMAL_CPU_THREADS = max(1, int(_cpu_cores * 0.85))
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.environ.get("VIDEO_DIR", r"C:\video_test")
 OUTPUT_FILE = os.path.join(BASE_DIR, "asr_results.jsonl")
@@ -78,12 +81,12 @@ class FasterWhisperASR:
         for m_name in model_candidates:
             try:
                 print(f"🔄 Thử nạp model ASR: {m_name}...")
-                self.model = WhisperModel(m_name, device="cuda", compute_type="int8_float16", cpu_threads=6)
+                self.model = WhisperModel(m_name, device="cuda", compute_type="int8_float16", cpu_threads=OPTIMAL_CPU_THREADS)
                 print(f"✅ Nạp thành công model: {m_name} trên CUDA Tensor Cores!")
                 break
             except Exception as e:
                 try:
-                    self.model = WhisperModel(m_name, device="cuda", compute_type="float16", cpu_threads=6)
+                    self.model = WhisperModel(m_name, device="cuda", compute_type="float16", cpu_threads=OPTIMAL_CPU_THREADS)
                     print(f"✅ Nạp thành công model: {m_name} trên CUDA (float16)!")
                     break
                 except Exception:
@@ -91,7 +94,7 @@ class FasterWhisperASR:
         
         if self.model is None:
             print("⚠️ Chuyển sang nạp Whisper Large-v3 trên CPU (int8)...")
-            self.model = WhisperModel("large-v3", device="cpu", compute_type="int8", cpu_threads=6)
+            self.model = WhisperModel("large-v3", device="cpu", compute_type="int8", cpu_threads=OPTIMAL_CPU_THREADS)
             
         # Thử kích hoạt BatchedInferencePipeline để tăng tốc bóc băng song song theo batch audio
         try:
@@ -234,14 +237,20 @@ def load_completed_videos():
             except: pass
     return completed
 
-def discover_videos():
+def discover_videos(target_dir=None):
+    base_target = target_dir or DATA_DIR
     extensions = (".mp4", ".mkv", ".avi", ".mov", ".webm", ".flv")
     videos = []
-    if not os.path.isdir(DATA_DIR): return videos
-    for root, _, files in os.walk(DATA_DIR):
-        for file in files:
-            if file.lower().endswith(extensions):
-                videos.append(os.path.join(root, file))
+    if isinstance(base_target, str):
+        dirs = [base_target]
+    else:
+        dirs = list(base_target)
+    for d in dirs:
+        if not os.path.isdir(d): continue
+        for root, _, files in os.walk(d):
+            for file in files:
+                if file.lower().endswith(extensions):
+                    videos.append(os.path.join(root, file))
     return sorted(set(videos))
 
 def main():
@@ -251,7 +260,14 @@ def main():
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-    videos = discover_videos()
+    import argparse
+    parser = argparse.ArgumentParser(description="Trích xuất lời thoại ASR bằng Faster-Whisper")
+    parser.add_argument("--video-dir", "--videos-dir", type=str, nargs="*", default=None, help="Thư mục chứa video")
+    parser.add_argument("--batch-size", type=int, default=ASR_BATCH_SIZE, help="ASR batch size")
+    args, _ = parser.parse_known_args()
+
+    v_dir = args.video_dir if args.video_dir else DATA_DIR
+    videos = discover_videos(v_dir)
     completed = load_completed_videos()
     pending = [{"video_path": p, "attempt": 1} for p in videos if p not in completed]
 

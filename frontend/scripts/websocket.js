@@ -1,5 +1,5 @@
 /**
- * web_socket.js - Quản lý tất cả các kết nối WebSocket của ứng dụng.
+ * websocket.js - Quản lý tất cả các kết nối WebSocket của ứng dụng.
  *
  * Các WebSocket được sử dụng:
  *   - /ws                : Tìm kiếm chính (text / temporal / multi-query)
@@ -723,7 +723,8 @@ async function performPagnitionCombinedSearch() {
         }
     }
 
-    if (typeof Pagnitionsocket !== 'undefined' && Pagnitionsocket && Pagnitionsocket.readyState === WebSocket.OPEN) {
+    const pSocket = (typeof paginationSocket !== 'undefined' && paginationSocket) ? paginationSocket : (typeof Pagnitionsocket !== 'undefined' ? Pagnitionsocket : null);
+    if (pSocket && pSocket.readyState === WebSocket.OPEN) {
         let message = {
             type: 'multi_query',
             model: modelType,
@@ -735,10 +736,14 @@ async function performPagnitionCombinedSearch() {
         };
 
         requestTime = performance.now();
-        Pagnitionsocket.send(JSON.stringify(message));
+        pSocket.send(JSON.stringify(message));
     } else {
-        console.error('Pagnitionsocket is not open.');
-        connectWebSocket();
+        console.warn('Pagination socket chưa sẵn sàng, đang kết nối lại...');
+        if (typeof connectPaginationWebSocket === 'function') {
+            connectPaginationWebSocket();
+        } else if (typeof connectWebSocket === 'function') {
+            connectWebSocket();
+        }
     }
 }
 

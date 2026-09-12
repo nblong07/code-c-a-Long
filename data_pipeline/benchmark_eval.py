@@ -1,4 +1,4 @@
-﻿import json, time, argparse, sys
+import os, json, time, argparse, sys
 import numpy as np
 
 try:
@@ -81,7 +81,8 @@ def main():
     parser = argparse.ArgumentParser(
         description="Benchmark Video Retrieval - Recall@K, MRR, Latency P50/P95/P99"
     )
-    parser.add_argument("--queries", required=True, help="Path to validation_queries.json")
+    default_queries = os.path.join(os.path.dirname(__file__), "validation_queries.json")
+    parser.add_argument("--queries", default=default_queries, help="Path to validation_queries.json")
     parser.add_argument("--top-k", type=int, default=10)
     parser.add_argument("--server", default="http://localhost:8000")
     parser.add_argument("--api-key", default="")

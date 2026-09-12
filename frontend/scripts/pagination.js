@@ -1,42 +1,37 @@
 
+/**
+ * pagination.js - Quản lý phân trang và tải thêm kết quả tìm kiếm (Infinite Scroll / Batch Pagination).
+ */
+
 let isQuickSearch = false;
 
-
-// Function to toggle export mode
+// Hàm chuyển đổi chế độ tìm kiếm nhanh
 function toggleQuickSearchMode() {
     const lightingQuickSearchButton = document.getElementById('quick-search');
+    if (!lightingQuickSearchButton) return;
+    
     isQuickSearch = !isQuickSearch;
     
     if (isQuickSearch) {
-        lightingQuickSearchButton.innerHTML = '<img src="src/Img/icon-lighting-yellow.png" alt="icon">';
-        lightingQuickSearchButton.title = 'Switch to quick search mode';
+        lightingQuickSearchButton.innerHTML = '<i class="fa-solid fa-bolt" style="color: #FACC15; font-size: 16px;"></i>';
+        lightingQuickSearchButton.title = 'Chế độ tìm kiếm nhanh (Đang bật)';
         cleanupSearchResults();
     } else {
-        lightingQuickSearchButton.innerHTML = '<img src="src/Img/icon-lighting-grey.png" alt="icon">';
-        lightingQuickSearchButton.title = 'Switch to normal search mode';
-        resetSearch()
+        lightingQuickSearchButton.innerHTML = '<i class="fa-solid fa-bolt" style="color: #94A3B8; font-size: 16px;"></i>';
+        lightingQuickSearchButton.title = 'Chế độ tìm kiếm tiêu chuẩn';
+        resetSearch();
     }
 }
 
-
-
-// Add this to your DOMContentLoaded event listener
+// Đăng ký sự kiện sau khi tải xong DOM
 document.addEventListener('DOMContentLoaded', function() {
     const openExportSocketButton = document.getElementById('quick-search');
     if (openExportSocketButton) {
         openExportSocketButton.addEventListener('click', toggleQuickSearchMode);
     }
 });
-  
-  
 
-//------------------------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------------------------//
-//------------------------------------------------------------------------------------------------------------------------------//
-
-
-
-// Define lazy-loading observer for images
+// Quản lý IntersectionObserver lazy-loading cho hình ảnh
 const imageObserver = new IntersectionObserver((entries, observer) => {
     entries.forEach(entry => {
         if (entry.isIntersecting) {
@@ -49,89 +44,93 @@ const imageObserver = new IntersectionObserver((entries, observer) => {
     });
 }, { rootMargin: '200px' });
 
-let Pagnitionsocket = null; // WebSocket variable
-let currentPage = 0;  // Keep track of the current page
-let currentModelType = 'clip'; // Default model type
-let currentModeType = 'search'; // Default mode type
+let paginationSocket = null;
+let Pagnitionsocket = null; // Alias tương thích ngược
+let currentPage = 0;
+let currentModelType = 'ViT-gopt-16-SigLIP2-384';
+let currentModeType = 'search';
 
-// Define observer to detect the last image in the list
+// Observer nhận diện ảnh cuối cùng trong danh sách để tải trang tiếp theo
 const batchObserver = new IntersectionObserver((entries, observer) => {
     entries.forEach(entry => {
-        if (entry.isIntersecting && entry.target.id.startsWith('page-end-')) {
+        if (entry.isIntersecting && entry.target.id && entry.target.id.startsWith('page-end-')) {
             currentPage++;
             requestNextBatch(currentPage);
-            observer.unobserve(entry.target);  // Unobserve to prevent multiple triggers
+            observer.unobserve(entry.target);
         }
     });
 }, {
     rootMargin: '200px'
 });
-// Establish WebSocket connection
-function connectPagnitionWebSocket() {
-    const tokenParam = window.API_KEY ? `?token=${encodeURIComponent(window.API_KEY)}` : '';
-    Pagnitionsocket = new WebSocket(`ws://localhost:8000/ws/pagnition${tokenParam}`);
 
-    Pagnitionsocket.onopen = function(event) {
-        console.log("WebSocket connection established");
+// Thiết lập kết nối WebSocket cho phân trang
+function connectPaginationWebSocket() {
+    const wsBase = window.WS_URL || 'ws://localhost:8000';
+    const tokenParam = window.API_KEY ? `?token=${encodeURIComponent(window.API_KEY)}` : '';
+    
+    paginationSocket = new WebSocket(`${wsBase}/ws/pagination${tokenParam}`);
+    Pagnitionsocket = paginationSocket;
+
+    paginationSocket.onopen = function(event) {
+        console.log("WebSocket phân trang đã kết nối");
     };
 
-    Pagnitionsocket.onmessage = function(event) {
-        data= JSON.parse(event.data);
-
-        // Check if results are returned
-        if (data.kq && data.kq.length > 0) {
-
-            // Update UI with the new batch of results
-            updateUIWithPagnition(data.kq, data.page);
-        } else {
-            console.log("No more results");
+    paginationSocket.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.kq && data.kq.length > 0) {
+                updateUIWithPagination(data.kq, data.page);
+            }
+        } catch (err) {
+            console.error("Lỗi xử lý dữ liệu phân trang:", err);
         }
     };
 
-    Pagnitionsocket.onclose = function(event) {
-        console.log("WebSocket connection closed", event);
+    paginationSocket.onclose = function(event) {
+        console.log("WebSocket phân trang đã đóng:", event);
     };
 
-    Pagnitionsocket.onerror = function(error) {
-        console.error("WebSocket error", error);
+    paginationSocket.onerror = function(error) {
+        console.error("Lỗi WebSocket phân trang:", error);
     };
 }
 
-// Request the next batch from the backend
+// Alias tương thích ngược
+const connectPagnitionWebSocket = connectPaginationWebSocket;
+
+// Gửi yêu cầu lấy batch kết quả tiếp theo
 function requestNextBatch(page) {
-    if (Pagnitionsocket.readyState === WebSocket.OPEN) {
-        let message = {
+    const sock = paginationSocket || Pagnitionsocket;
+    if (sock && sock.readyState === WebSocket.OPEN) {
+        const message = {
             type: 'pagination_query',
-            model: currentModelType,  // Use the current model
-            mode: currentModeType,    // Use the current mode
-            page: page                // Send the current page number
+            model: currentModelType,
+            mode: currentModeType,
+            page: page
         };
-        
-        Pagnitionsocket.send(JSON.stringify(message));  // Send request for the next batch
+        sock.send(JSON.stringify(message));
     } else {
-        console.error('WebSocket is not open. ReadyState:', Pagnitionsocket.readyState);
-        // Optionally handle reconnection here
-        connectWebSocket();
+        console.warn('WebSocket phân trang chưa sẵn sàng, đang kết nối lại...');
+        connectPaginationWebSocket();
     }
 }
 
-// Function to update UI and trigger the observer on the last item
-function updateUIWithPagnition(results, page) {
-    // Call updateRightPanel_list to update the UI with the new batch of results
+// Cập nhật giao diện và quan sát phần tử cuối cùng
+function updateUIWithPagination(results, page) {
     const updatedDivs = updatePagnitionRightPanel_list(results, page);
-
-    // Observe the last image for infinite scrolling
     const lastDiv = updatedDivs[updatedDivs.length - 1];
     if (lastDiv) {
-        lastDiv.id = `page-end-${page}`;  // Mark the last item in the batch
-        batchObserver.observe(lastDiv);  // Observe the last item for infinite scrolling
+        lastDiv.id = `page-end-${page}`;
+        batchObserver.observe(lastDiv);
     }
 }
 
-// Start WebSocket connection on page load
-window.onload = function() {
-    connectPagnitionWebSocket();
-};
+const updateUIWithPagnition = updateUIWithPagination;
+
+// Khởi tạo kết nối khi DOM sẵn sàng
+document.addEventListener('DOMContentLoaded', () => {
+    connectPaginationWebSocket();
+});
 
 
 function getPagnitionEntityInfo(result) {

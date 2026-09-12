@@ -10,7 +10,12 @@ from concurrent.futures import ThreadPoolExecutor
 # Thiết lập biến môi trường để triệt tiêu cảnh báo deterministic của CuBLAS
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
-# Tự động ưu tiên load model TransNetV2 tối ưu nhất (PyTorch GPU > ONNX GPU > TensorFlow)
+_cpu_cores = os.cpu_count() or 8
+OPTIMAL_CPU_THREADS = max(1, int(_cpu_cores * 0.85))
+if hasattr(cv2, "setNumThreads"):
+    cv2.setNumThreads(OPTIMAL_CPU_THREADS)
+
+# Nạp model TransNetV2 theo độ ưu tiên backend (PyTorch GPU > TensorFlow)
 MODEL_TYPE = "unknown"
 try:
     from transnetv2_pytorch import TransNetV2
@@ -279,7 +284,7 @@ if __name__ == "__main__":
     parser.add_argument("--resize-factor", type=float, default=0.5, help="Hệ số scale ảnh (0.5 = 50% độ phân giải)")
     parser.add_argument("--quality", type=int, default=80, help="Chất lượng nén ảnh WebP (1-100)")
     parser.add_argument("--dhash-thresh", type=int, default=6, help="Ngưỡng lọc trùng dHash (mặc định 6)")
-    parser.add_argument("--workers", type=int, default=12, help="Số luồng ghi ảnh WebP đồng thời")
+    parser.add_argument("--workers", type=int, default=OPTIMAL_CPU_THREADS, help=f"Số luồng ghi ảnh WebP đồng thời (mặc định: {OPTIMAL_CPU_THREADS})")
     parser.add_argument("--batch-size", type=int, default=256, help="GPU inference batch size cho TransNetV2")
     parser.add_argument("--parallel-videos", type=int, default=1, help="Số video xử lý song song (tận dụng tối đa GPU/CPU)")
     args = parser.parse_args()

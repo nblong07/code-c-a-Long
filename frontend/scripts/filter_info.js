@@ -1,4 +1,5 @@
-//------------------------------------------------------------------------//
+//------------------------ Filter & Query Extraction ------------------------//
+
 function showNotification(message, type = 'success') {
     const container = document.getElementById('notification-container');
     if (!container) return;
@@ -89,8 +90,8 @@ async function handleFilterAction(event) {
         // Fetch selected model if available
         const activeModelBtn = document.querySelector('.model-option button.active');
         const activeModel = activeModelBtn
-            ? activeModelBtn.getAttribute('data-model') || activeModelBtn.className.split(' ').find(c => !['active', 'btn'].includes(c)) || 'clip'
-            : 'clip';
+            ? activeModelBtn.getAttribute('data-model') || activeModelBtn.className.split(' ').find(c => !['active', 'btn'].includes(c)) || 'ViT-gopt-16-SigLIP2-384'
+            : 'ViT-gopt-16-SigLIP2-384';
 
         const trakeTopic = (document.getElementById('Trake-Topic-Query')?.value || '').trim();
 

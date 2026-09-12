@@ -1,0 +1,491 @@
+{
+  "visual": [
+    {
+      "query": "người phụ nữ mặc áo dài đỏ dẫn chương trình",
+      "ground_truth": [
+        "L21_V001/keyframes/keyframe_10046.webp",
+        "L21_V001/keyframes/keyframe_10287.webp",
+        "L21_V001/keyframes/keyframe_11363.webp"
+      ],
+      "type": "visual"
+    },
+    {
+      "query": "người nông dân thu hoạch lúa trên cánh đồng",
+      "ground_truth": [
+        "L21_V002/keyframes/keyframe_7752.webp",
+        "L21_V003/keyframes/keyframe_10062.webp"
+      ],
+      "type": "visual"
+    },
+    {
+      "query": "xe ô tô và xe máy lưu thông đông đúc trên đường phố",
+      "ground_truth": [
+        "L21_V001/keyframes/keyframe_578.webp",
+        "L21_V001/keyframes/keyframe_7223.webp"
+      ],
+      "type": "visual"
+    },
+    {
+      "query": "bác sĩ phẫu thuật trong phòng mổ bệnh viện",
+      "ground_truth": [
+        "L21_V008/keyframes/keyframe_21415.webp",
+        "L21_V008/keyframes/keyframe_22235.webp"
+      ],
+      "type": "visual"
+    },
+    {
+      "query": "toàn cảnh thành phố nhìn từ trên cao sông nước",
+      "ground_truth": [
+        "L21_V001/keyframes/keyframe_23879.webp",
+        "L21_V001/keyframes/keyframe_24326.webp"
+      ],
+      "type": "visual"
+    },
+    {
+      "query": "người đầu bếp đang nấu ăn trong gian bếp",
+      "ground_truth": [
+        "L21_V003/keyframes/keyframe_8394.webp",
+        "L21_V003/keyframes/keyframe_9086.webp"
+      ],
+      "type": "visual"
+    },
+    {
+      "query": "chiếc xe cấp cứu cứu thương màu trắng bật đèn",
+      "ground_truth": [
+        "L21_V010/keyframes/keyframe_16316.webp",
+        "L21_V010/keyframes/keyframe_17006.webp"
+      ],
+      "type": "visual"
+    },
+    {
+      "query": "cây cầu lớn bắc qua sông thời tiết ban ngày",
+      "ground_truth": [
+        "L21_V002/keyframes/keyframe_12547.webp",
+        "L21_V002/keyframes/keyframe_13285.webp"
+      ],
+      "type": "visual"
+    },
+    {
+      "query": "các bạn học sinh mặc đồng phục trong lớp học",
+      "ground_truth": [
+        "L21_V007/keyframes/keyframe_15920.webp",
+        "L21_V007/keyframes/keyframe_17362.webp"
+      ],
+      "type": "visual"
+    },
+    {
+      "query": "chợ hoa tươi tấp nập người mua bán",
+      "ground_truth": [
+        "L21_V009/keyframes/keyframe_16863.webp",
+        "L21_V009/keyframes/keyframe_17466.webp"
+      ],
+      "type": "visual"
+    },
+    {
+      "query": "vận động viên thi đấu thể thao trên sân cỏ",
+      "ground_truth": [
+        "L21_V011/keyframes/keyframe_1681.webp",
+        "L21_V011/keyframes/keyframe_17308.webp"
+      ],
+      "type": "visual"
+    },
+    {
+      "query": "chiếc cano chạy trên mặt nước tạo bọt trắng",
+      "ground_truth": [
+        "L21_V013/keyframes/keyframe_23193.webp",
+        "L21_V013/keyframes/keyframe_23772.webp"
+      ],
+      "type": "visual"
+    },
+    {
+      "query": "người dẫn chương trình nam mặc vest trong trường quay",
+      "ground_truth": [
+        "L21_V001/keyframes/keyframe_16216.webp",
+        "L21_V001/keyframes/keyframe_18196.webp"
+      ],
+      "type": "visual"
+    },
+    {
+      "query": "ngôi nhà mái ngói cổ kính rêu phong",
+      "ground_truth": [
+        "L21_V015/keyframes/keyframe_20220.webp",
+        "L21_V015/keyframes/keyframe_20588.webp"
+      ],
+      "type": "visual"
+    },
+    {
+      "query": "bãi biển với hàng dừa và cát trắng",
+      "ground_truth": [
+        "L21_V017/keyframes/keyframe_15294.webp",
+        "L21_V017/keyframes/keyframe_15789.webp"
+      ],
+      "type": "visual"
+    }
+  ],
+  "ocr": [
+    {
+      "query": "chữ \"18:29:56 | giây nha\"",
+      "ground_truth": [
+        "L22_V016/keyframes/keyframe_21485.webp"
+      ],
+      "type": "ocr",
+      "keyword": "18:29:56 | giây nha"
+    },
+    {
+      "query": "chữ \"HTV | .23 | Ariglay\"",
+      "ground_truth": [
+        "L21_V015/keyframes/keyframe_37401.webp"
+      ],
+      "type": "ocr",
+      "keyword": "HTV | .23 | Ariglay"
+    },
+    {
+      "query": "chữ \"HTV | Online\"",
+      "ground_truth": [
+        "L26_V068/keyframes/keyframe_2952.webp"
+      ],
+      "type": "ocr",
+      "keyword": "HTV | Online"
+    },
+    {
+      "query": "chữ \"HIV | conline\"",
+      "ground_truth": [
+        "L26_V039/keyframes/keyframe_7839.webp"
+      ],
+      "type": "ocr",
+      "keyword": "HIV | conline"
+    },
+    {
+      "query": "chữ \"HIV | conline\"",
+      "ground_truth": [
+        "L26_V019/keyframes/keyframe_5667.webp"
+      ],
+      "type": "ocr",
+      "keyword": "HIV | conline"
+    },
+    {
+      "query": "chữ \"HMT | V 1829:57 | Milled\"",
+      "ground_truth": [
+        "L22_V026/keyframes/keyframe_22537.webp"
+      ],
+      "type": "ocr",
+      "keyword": "HMT | V 1829:57 | Milled"
+    },
+    {
+      "query": "chữ \"182957 | ơ\"",
+      "ground_truth": [
+        "L22_V012/keyframes/keyframe_24232.webp"
+      ],
+      "type": "ocr",
+      "keyword": "182957 | ơ"
+    },
+    {
+      "query": "chữ \"HTV | Conline | Nov\"",
+      "ground_truth": [
+        "L29_V003/keyframes/keyframe_1469.webp"
+      ],
+      "type": "ocr",
+      "keyword": "HTV | Conline | Nov"
+    },
+    {
+      "query": "chữ \"1829:55 | ình\"",
+      "ground_truth": [
+        "L22_V006/keyframes/keyframe_21865.webp"
+      ],
+      "type": "ocr",
+      "keyword": "1829:55 | ình"
+    },
+    {
+      "query": "chữ \"HIV | Online\"",
+      "ground_truth": [
+        "L29_V017/keyframes/keyframe_1355.webp"
+      ],
+      "type": "ocr",
+      "keyword": "HIV | Online"
+    },
+    {
+      "query": "chữ \"HTV | OTHIN\"",
+      "ground_truth": [
+        "L26_V420/keyframes/keyframe_2984.webp"
+      ],
+      "type": "ocr",
+      "keyword": "HTV | OTHIN"
+    },
+    {
+      "query": "chữ \"HTM |  109 | giây lư\"",
+      "ground_truth": [
+        "L21_V017/keyframes/keyframe_20923.webp"
+      ],
+      "type": "ocr",
+      "keyword": "HTM |  109 | giây lư"
+    },
+    {
+      "query": "chữ \"HTM |  109 | giây lư\"",
+      "ground_truth": [
+        "L21_V017/keyframes/keyframe_5648.webp"
+      ],
+      "type": "ocr",
+      "keyword": "HTM |  109 | giây lư"
+    },
+    {
+      "query": "chữ \"18:29:55 | i\"",
+      "ground_truth": [
+        "L22_V010/keyframes/keyframe_12258.webp"
+      ],
+      "type": "ocr",
+      "keyword": "18:29:55 | i"
+    },
+    {
+      "query": "chữ \"HIV | Oalny\"",
+      "ground_truth": [
+        "L26_V015/keyframes/keyframe_5426.webp"
+      ],
+      "type": "ocr",
+      "keyword": "HIV | Oalny"
+    }
+  ],
+  "asr": [
+    {
+      "query": "lời thoại \"Chúng tôi tái hiện bức tranh\"",
+      "ground_truth": [
+        "L21_V013/keyframes/keyframe_21134.webp"
+      ],
+      "type": "asr",
+      "keyword": "Chúng tôi tái hiện bức tranh"
+    },
+    {
+      "query": "lời thoại \"Đến khi tiếp cận được nạn nhân\"",
+      "ground_truth": [
+        "L21_V029/keyframes/keyframe_14177.webp"
+      ],
+      "type": "asr",
+      "keyword": "Đến khi tiếp cận được nạn nhân"
+    },
+    {
+      "query": "lời thoại \"Hãy subscribe cho kênh La La School Để\"",
+      "ground_truth": [
+        "L27_V008/keyframes/keyframe_47.webp"
+      ],
+      "type": "asr",
+      "keyword": "Hãy subscribe cho kênh La La School Để"
+    },
+    {
+      "query": "lời thoại \"do nạn săn bắn trái phép, thiếu thú\"",
+      "ground_truth": [
+        "L21_V003/keyframes/keyframe_24270.webp"
+      ],
+      "type": "asr",
+      "keyword": "do nạn săn bắn trái phép, thiếu thú"
+    },
+    {
+      "query": "lời thoại \"về số lượng người tham quan nhiều nhất\"",
+      "ground_truth": [
+        "L21_V030/keyframes/keyframe_21683.webp"
+      ],
+      "type": "asr",
+      "keyword": "về số lượng người tham quan nhiều nhất"
+    },
+    {
+      "query": "lời thoại \"Đến nay, xích đu được quảng cáo là\"",
+      "ground_truth": [
+        "L21_V012/keyframes/keyframe_20028.webp"
+      ],
+      "type": "asr",
+      "keyword": "Đến nay, xích đu được quảng cáo là"
+    },
+    {
+      "query": "lời thoại \"Ngay sau khi dựa được tin báo\"",
+      "ground_truth": [
+        "L21_V030/keyframes/keyframe_13541.webp"
+      ],
+      "type": "asr",
+      "keyword": "Ngay sau khi dựa được tin báo"
+    },
+    {
+      "query": "lời thoại \"trên cùng giờ quen thuộc\"",
+      "ground_truth": [
+        "L21_V022/keyframes/keyframe_24083.webp"
+      ],
+      "type": "asr",
+      "keyword": "trên cùng giờ quen thuộc"
+    },
+    {
+      "query": "lời thoại \"Trong vòng 4 ngày qua\"",
+      "ground_truth": [
+        "L21_V013/keyframes/keyframe_15072.webp"
+      ],
+      "type": "asr",
+      "keyword": "Trong vòng 4 ngày qua"
+    },
+    {
+      "query": "lời thoại \"Sự kiện nguy tụ sáo đổi pháo hoa\"",
+      "ground_truth": [
+        "L21_V025/keyframes/keyframe_26570.webp"
+      ],
+      "type": "asr",
+      "keyword": "Sự kiện nguy tụ sáo đổi pháo hoa"
+    },
+    {
+      "query": "lời thoại \"Hãy subscribe cho kênh Ghiền Mì Gõ Để\"",
+      "ground_truth": [
+        "L26_V119/keyframes/keyframe_6540.webp"
+      ],
+      "type": "asr",
+      "keyword": "Hãy subscribe cho kênh Ghiền Mì Gõ Để"
+    },
+    {
+      "query": "lời thoại \"Nhưng này đã suy giảm từ khi xung\"",
+      "ground_truth": [
+        "L21_V014/keyframes/keyframe_22732.webp"
+      ],
+      "type": "asr",
+      "keyword": "Nhưng này đã suy giảm từ khi xung"
+    },
+    {
+      "query": "lời thoại \"Văn phòng cơ quan cảnh sát điều tra\"",
+      "ground_truth": [
+        "L21_V001/keyframes/keyframe_14404.webp"
+      ],
+      "type": "asr",
+      "keyword": "Văn phòng cơ quan cảnh sát điều tra"
+    },
+    {
+      "query": "lời thoại \"Ví dụ ở ngay nhà người dân\"",
+      "ground_truth": [
+        "L21_V011/keyframes/keyframe_7435.webp"
+      ],
+      "type": "asr",
+      "keyword": "Ví dụ ở ngay nhà người dân"
+    },
+    {
+      "query": "lời thoại \"lai tạo loài cá mập epaulet dùng để\"",
+      "ground_truth": [
+        "L21_V023/keyframes/keyframe_17351.webp"
+      ],
+      "type": "asr",
+      "keyword": "lai tạo loài cá mập epaulet dùng để"
+    }
+  ],
+  "hybrid": [
+    {
+      "query": "người phụ nữ mặc áo dài đỏ dẫn chương trình có chữ \"18:29:56 | giây nha\"",
+      "ground_truth": [
+        "L22_V016/keyframes/keyframe_21485.webp"
+      ],
+      "type": "hybrid",
+      "ocr_keyword": "18:29:56 | giây nha"
+    },
+    {
+      "query": "người nông dân thu hoạch lúa trên cánh đồng có chữ \"HTV | .23 | Ariglay\"",
+      "ground_truth": [
+        "L21_V015/keyframes/keyframe_37401.webp"
+      ],
+      "type": "hybrid",
+      "ocr_keyword": "HTV | .23 | Ariglay"
+    },
+    {
+      "query": "xe ô tô và xe máy lưu thông đông đúc trên đường phố có chữ \"HTV | Online\"",
+      "ground_truth": [
+        "L26_V068/keyframes/keyframe_2952.webp"
+      ],
+      "type": "hybrid",
+      "ocr_keyword": "HTV | Online"
+    },
+    {
+      "query": "bác sĩ phẫu thuật trong phòng mổ bệnh viện có chữ \"HIV | conline\"",
+      "ground_truth": [
+        "L26_V039/keyframes/keyframe_7839.webp"
+      ],
+      "type": "hybrid",
+      "ocr_keyword": "HIV | conline"
+    },
+    {
+      "query": "toàn cảnh thành phố nhìn từ trên cao sông nước có chữ \"HIV | conline\"",
+      "ground_truth": [
+        "L26_V019/keyframes/keyframe_5667.webp"
+      ],
+      "type": "hybrid",
+      "ocr_keyword": "HIV | conline"
+    },
+    {
+      "query": "người đầu bếp đang nấu ăn trong gian bếp có chữ \"HMT | V 1829:57 | Milled\"",
+      "ground_truth": [
+        "L22_V026/keyframes/keyframe_22537.webp"
+      ],
+      "type": "hybrid",
+      "ocr_keyword": "HMT | V 1829:57 | Milled"
+    },
+    {
+      "query": "chiếc xe cấp cứu cứu thương màu trắng bật đèn có chữ \"182957 | ơ\"",
+      "ground_truth": [
+        "L22_V012/keyframes/keyframe_24232.webp"
+      ],
+      "type": "hybrid",
+      "ocr_keyword": "182957 | ơ"
+    },
+    {
+      "query": "cây cầu lớn bắc qua sông thời tiết ban ngày có chữ \"HTV | Conline | Nov\"",
+      "ground_truth": [
+        "L29_V003/keyframes/keyframe_1469.webp"
+      ],
+      "type": "hybrid",
+      "ocr_keyword": "HTV | Conline | Nov"
+    },
+    {
+      "query": "các bạn học sinh mặc đồng phục trong lớp học có chữ \"1829:55 | ình\"",
+      "ground_truth": [
+        "L22_V006/keyframes/keyframe_21865.webp"
+      ],
+      "type": "hybrid",
+      "ocr_keyword": "1829:55 | ình"
+    },
+    {
+      "query": "chợ hoa tươi tấp nập người mua bán có chữ \"HIV | Online\"",
+      "ground_truth": [
+        "L29_V017/keyframes/keyframe_1355.webp"
+      ],
+      "type": "hybrid",
+      "ocr_keyword": "HIV | Online"
+    },
+    {
+      "query": "vận động viên thi đấu thể thao trên sân cỏ có chữ \"HTV | OTHIN\"",
+      "ground_truth": [
+        "L26_V420/keyframes/keyframe_2984.webp"
+      ],
+      "type": "hybrid",
+      "ocr_keyword": "HTV | OTHIN"
+    },
+    {
+      "query": "chiếc cano chạy trên mặt nước tạo bọt trắng có chữ \"HTM |  109 | giây lư\"",
+      "ground_truth": [
+        "L21_V017/keyframes/keyframe_20923.webp"
+      ],
+      "type": "hybrid",
+      "ocr_keyword": "HTM |  109 | giây lư"
+    },
+    {
+      "query": "người dẫn chương trình nam mặc vest trong trường quay có chữ \"HTM |  109 | giây lư\"",
+      "ground_truth": [
+        "L21_V017/keyframes/keyframe_5648.webp"
+      ],
+      "type": "hybrid",
+      "ocr_keyword": "HTM |  109 | giây lư"
+    },
+    {
+      "query": "ngôi nhà mái ngói cổ kính rêu phong có chữ \"18:29:55 | i\"",
+      "ground_truth": [
+        "L22_V010/keyframes/keyframe_12258.webp"
+      ],
+      "type": "hybrid",
+      "ocr_keyword": "18:29:55 | i"
+    },
+    {
+      "query": "bãi biển với hàng dừa và cát trắng có chữ \"HIV | Oalny\"",
+      "ground_truth": [
+        "L26_V015/keyframes/keyframe_5426.webp"
+      ],
+      "type": "hybrid",
+      "ocr_keyword": "HIV | Oalny"
+    }
+  ]
+}

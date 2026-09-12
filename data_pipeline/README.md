@@ -1,92 +1,103 @@
-# Data Pipeline — Keyframe Extraction, Multimodal Processing & Feature Encoding
+# Quy Trình Xử Lý Dữ Liệu Ngoại Tuyến (Offline Data Pipeline)
 
-Thư mục chứa toàn bộ quy trình xử lý dữ liệu đầu vào cho hệ thống **AIC Video Retrieval System**.
-
----
-
-## 🏗️ Kiến Trúc Xử Lý Dữ Liệu (Processing Workflow)
-
-```mermaid
-graph TD
-    A[Raw Video Files] -->|transnetv2_keyframes.py| B[Keyframe WebP Images + CSV Maps]
-    B -->|extract_features.py| Feat[features.npy 1152d + image_paths.npy]
-    B -->|extract_ocr_advanced.py| C[ocr_results.jsonl]
-    A -->|extract_asr_advanced.py| D[asr_results.jsonl]
-    C & D -->|merge_ocr_asr_metadata.py| E[ocr_asr_metadata.json]
-    Feat & E --> F[Backend Vector Search & BM25 Index]
-```
+Tài liệu kỹ thuật mô tả chuỗi 6 bước xử lý video ngoại tuyến phục vụ hệ thống truy vấn đa phương thức. Toàn bộ các công đoạn được thực thi độc lập qua giao diện dòng lệnh (CLI), tối ưu hóa cho cấu hình phần cứng cục bộ.
 
 ---
 
-## 🛠️ Các Script Chính Trong Pipeline
+## 1. Thông số phần cứng và phân bổ tài nguyên
 
-### 1. Master Pipeline Tự Động: `run_master_offline_pipeline.py`
-Chạy tự động toàn bộ 5 bước tuần tự, quản lý giải phóng VRAM qua `cleanup_vram()` (gc + empty_cache) cho GPU 6GB:
-```bash
-python data_pipeline/run_master_offline_pipeline.py --videos-dir "D:/Videos"
-```
+- **CPU**: AMD 7000 Series (8 nhân / 16 luồng).
+  - Phân bổ tính toán: 13–14 luồng (~85% công suất) qua `torch.set_num_threads(13)`, `cv2.setNumThreads(13)`, `faiss.omp_set_num_threads(13)`.
+- **RAM**: 16 GB DDR5.
+  - Streaming I/O cho DataLoader (`pin_memory=True`, `prefetch_factor=2`, `num_workers=12`).
+- **GPU / VRAM**: NVIDIA GeForce RTX 3050 Laptop GPU (6.0 GB GDDR6, 2048 CUDA Cores, 64 Tensor Cores).
+  - Định dạng số học: FP16 (Half Precision) kết hợp Tensor Core TF32 (`torch.backends.cuda.matmul.allow_tf32 = True`).
+  - Giới hạn bộ nhớ an toàn: `torch.cuda.set_per_process_memory_fraction(0.88, 0)` (~5.28 GB VRAM), ngăn ngừa lỗi phân bổ vượt ngưỡng CUDA OOM.
 
-### 2. Trích xuất Keyframe Thích Ứng: `transnetv2_keyframes.py`
-Sử dụng mô hình deep learning **TransNetV2** để nhận diện biên cảnh, kết hợp bộ lọc mờ Laplacian ($\ge 70.0$ mặc định, cấu hình qua `--dhash-thresh`) và **near-duplicate filtering** (dHash, Hamming ≤ 5, window 4 frames). Xuất keyframe định dạng `.webp` kèm file ánh xạ thời gian `_map.csv`.
+---
 
-```bash
-python data_pipeline/transnetv2_keyframes.py --input-folder "D:/Videos" --output-base "./data-keyframes"
-```
+## 2. Thông số kỹ thuật các mô hình sử dụng
 
-### 3. Trích xuất Vector Đặc Trưng SigLIP 2 Giant 1152d (Tối ưu FP16): `extract_features.py`
-Mã hóa toàn bộ keyframe bằng mô hình **Google SigLIP 2 Giant** (`ViT-gopt-16-SigLIP2-384`) ở chế độ FP16 với bộ nạp ảnh C++ OpenCV WebP Decode, xử lý 14k ảnh chỉ mất **6–8 phút**.
+| Công đoạn | Mã nguồn | Mô hình / Thuật toán | Thông số kỹ thuật | Mức tiêu thụ VRAM / RAM | Đầu ra |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **1. Khung hình** | `transnetv2_keyframes.py` | `TransNetV2` + Laplacian + dHash | Cửa sổ trượt 100 frames; ngưỡng phân cảnh $\ge 0.5$; độ nét Laplacian $\ge 70.0$; dHash Hamming $\le 5$ | ~1.2 GB VRAM / ~1.5 GB RAM | `data-keyframes/*.webp`, `maps/*_map.csv` |
+| **2. Âm thanh (ASR)** | `extract_asr_advanced.py` | `Faster-Whisper large-v3-turbo` | CTranslate2 backend, FP16, Silero VAD lọc khoảng lặng; ngưỡng lọc `no_speech_prob > 0.65` | ~2.5 GB VRAM / ~2.0 GB RAM | `asr_results.jsonl` |
+| **3. Thị giác chữ (OCR)** | `extract_ocr_qwen_vl.py` | `Qwen2-VL-2B-Instruct` | 2.2 tỷ tham số, FP16, SDPA attention, độ phân giải $256 \times 28 \times 28$ đến Native Full HD ($1920 \times 1080$), `max_new_tokens=128` | ~4.4 GB VRAM / ~3.0 GB RAM | `ocr_results.jsonl` |
+| **4. Gộp Metadata** | `merge_ocr_asr_metadata.py` | Tìm kiếm nhị phân `bisect` | Ánh xạ timestamp giây/mili-giây từ `_map.csv` với khoảng thời gian `start`–`end` của ASR, gộp với OCR | ~0 MB VRAM / ~800 MB RAM | `ocr_asr_metadata.json` |
+| **5. Vector hóa ảnh** | `extract_features.py` | `Google SigLIP 2 Giant` (`ViT-gopt-16-SigLIP2-384`, `webli`) | 1152 chiều, FP16, ảnh đầu vào $384 \times 384$, chuẩn hóa L2, batch size 24 | ~4.2 GB VRAM / ~3.5 GB RAM | `features.npy` ($N \times 1152$), `image_paths.npy` ($N$) |
+| **6. Lập chỉ mục** | `build_faiss_index.py` | `FAISS IndexIVFScalarQuantizer` (IVF-SQ8) | Lượng tử hóa 8-bit SQ8, độ đo khoảng cách tích vô hướng (Inner Product / Cosine), số cụm $nlist = 4 \times \sqrt{N}$ | 0 MB VRAM / ~300 MB RAM | `features.faiss` |
 
-```bash
-python data_pipeline/extract_features.py --keyframes-dir ./data-keyframes --batch-size 16
-```
+---
 
-### 4. Nhận Diện Chữ Viết OCR Tiếng Việt: `extract_ocr_advanced.py`
-**Pipeline 2 giai đoạn tuần tự:** PaddleOCR PP-OCRv4 phát hiện vùng chữ (text detection, `rec=False`) → VietOCR (VGG-Transformer) nhận dạng tiếng Việt từng crop. Tiền xử lý CLAHE tăng tương phản. Cơ chế lọc lặp ticker banner.
+## 3. Quy trình thực thi 6 bước tuần tự qua giao diện dòng lệnh (CLI)
 
-_Lý do tách pipeline:_ PaddleOCR recognition gốc không tối ưu cho dấu tiếng Việt (hỏi/ngã, thanh sắc); VietOCR (train trên corpus tiếng Việt lớn) cho CER thấp hơn đáng kể.
-
-```bash
-python data_pipeline/extract_ocr_advanced.py --keyframes-dir ./data-keyframes
-```
-
-### 5. Nhận Diện Giọng Nói Lời Thoại: `extract_asr_advanced.py`
-Bóc tách lời thoại từ track âm thanh video bằng **Faster-Whisper Large-v3-Turbo** (FP16 GPU) với bộ lọc im lặng Silero VAD + heuristic (`no_speech_prob > 0.65`, `avg_logprob < -1.3`, loại hallucination lặp từ). Lưu ý: có thể miss giọng nói bị nhạc đè mạnh.
+Chạy từng lệnh tuần tự từ thư mục gốc của dự án (`D:\code-c-a-Long`):
 
 ```bash
-python data_pipeline/extract_asr_advanced.py
+conda activate video_ai
+cd /d D:\code-c-a-Long
 ```
 
-### 6. Hợp Nhất & Đồng Bộ Metadata: `merge_ocr_asr_metadata.py`
-Ánh xạ toàn bộ mốc thời gian từ các file `_map.csv` bằng thuật toán nhị phân Bisect để đồng bộ OCR và ASR vào file duy nhất `ocr_asr_metadata.json`.
+### Bước 1: Trích xuất khung hình chính (Keyframes)
+Cắt video thành các cảnh theo ranh giới shot, tự động chọn frame nét nhất trong lân cận $\pm 3$ frame và xuất ảnh nén WebP:
+```bash
+python data_pipeline/transnetv2_keyframes.py --input-folder "D:/code-c-a-Long/data-video" --output-base "D:/code-c-a-Long/data-keyframes" --workers 13
+```
 
+### Bước 2: Bóc băng lời thoại ASR
+Nhận diện giọng nói tiếng Việt bằng Faster-Whisper và gán mốc thời gian:
+```bash
+python data_pipeline/extract_asr_advanced.py --video-dir "D:/code-c-a-Long/data-video"
+```
+
+### Bước 3: Nhận diện văn bản thị giác OCR
+Nhận diện chữ viết, biển hiệu và phụ đề trên khung hình bằng mô hình Qwen2-VL:
+```bash
+python data_pipeline/extract_ocr_qwen_vl.py --keyframes-dir "D:/code-c-a-Long/data-keyframes"
+```
+
+### Bước 4: Khớp mốc thời gian và gộp siêu dữ liệu
+Ánh xạ mốc thời gian giữa keyframe và lời thoại ASR, đồng bộ hóa với dữ liệu OCR:
 ```bash
 python data_pipeline/merge_ocr_asr_metadata.py
 ```
 
-### 7. Đóng Gói Bài Thi Cuộc Thi: `pack_submission.py`
-Script kiểm tra định dạng, tự động sửa lỗi và đóng gói nén `submission.zip` theo format quy định BTC AIC 2026.
-
+### Bước 5: Trích xuất vector đặc trưng hình ảnh
+Mã hóa toàn bộ keyframe thành mảng vector 1152 chiều bằng SigLIP 2:
 ```bash
-python data_pipeline/pack_submission.py --zip-name submission.zip
+python data_pipeline/extract_features.py --keyframes-dir "D:/code-c-a-Long/data-keyframes" --batch-size 24 --workers 12
 ```
 
-### 8. Đánh Giá Benchmark: `benchmark_eval.py`
-Đo Recall@1/5/10, MRR, WER (ASR), Latency P50/P95 trên tập validation. Cần tạo file `validation_queries.json` với ground-truth queries.
-
+### Bước 6: Xây dựng chỉ mục không gian vector FAISS
+Huấn luyện và lập chỉ mục lượng tử hóa IVF-SQ8 cho mảng `features.npy`:
 ```bash
-python data_pipeline/benchmark_eval.py --queries validation_queries.json
+python data_pipeline/build_faiss_index.py --features-path "D:/code-c-a-Long/features.npy" --output-path "D:/code-c-a-Long/features.faiss"
 ```
 
-### 9. Tinh Chỉnh Trọng Số RRF: `tune_rrf_weights.py`
-Grid search tối ưu trọng số RRF (`w_visual`, `w_ocr`, `w_asr`) trên tập validation. Chạy khi có ground-truth từ BTC.
+---
 
+## 4. Công cụ kiểm thử và tối ưu tham số
+
+### Đánh giá độ chính xác truy xuất (Benchmark Evaluation)
+Tính toán các chỉ số kỹ thuật gồm Recall@1, Recall@5, Recall@10, Mean Reciprocal Rank (MRR) và độ trễ phân vị P50/P95:
 ```bash
-python data_pipeline/tune_rrf_weights.py --queries validation_queries.json
+python data_pipeline/benchmark_eval.py --queries data_pipeline/validation_queries.json --top-k 10 --server http://localhost:8000
 ```
 
-### 10. Stress Test VRAM: `stress_test_vram.py`
-Test N concurrent WebSocket clients để đo peak VRAM thực tế. Nên chạy trước khi thi thật.
-
+### Tối ưu hóa trọng số RRF (Grid Search RRF Weights)
+Tìm kiếm lưới giá trị tham số tối ưu cho bộ ba trọng số ($w_{visual}, w_{ocr}, w_{asr}$) theo công thức $RRF(d) = \sum_{m} \frac{w_m}{60 + r_m(d)}$:
 ```bash
-python data_pipeline/stress_test_vram.py --n-clients 10
+python data_pipeline/tune_rrf_weights.py --queries data_pipeline/validation_queries.json --top-k 10 --server http://localhost:8000
+```
+
+### Kiểm tra tải đồng thời WebSocket (Stress Test VRAM)
+Đo độ trễ và mức tiêu thụ VRAM khi có $N$ kết nối WebSocket truy vấn đồng thời:
+```bash
+python data_pipeline/stress_test_vram.py --n-clients 5 --ws-url ws://localhost:8000/ws
+```
+
+### Đóng gói bài thi (Submission Validator & Packer)
+Kiểm tra tính hợp lệ định dạng CSV của 3 dạng bài thi (KIS, Q&A, TRAKE) và nén thành file `submission.zip`:
+```bash
+python data_pipeline/pack_submission.py --project-root "D:/code-c-a-Long" --zip-name "submission.zip"
 ```

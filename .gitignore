@@ -1,10 +1,6 @@
-# ==============================================================================
-# AIC 2026 CHALLENGE - GITIGNORE CONFIGURATION
-# ==============================================================================
+# GITIGNORE CONFIGURATION
 
-# ------------------------------------------------------------------------------
 # 1. Python & Bytecode
-# ------------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
 *.pyo
@@ -18,9 +14,7 @@ build/
 .coverage
 htmlcov/
 
-# ------------------------------------------------------------------------------
 # 2. Virtual Environments & Conda
-# ------------------------------------------------------------------------------
 venv/
 env/
 .env
@@ -29,11 +23,10 @@ ENV/
 conda-env/
 .conda/
 
-# ------------------------------------------------------------------------------
 # 3. Dữ liệu trích xuất & Metadata Runtime (Dung lượng lớn > 100MB)
-# ------------------------------------------------------------------------------
 *.npy
 *.npz
+*.faiss
 *.issues.jsonl
 ocr_asr_metadata.json
 ocr_results.jsonl
@@ -44,7 +37,6 @@ fail_load.txt
 
 # --- Ngoại lệ: Giữ lại các file cấu hình JSON và Maps cốt lõi ---
 !backend/config.json
-!backend/dres_openapi.json
 !package.json
 
 # ------------------------------------------------------------------------------
@@ -75,10 +67,6 @@ video_test/
 *.ts
 *.avi
 *.mkv
-
-# --- Ngoại lệ: Giữ lại toàn bộ hình ảnh, biểu tượng Icon UI của Frontend ---
-!frontend/src/Img/
-!frontend/src/Img/**
 
 # ------------------------------------------------------------------------------
 # 6. Submission Packages & Archive Files (Chống rác nộp bài)

@@ -1,0 +1,90 @@
+[
+  {
+    "mode": "1. Dense Only (SigLIP 2 FAISS)",
+    "queries": 58,
+    "Recall@1": 0.0,
+    "Recall@5": 0.0,
+    "Recall@10": 0.0,
+    "MRR": 0.0,
+    "nDCG@10": 0.0,
+    "Latency_avg_ms": 39.99,
+    "Latency_P95_ms": 112.55
+  },
+  {
+    "mode": "2. BM25 Only (Lexical Inverted Index)",
+    "queries": 58,
+    "Recall@1": 0.0,
+    "Recall@5": 0.0,
+    "Recall@10": 0.0,
+    "MRR": 0.0,
+    "nDCG@10": 0.0,
+    "Latency_avg_ms": 71.87,
+    "Latency_P95_ms": 120.82
+  },
+  {
+    "mode": "3. Dense + OCR (Ablation)",
+    "queries": 58,
+    "Recall@1": 0.0,
+    "Recall@5": 0.0,
+    "Recall@10": 0.0,
+    "MRR": 0.0,
+    "nDCG@10": 0.0,
+    "Latency_avg_ms": 46.1,
+    "Latency_P95_ms": 117.86
+  },
+  {
+    "mode": "4. Dense + ASR (Ablation)",
+    "queries": 58,
+    "Recall@1": 0.0,
+    "Recall@5": 0.0,
+    "Recall@10": 0.0,
+    "MRR": 0.0,
+    "nDCG@10": 0.0,
+    "Latency_avg_ms": 46.36,
+    "Latency_P95_ms": 116.24
+  },
+  {
+    "mode": "5. Full RRF Hybrid (Default)",
+    "queries": 58,
+    "Recall@1": 0.0,
+    "Recall@5": 0.0,
+    "Recall@10": 0.0,
+    "MRR": 0.0,
+    "nDCG@10": 0.0,
+    "Latency_avg_ms": 47.36,
+    "Latency_P95_ms": 120.83
+  },
+  {
+    "mode": "6. Full RRF (Tuned Weights)",
+    "queries": 58,
+    "Recall@1": 0.0,
+    "Recall@5": 0.0,
+    "Recall@10": 0.0,
+    "MRR": 0.0,
+    "nDCG@10": 0.0,
+    "Latency_avg_ms": 49.24,
+    "Latency_P95_ms": 128.25
+  },
+  {
+    "mode": "7. Full RRF + Temporal Context Smoothing",
+    "queries": 58,
+    "Recall@1": 0.0,
+    "Recall@5": 0.0,
+    "Recall@10": 0.0,
+    "MRR": 0.0,
+    "nDCG@10": 0.0,
+    "Latency_avg_ms": 47.8,
+    "Latency_P95_ms": 121.41
+  },
+  {
+    "mode": "8. Full RRF + Rocchio Feedback",
+    "queries": 58,
+    "Recall@1": 0.0,
+    "Recall@5": 0.0,
+    "Recall@10": 0.0,
+    "MRR": 0.0,
+    "nDCG@10": 0.0,
+    "Latency_avg_ms": 151.23,
+    "Latency_P95_ms": 798.75
+  }
+]

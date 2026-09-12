@@ -1,54 +1,74 @@
-# Vector Search Service Backend 🚀
+# Dịch Vụ Tìm Kiếm Backend (Backend Search Service)
 
-FastAPI backend service cho hệ thống tìm kiếm video retrieval hiệu năng cao, tích hợp mô hình Google OpenCLIP `ViT-gopt-16-SigLIP2-384` (**Google SigLIP 2 Giant 1152d**), **Smart Query Decomposer**, và bộ tìm kiếm ma trận GPU CUDA.
+Thư mục này chứa mã nguồn máy chủ FastAPI phục vụ việc tìm kiếm khoảnh khắc video, kết hợp tìm kiếm vector thị giác trên GPU và tìm kiếm từ khóa trên RAM CPU qua giao thức REST API và WebSocket.
 
-Tối ưu hóa cho môi trường: **Windows 11, RAM 16GB, GPU NVIDIA RTX 3050 6GB VRAM (PyTorch CUDA)**.
+Môi trường kiểm thử chuẩn: **Windows 11, RAM 16 GB, GPU NVIDIA GeForce RTX 3050 Laptop (6 GB VRAM)**.
 
-## ✨ Tính năng chính
+---
 
-- **Google OpenCLIP `ViT-gopt-16-SigLIP2-384` (`webli`)**: Trích xuất embedding 1152 chiều chất lượng cao SOTA từ mô hình Google SigLIP 2 Giant ~1 tỷ tham số chạy ở chế độ FP16.
-- **Smart Query Decomposer & Omni-Parser**: Bộ phân rã câu truy vấn thông minh chạy trên CPU RAM (0 MB VRAM, < 1ms), tự động phát hiện KIS, QA, TRAKE đa thời gian, trích xuất OCR trong ngoặc kép và lời thoại ASR.
-- **Direct GPU CUDA Tensor Matrix Search**: Tìm kiếm cosine similarity trên hàng chục nghìn vector trong $< 2\text{ms}$ qua cuBLAS `torch.mm`.
-- **Khởi động nóng (Warm-up Engine)**: Tải sẵn cuBLAS, tokenizer, và dịch song ngữ — loại bỏ hoàn toàn độ trễ khởi động lạnh.
-- **Phục vụ Keyframe Tốc độ O(1) RAM Index**: Bảng băm bộ nhớ RAM phục vụ ảnh siêu tốc qua endpoint `/keyframes/`.
-- **Cross-Lingual Dual-Embedding Blending**: Tự động nhận diện tiếng Việt và dung hợp song ngữ (`0.45 * vi + 0.55 * en`) với bộ từ điển đồng nghĩa chuyên sâu.
-- **BM25 Inverted Index Engine**: Tìm kiếm OCR và ASR trên RAM CPU với độ trễ $< 1\text{ms}$ và **0 MB VRAM**.
-- **TRAKE Temporal Logic**: Phân tách chuỗi sự kiện đa thời gian và lọc kiểm tra thứ tự thời gian $T_1 < T_2 < \dots < T_N$.
-- **Rocchio Relevance Feedback**: Phản hồi tương tác tinh chỉnh vector tìm kiếm theo các keyframe đã chọn (`Alt + R`).
-- **Batch Submission Package Manager**: Quản lý gói nộp bài và tự động nén `submission.zip` chuẩn 100% BTC (`Ctrl + S` / `Alt + P`).
-- **Real-time WebSocket & REST API**: Hỗ trợ endpoint `/TextQuery`, WebSocket `/ws`, `/ws/filter_query`, `/ws/similarity_search`.
+## 1. Các chức năng chính
 
-## 🛠️ Cài đặt & Khởi chạy
+* **Tìm kiếm theo ảnh (Dense Vector Search):**
+  * Sử dụng Text Encoder của mô hình `Google SigLIP 2 Giant` (`ViT-gopt-16-SigLIP2-384`) để chuyển câu mô tả thành vector 1152 chiều (định dạng FP16).
+  * Nạp sẵn toàn bộ vector đặc trưng của các keyframe lên GPU. Phép nhân ma trận cosine similarity qua `torch.mm` thực thi dưới **2 mili-giây** cho hơn 160.000 khung hình.
+* **Phân tích câu hỏi tự động (`SmartQueryDecomposer`):**
+  * Chạy trên CPU, xử lý dưới **1 mili-giây**, không dùng VRAM.
+  * Tự động trích xuất các từ trong dấu ngoặc kép `"..."` để tìm theo OCR (chữ trên màn hình).
+  * Nhận diện các từ khóa chỉ hội thoại (ví dụ: *nói rằng, bảo là, MC giới thiệu*) để tìm theo ASR (lời nói).
+  * Tự động tách các giai đoạn thời gian (Stage 1, Stage 2...) đối với dạng bài TRAKE.
+  * Hỗ trợ bộ từ điển song ngữ Việt - Anh kết hợp dịch tự động để làm giàu câu truy vấn.
+* **Tìm kiếm theo chữ viết & lời nói (BM25 Lexical Search):**
+  * Đánh chỉ mục đảo (Inverted Index) và tính điểm BM25 trực tiếp trên bộ nhớ RAM cho tập dữ liệu văn bản (172.937 bản ghi OCR và 154.026 bản ghi ASR), thời gian phản hồi dưới **1 mili-giây**.
+* **Dung hợp kết quả (Reciprocal Rank Fusion - RRF):**
+  * Kết hợp thứ hạng từ kết quả tìm theo ảnh và kết quả tìm theo từ khóa văn bản. Tự động tăng trọng số cho kênh OCR hoặc ASR khi câu truy vấn có chứa từ khóa tương ứng.
+* **Hỗ trợ tinh chỉnh kết quả (Rocchio Relevance Feedback):**
+  * Khi người dùng chọn các khung hình chính xác trên giao diện và bấm `Alt + R`, hệ thống tính toán lại vector trọng tâm dựa trên các ảnh đã chọn để đưa thêm các góc quay tương tự lên đầu danh sách.
+* **Quản lý gói bài thi & nén kết quả:**
+  * Cung cấp các API kiểm tra tính hợp lệ và đóng gói các file `.csv` của ba dạng bài (KIS, Q&A, TRAKE) thành file `submission.zip` để nộp cho ban tổ chức.
 
-### 1. Kích hoạt môi trường Conda
+---
 
+## 2. Hướng dẫn khởi chạy
+
+### Bước 1: Kích hoạt môi trường
 ```bash
 conda activate video_ai
 cd /d D:\code-c-a-Long
 ```
 
-### 2. Khởi chạy Server
-
+### Bước 2: Khởi động máy chủ
 ```bash
 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
-Server sẽ lắng nghe tại: `http://localhost:8000`
-- Swagger UI Docs: `http://localhost:8000/docs`
-- Web Frontend: `http://localhost:8000/frontend/`
 
-## 📡 Các API chính
+Khi khởi động thành công:
+* Địa chỉ server: `http://localhost:8000`
+* Tài liệu API (Swagger UI): `http://localhost:8000/docs`
+* Giao diện người dùng: `http://localhost:8000/frontend/`
 
-| Endpoint | Phương thức | Mô tả |
-| --- | --- | --- |
-| `/health` | `GET` | Kiểm tra trạng thái hệ thống, GPU CUDA, số lượng vector & metadata |
-| `/keyframes/{path}` | `GET` | Phục vụ file ảnh keyframe tức thì qua RAM lookup O(1) |
-| `/TextQuery` | `POST` | Truy vấn Text-to-Video qua REST API |
-| `/api/v2/decompose_query` | `POST` | Phân rã câu truy vấn thông minh qua Smart Query Decomposer |
-| `/ws` | `WebSocket` | Kết nối tìm kiếm và tinh chỉnh thời gian thực |
-| `/ws/filter_query` | `WebSocket` | Kết nối lọc kết quả theo OCR / ASR |
-| `/ws/similarity_search` | `WebSocket` | Tìm kiếm tương đồng theo vector ảnh (Image-to-Image) |
-| `/api/submission/pack` | `POST` | Đóng gói và nén file `submission.zip` |
-| `/api/submission/status` | `GET` | Kiểm tra trạng thái thư mục bài thi |
-| `/api/submission/clear` | `POST` | Làm sạch toàn bộ thư mục bài thi |
+---
 
-Xem hướng dẫn sử dụng toàn bộ hệ thống tại **[HUONG_DAN.md](../HUONG_DAN.md)**.
+## 3. Mức tiêu thụ tài nguyên thực tế
+
+| Tài nguyên | Khi vừa khởi động server | Trong lúc xử lý truy vấn | Ghi chú |
+| :--- | :--- | :--- | :--- |
+| **RAM hệ thống** | ~2.2 GB | ~2.5 – 2.8 GB | Chứa chỉ mục BM25 và từ điển keyframe |
+| **VRAM card đồ họa** | ~3.0 GB | ~3.2 – 3.5 GB | Nạp mô hình SigLIP Text Encoder và ma trận vector |
+| **Độ trễ truy vấn** | — | 30 – 50 mili-giây / câu | Bao gồm: phân tích câu, sinh vector và tính điểm RRF |
+
+---
+
+## 4. Danh sách các API chính
+
+| Đường dẫn (Endpoint) | Giao thức | Chức năng |
+| :--- | :--- | :--- |
+| `/health` | `GET` | Kiểm tra trạng thái server, tình trạng GPU CUDA, số lượng vector và dữ liệu văn bản |
+| `/keyframes/{path}` | `GET` | Trả về file ảnh keyframe từ đường dẫn tương đối qua bộ nhớ đệm |
+| `/TextQuery` | `POST` | Gửi câu truy vấn văn bản và nhận về danh sách keyframe phù hợp nhất (REST) |
+| `/api/v2/decompose_query` | `POST` | Phân tích câu hỏi thành các thành phần: mô tả hình ảnh, từ khóa OCR, ASR và giai đoạn |
+| `/ws` | `WebSocket` | Kết nối thời gian thực phục vụ tìm kiếm, phân trang và tinh chỉnh kết quả (Rocchio) |
+| `/ws/filter_query` | `WebSocket` | Lọc kết quả tìm kiếm chuyên sâu theo OCR hoặc ASR |
+| `/ws/similarity_search` | `WebSocket` | Tìm kiếm các khung hình tương tự dựa trên vector của một ảnh được chọn |
+| `/api/submission/pack` | `POST` | Kiểm tra định dạng các file trong thư mục `submission/` và nén thành `submission.zip` |
+| `/api/submission/status` | `GET` | Xem số lượng câu hỏi đã hoàn thành của từng dạng bài (KIS, Q&A, TRAKE) |
+| `/api/submission/clear` | `POST` | Xóa sạch các file bài thi cũ trong thư mục `submission/` để chuẩn bị cho lượt thi mới |

@@ -1,4 +1,4 @@
-//------------------------ Short cut ---------
+//------------------------ Keyboard Shortcuts ------------------------//
 
 document.addEventListener('DOMContentLoaded', function() {
     const originalLeftPanel = document.querySelector('.left-panel').cloneNode(true);

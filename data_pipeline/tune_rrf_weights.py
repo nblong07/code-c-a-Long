@@ -1,4 +1,4 @@
-﻿import json, itertools, argparse, sys, time
+import os, json, itertools, argparse, sys, time
 import numpy as np
 
 try:
@@ -45,7 +45,8 @@ def compute_mrr(queries_gt, search_fn, top_k=10):
 
 def main():
     parser = argparse.ArgumentParser(description="Grid search RRF weights optimizing MRR")
-    parser.add_argument("--queries", required=True)
+    default_queries = os.path.join(os.path.dirname(__file__), "validation_queries.json")
+    parser.add_argument("--queries", default=default_queries, help="Path to validation_queries.json")
     parser.add_argument("--top-k", type=int, default=10)
     parser.add_argument("--server", default="http://localhost:8000")
     parser.add_argument("--api-key", default="")

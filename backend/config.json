@@ -1,42 +1,15 @@
 {
-  "// Cau hinh Cum Mo hinh AI (Laptop RTX 3050 6GB + 16GB RAM)": "Toi uu Google SigLIP 2 Giant, GPU Tensor Cache & RRF Hybrid Search",
   "clip_model_name": "ViT-gopt-16-SigLIP2-384",
   "clip_pretrained": "webli",
   "device": "cuda",
-  "supported_models": {
-    "clip": "Google SigLIP 2 Giant - Primary Multimodal Model (1152d)"
-  },
-
-  "// Cau hinh Co so du lieu Vector & Memory Cache": "Toi uu RAM 16GB, GPU Tensor Matrix Multi",
-  "milvus_uri": "http://localhost:19530",
-  "milvus_host": "localhost",
-  "milvus_port": 19530,
-  "milvus_database": "default",
-  "collection_name": "AIC25_fullbatch1",
   "search_limit": 1000,
-  "replica_number": 1,
-  "hnsw_m": 16,
-  "hnsw_ef_construction": 128,
-  "hnsw_ef_search": 64,
-
-  "// Cau hinh May chu Backend FastAPI": "Cau hinh Server & Static File Mounts",
-  "cors_origins": "*",
-  "max_workers": 8,
+  "cors_origins": "http://localhost:3000",
+  "max_workers": 14,
   "log_level": "INFO",
   "gzip_minimum_size": 1000,
   "keyframes_dir": "D:/code-c-a-Long/data-keyframes",
-  "video_dirs": [
-    "C:/video_test",
-    "D:/video_test"
-  ],
-  "api_key": "aic_challenge_secure_token_2026",
-
-  "// Cau hinh Heuristics Filter & RRF Search": "Loc mo & Loc nguong sang",
-  "enable_adaptive_router": false,
-  "enable_heuristics_filter": true,
-  "blur_threshold": 95.0,
-  "min_luminance": 20.0,
-  "max_luminance": 235.0,
+  "video_dirs": "C:/video_test",
+  "api_key": "aic2026_secure_token_@1135zz",
   "cache_size": 2000,
   "default_result_limit": 1000
 }

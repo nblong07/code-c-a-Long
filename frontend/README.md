@@ -1,50 +1,56 @@
-# Retrieval System Frontend 🌐
+# Giao Diện Người Dùng (Frontend Web UI)
 
-Giao diện web trực quan của hệ thống Video Retrieval System (AIC), được xây dựng bằng **HTML5, CSS3 Vanilla và JavaScript Async/WebSocket**.
+Thư mục này chứa mã nguồn giao diện web phục vụ việc tìm kiếm, xem lại video và quản lý bài nộp thi đấu. Giao diện được xây dựng bằng **HTML5, CSS3 và JavaScript thuần (Vanilla JS)**, kết nối trực tiếp với backend qua giao thức **WebSocket** để cập nhật kết quả tức thì.
 
-Tối ưu hóa cho môi trường: **Windows 11 (Google Chrome / Microsoft Edge / Brave)**.
-
----
-
-## ✨ Tính năng chính
-
-- **Tìm kiếm Ngữ nghĩa Đa phương thức**: Nhập mô tả tiếng Việt / tiếng Anh để tìm kiếm khoảnh khắc video trong $< 0.05\text{s}$.
-- **Giao diện Tối giản & Tinh gọn (Compact UI)**: Bố cục thanh mảnh, ô nhập tối ưu không gian hiển thị, loại bỏ các chi tiết thừa thãi.
-- **Hỗ trợ Chữ viết (OCR) & Lời thoại (ASR)**: Nhấn `Ctrl + I` để tìm chữ trên ảnh và `Ctrl + K` để tìm lời thoại.
-- **Duyệt Khung Hình Lân Cận (Neighbor Scrubbing)**: Click vào ảnh để xem các frame trước/sau (từ $-5$ đến $+5$ frame) theo mốc giây thực tế.
-- **Hỏi Đáp AI Trực Tiếp Trên Video Player (Visual Q&A)**: Xem video trực tiếp và nhận câu trả lời tức thì từ mô hình phân tích ngữ cảnh.
-- **Rocchio Relevance Feedback (`Alt + R`)**: Chọn các keyframe đúng rồi nhấn `Alt + R` để AI tính toán lại vector trọng tâm, gom toàn bộ khoảnh khắc liên quan lên đầu.
-- **Khay Nộp Thông Minh (Smart Frame Limit Guard)**: Cảnh báo màu sắc và kiểm soát số lượng frame cho KIS để tối đa hóa điểm số (MRR).
-- **Trình Quản Lý Gói Bài Thi & Nén ZIP (`Ctrl + S` / `Alt + P`)**:
-  - Hỗ trợ đầy đủ KIS, Visual Q&A (gán đáp án tự động) và TRAKE (quản lý đa phương án PA 1, PA 2... sắp xếp thời gian tăng dần).
-  - Tự động đóng gói và nén file `submission.zip` chuẩn 100% BTC chỉ với 1 cú click.
+Tương thích tốt trên các trình duyệt hiện đại: **Google Chrome, Microsoft Edge, Brave**.
 
 ---
 
-## ⚡ Hướng Dẫn Khởi Chạy
+## 1. Các tính năng chính
 
-### Cách 1: Sử dụng trực tiếp từ FastAPI Backend (Khuyên dùng)
-Khi Backend khởi động, frontend đã được mount sẵn tại:
+* **Tìm kiếm đa dạng:**
+  * Hỗ trợ tìm kiếm bằng mô tả ngữ cảnh hình ảnh (tiếng Việt hoặc tiếng Anh).
+  * Hỗ trợ tìm kiếm chuyên biệt theo chữ viết xuất hiện trên màn hình (`Ctrl + I`) và lời thoại của nhân vật/MC (`Ctrl + K`).
+* **Duyệt khung hình lân cận (Neighbor Scrubbing):**
+  * Nhấp vào bất kỳ ảnh keyframe nào để mở dải khung hình lân cận (từ $-5$ đến $+5$ frame xung quanh) kèm mốc giây chính xác, giúp người dùng quan sát diễn biến trước và sau khoảnh khắc đó.
+* **Trình phát video tích hợp:**
+  * Bấm đúp vào ảnh để mở trình phát video và tự động nhảy tới đúng giây xuất hiện của khung hình. Giúp người dùng xác minh nội dung và tìm đáp án cho dạng bài Q&A.
+* **Tinh chỉnh kết quả tìm kiếm (`Alt + R`):**
+  * Chọn các ảnh đúng mục tiêu và bấm phím tắt để hệ thống tính lại trọng tâm tìm kiếm, đưa các khung hình tương tự lên đầu danh sách.
+* **Khay nộp bài đa năng:**
+  * **Tab KIS:** Chọn từ 1 đến 3 khung hình đại diện cho khoảnh khắc được mô tả. Có chỉ báo số lượng để tránh chọn quá nhiều làm giảm điểm MRR.
+  * **Tab Q&A:** Chọn khung hình minh chứng và nhập câu trả lời ngắn vào ô đáp án.
+  * **Tab TRAKE:** Chọn chuỗi các khung hình theo đúng thứ tự thời gian của cùng một video. Hệ thống hỗ trợ tạo nhiều phương án (PA 1, PA 2...) và tự động sắp xếp theo mốc thời gian tăng dần.
+* **Đóng gói file nộp bài (`Ctrl + S` hoặc `Alt + P`):**
+  * Mở bảng kiểm tra các câu đã làm, kiểm tra định dạng và nén trực tiếp thành file `submission.zip` để nộp cho ban tổ chức.
+
+---
+
+## 2. Cách truy cập giao diện
+
+### Cách 1: Sử dụng cùng Backend FastAPI (Khuyên dùng)
+Khi backend đã chạy (cổng 8000), mở trình duyệt và truy cập:
 👉 **`http://localhost:8000/frontend/`**
 
-### Cách 2: Sử dụng Extension "Live Server" trong VS Code
-1. Mở thư mục dự án bằng **VS Code**.
-2. Nhấp chuột phải vào file [frontend/index.html](file:///D:/code-c-a-Long/frontend/index.html) và chọn **Open with Live Server**.
-3. Trình duyệt sẽ mở giao diện tại `http://127.0.0.1:5500`.
+### Cách 2: Mở độc lập qua Live Server (VS Code)
+1. Mở thư mục dự án trong VS Code.
+2. Nhấp chuột phải vào file `frontend/index.html` $\to$ chọn **Open with Live Server**.
+3. Trình duyệt sẽ mở tại địa chỉ `http://127.0.0.1:5500`.
 
 ---
 
-## ⌨️ Bảng Phím Tắt Nhanh
-- **`Enter`**: Tìm kiếm câu query.
-- **`Chuột giữa`** hoặc **`[+]`**: Chọn ảnh vào Khay Nộp bài.
-- **`Alt + A`**: Bật/tắt Khay Nộp kết quả.
-- **`Alt + R`**: ✨ Tinh chỉnh tìm kiếm (Refine Search).
-- **`Alt + S`**: 💾 Lưu câu truy vấn vào Gói Bài Thi.
-- **`Ctrl + S`** hoặc **`Alt + P`**: Mở Bảng Quản Lý Gói Bài Thi & Nén `submission.zip`.
-- **`Ctrl + Q`**: Xóa nhanh câu query để gõ câu mới.
-- **`Ctrl + I`**: Mở ô tìm kiếm OCR.
-- **`Ctrl + K`**: Mở ô tìm kiếm ASR.
-- **`Alt + C`** hoặc **`Alt + X`**: Xóa sạch ảnh trong khay.
-- **`Esc`**: Đóng trình phát video hoặc modal xem trước.
+## 3. Bảng phím tắt thao tác nhanh
 
-Xem hướng dẫn chi tiết tại **[HUONG_DAN.md](file:///D:/code-c-a-Long/HUONG_DAN.md)**.
+| Phím tắt | Thao tác | Mô tả chi tiết |
+| :--- | :--- | :--- |
+| **`Enter`** | Tìm kiếm | Gửi câu truy vấn ở ô tìm kiếm hiện tại |
+| **`Chuột giữa`** hoặc **`[+]`** | Chọn ảnh | Thêm keyframe vào khay nộp bài |
+| **`Alt + A`** | Bật / tắt khay | Ẩn hoặc hiện thanh khay nộp bài bên phải |
+| **`Alt + R`** | Tinh chỉnh | Tinh chỉnh kết quả tìm kiếm dựa trên các ảnh đã chọn trong khay |
+| **`Alt + S`** | Lưu câu hỏi | Lưu kết quả của câu hiện tại vào bộ bài thi |
+| **`Ctrl + S`** hoặc **`Alt + P`** | Nén bài thi | Mở bảng quản lý bài thi và nén thành file `submission.zip` |
+| **`Ctrl + Q`** | Xóa ô nhập | Xóa nhanh nội dung ô tìm kiếm để nhập câu mới |
+| **`Ctrl + I`** | Tìm OCR | Chuyển sang ô tìm kiếm chữ viết trên màn hình |
+| **`Ctrl + K`** | Tìm ASR | Chuyển sang ô tìm kiếm giọng nói / lời thoại |
+| **`Alt + C`** hoặc **`Alt + X`** | Xóa khay | Xóa toàn bộ ảnh đang chọn trong khay nộp |
+| **`Esc`** | Đóng cửa sổ | Đóng trình phát video hoặc hộp thoại đang mở |

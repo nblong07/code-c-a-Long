@@ -1,9 +1,7 @@
 """
-Smart Query Decomposer & Multi-Modal Omni-Parser
-=================================================
-Mô-đun Phân Rã & Tinh Chỉnh Câu Truy Vấn Đa Phương Thức Thông Minh
-Tối ưu hóa: 0 MB VRAM, chạy siêu tốc trên CPU RAM (< 2ms), chống tràn bộ nhớ.
-Hỗ trợ cả 3 dạng bài thi: KIS, Video QA, TRAKE.
+Smart Query Decomposer & Multi-Modal Parser
+Phân tách câu truy vấn đa phương thức (KIS, Video QA, TRAKE)
+Tài nguyên: 0 MB VRAM, xử lý trên CPU RAM (độ trễ < 2ms).
 """
 
 import os
@@ -161,6 +159,7 @@ VIET_TO_ENG_VISUAL_MAP = {
     "biển báo": "traffic road sign street sign",
     "đèn giao thông": "traffic lights intersection signal",
     "biển số xe": "vehicle license plate",
+    "biển số": "vehicle license plate",
     "bảng hiệu": "storefront billboard signboard",
 
     # Thiết bị điện tử, Công nghệ & Đồ vật
@@ -238,25 +237,38 @@ VIET_TO_ENG_VISUAL_MAP = {
 # 2. BỘ TỪ KHÓA TÁCH CHUỖI THỜI GIAN (TEMPORAL CONNECTORS)
 # ==============================================================================
 TEMPORAL_SPLIT_REGEX = re.compile(
-    r'(?:\b(?:sau\s+đó|tiếp\s+theo|tiếp\s+đến|kế\s+tiếp|ngay\s+sau\s+đó|về\s+sau|lúc\s+sau|đoạn\s+sau|rồi\s+mới|rồi\s+sau\s+đó|rồi|then|after\s+that|afterwards|following\s+that|subsequently|later\s+on|next)\b'
-    r'|(?:\b(?:giai\s+đoạn|bước|stage|scene|cảnh)\s+[0-9]+[:\.\-]?\s*)'
-    r'|(?:\b(?:thứ\s+nhất|thứ\s+hai|thứ\s+ba|đầu\s+tiên|tiếp\s+tục|cuối\s+cùng)\b[:\.\-]?\s*)'
-    r'|(?:\s*->\s*|\s*-->\s*|\s*=>\s*|\s*;\s*))',
+    r'(?:'
+    r'(?:\s*,\s*rồi\s+|\s+rồi\s+(?:mới|sau\s+đó|tiếp\s+tục|lại)\b|\bxong\s+(?:rồi|thì)\b)'
+    r'|(?:\b(?:sau\s+đó|tiếp\s+theo|tiếp\s+đến|kế\s+tiếp|ngay\s+sau\s+đó|về\s+sau|lúc\s+sau|đoạn\s+sau|sau\s+cùng|cuối\s+cùng)\b)'
+    r'|(?:\b(?:sau\s+một\s+(?:lúc|hồi|thời\s+gian)|một\s+lúc\s+sau|chốc\s+lát\s+sau|vài\s+giây\s+sau)(?:\s+thì)?\b)'
+    r'|(?:\b(?:chuyển\s+sang|chuyển\s+qua|chuyển\s+cảnh\s+sang|đổi\s+sang)\b)'
+    r'|(?:\b(?:giai\s+đoạn|bước|stage|scene|cảnh|phần)\s+[0-9]+[:\.\-]?\s*)'
+    r'|(?:\b(?:thứ\s+nhất|thứ\s+hai|thứ\s+ba|đầu\s+tiên|tiếp\s+tục)\b[:\.\-]?\s*)'
+    r'|(?:\b[0-9]+[\.\)]\s+)'
+    r'|(?:\b(?:then|and\s+then|after\s+that|afterwards|following\s+that|subsequently|later\s+on|next|followed\s+by|after\s+which)\b)'
+    r'|(?:\s*->\s*|\s*-->\s*|\s*=>\s*|\s*;\s*|\s*\|\s*)'
+    r')',
     re.IGNORECASE
 )
 
 # Các mẫu câu hỏi rác cần lọc bỏ trong Video QA
 QA_QUESTION_CLEAN_PATTERNS = [
-    r'^(?:hãy\s+)?(?:cho\s+biết|tìm\s+xem|hỏi\s+rằng|hỏi|xem|tìm|cho\s+tôi\s+biết|xác\s+định)\s+[:：]?',
-    r'\b(?:là\s+gì|tên\s+gì|tên\s+là\s+gì|như\s+thế\s+nào|ở\s+đâu|khi\s+nào|năm\s+nào|bao\s+nhiêu|mấy\s+người|màu\s+gì|màu\s+sắc\s+gì|thơ\s+gì|chữ\s+gì|ai)\b[\s\?\.!]*$',
-    r'\b(?:what\s+is|where\s+is|who\s+is|when\s+is|how\s+many|what\s+color\s+is)\b',
+    r'^(?:trong\s+(?:video|clip|đoạn\s+phim|đoạn\s+clip|hình\s+ảnh|cảnh\s+quay)\b[\s,:]*)',
+    r'^(?:hãy\s+)?(?:cho\s+biết|tìm\s+xem|xác\s+định|quan\s+sát\s+xem|hỏi\s+rằng|cho\s+hỏi|hỏi|xem|tìm|cho\s+tôi\s+biết)\b[\s,:]*',
+    r'\b(?:có\s+)?(?:bao\s+nhiêu|mấy)\s+(?:người|chiếc|xe|con|cái|vật|đối\s+tượng)\b',
+    r'\b(?:mang\s+)?(?:biển\s+số\s+(?:gì|mấy|nào)|số\s+hiệu\s+gì)\b',
+    r'\b(?:đang\s+)?(?:làm\s+gì|nói\s+gì|cầm\s+(?:vật\s+gì|cái\s+gì|gì)|mặc\s+(?:áo\s+màu\s+gì|đồ\s+gì|gì)|đi\s+đâu)\b',
+    r'\b(?:là\s+(?:gì|ai|con\s+gì|cái\s+gì)|ở\s+đâu|vào\s+lúc\s+nào|khi\s+nào|năm\s+nào|màu\s+(?:gì|sắc\s+gì)|thơ\s+gì|chữ\s+gì|thứ\s+mấy|loại\s+gì|hãng\s+nào|ai)\b[\s\?\.!]*$',
+    r'\b(?:what\s+is|where\s+is|who\s+is|when\s+is|how\s+many|how\s+much|what\s+color\s+is|which\s+(?:one\s+is|is)|what\s+kind\s+of)\b',
     r'[\?\.!]+$'
 ]
 
 # Các mẫu câu dẫn chuyện dư thừa trong KIS
 PROMPT_NOISE_PATTERNS = [
-    r'^(?:hãy\s+)?(?:tìm\s+kiếm|tìm\s+cho\s+tôi|tìm\s+cảnh\s+chiếc|tìm\s+cảnh|tìm\s+chiếc|tìm\s+ảnh|tìm|cho\s+tôi\s+thấy|xuất\s+hiện|video\s+quay\s+cảnh|đoạn\s+video\s+về|khung\s+hình\s+chứa|hình\s+ảnh\s+về|tìm\s+video)\s+[:：]?',
-    r'^(?:search\s+for|find\s+a\s+video\s+of|show\s+me|look\s+for)\s+[:：]?'
+    r'^(?:tôi\s+(?:muốn|cần)\s+tìm(?:\s+kiếm)?|giúp\s+tôi\s+tìm|hãy\s+tìm(?:\s+kiếm)?|tìm\s+cho\s+tôi|tìm\s+kiếm|tìm)\b[\s,:]*',
+    r'^(?:hãy\s+)?(?:xác\s+định|chỉ\s+ra|hiển\s+thị|cho\s+thấy|cho\s+tôi\s+thấy)\b[\s,:]*',
+    r'^(?:đoạn\s+(?:clip|video)\s+(?:ghi\s+lại|quay\s+cảnh|nói\s+về|về)|video\s+(?:quay\s+cảnh|ghi\s+lại|về)|khung\s+hình\s+(?:chứa|về)|hình\s+ảnh\s+về|khoảnh\s+khắc|cảnh\s+quay|cảnh\s+chiếc|cảnh)\b[\s,:]*',
+    r'^(?:i\s+(?:want|need)\s+to\s+find|please\s+find|search\s+for|find\s+(?:a\s+)?(?:video|clip|scene)\s+(?:of|showing)|video\s+(?:showing|of|recorded)|footage\s+of|show\s+me|look\s+for|a\s+scene\s+(?:of|where|with))\b[\s,:]*'
 ]
 
 
@@ -292,6 +304,17 @@ class SmartQueryDecomposer:
         self.enabled = self.config.get("enabled", True)
         self.provider = self.config.get("provider", "rule_fast")  # "rule_fast" | "local_cpu" | "openai" | "gemini"
 
+        # Hỗ trợ nạp trước từ điển dịch offline (Batch pre-translations) nếu có file
+        self.offline_dict: Dict[str, str] = {}
+        offline_file = os.path.join(os.path.dirname(__file__), "offline_translation_cache.json")
+        if os.path.exists(offline_file):
+            try:
+                with open(offline_file, "r", encoding="utf-8-sig") as f:
+                    self.offline_dict = json.load(f)
+                logger.info(f"Đã nạp {len(self.offline_dict)} mục dịch offline từ {offline_file}")
+            except Exception as e:
+                logger.warning(f"Không thể đọc file từ điển offline: {e}")
+
     def clean_noise(self, text: str) -> str:
         """Loại bỏ các từ nối dẫn chuyện không mang thông tin hình ảnh"""
         if not text:
@@ -323,8 +346,8 @@ class SmartQueryDecomposer:
     def extract_ocr_keywords(self, text: str) -> Tuple[str, List[str]]:
         """
         Trích xuất từ khóa OCR:
-        1. Ưu tiên tuyệt đối chuỗi trong dấu ngoặc kép: "Highlands", 'BIDV', "29A-12345"
-        2. Nếu không có ngoặc kép, trích xuất chính xác theo tiền tố: có chữ..., biển số..., bảng hiệu...
+        - Ưu tiên số 1: Chuỗi trong dấu ngoặc kép ("...", '...', “...”, «...») với độ chính xác cao nhất.
+        - Dự phòng tối giản: 1 pattern biển số xe (loại bỏ các regex đoán tiền tố phức tạp dễ gây lỗi).
         """
         if not text:
             return text, []
@@ -340,29 +363,25 @@ class SmartQueryDecomposer:
                 ocr_kws.append(q_clean)
                 cleaned_text = cleaned_text.replace(f'"{q}"', q_clean).replace(f"'{q}'", q_clean).replace(f'“{q}”', q_clean).replace(f'«{q}»', q_clean)
 
-        # 2. Nếu đã có ngoặc kép thì dừng lại để giữ độ chính xác 100%, không nhận thêm từ thừa
+        # Nếu đã có ngoặc kép thì dừng lại để giữ độ chính xác, tránh bắt nhầm từ ngữ thông thường
         if ocr_kws:
             return cleaned_text, ocr_kws
 
-        # 3. Trích xuất theo tiền tố nhận diện (khi người dùng không dùng ngoặc kép)
-        patterns = [
-            r'(?:biển\s+số|biển\s+xe)\s+[:：]?\s*([A-Z0-9\-\.\s]{3,12})',
-            r'(?:có\s+chữ|in\s+chữ|khắc\s+chữ|mang\s+dòng\s+chữ|chữ\s+in\s+hoa|chữ)\s+[:：]?\s*([^,\.\n;]+)',
-            r'(?:bảng\s+hiệu|bảng\s+tên|biển\s+hiệu|logo|cổng\s+chào)\s+[:：]?\s*([^,\.\n;]+)',
-            r'(?:tên\s+đường)\s+[:：]?\s*([^,\.\n;]+)'
-        ]
-        for pat in patterns:
-            for m in re.finditer(pat, text, re.IGNORECASE):
-                val = m.group(1).strip(" \"'“”«»")
-                # Cắt bỏ các từ chỉ vị trí hoặc từ nối phía sau nếu có
-                val = re.split(r'\b(?:ở|tại|trên|dưới|góc|màu|trong|với|của)\b', val, flags=re.IGNORECASE)[0].strip()
-                if len(val) >= 2 and val.lower() not in {"ở", "trên", "dưới", "của", "và", "trong"} and val not in ocr_kws:
-                    ocr_kws.append(val)
+        # 2. Dự phòng tối giản: Biển số xe chuẩn Việt Nam không đặt trong dấu ngoặc kép
+        plate_match = re.search(r'(?:biển\s+số|biển\s+xe)\s*[:：]?\s*([0-9]{2}[A-Za-z0-9\-\.]{3,10})', text, re.IGNORECASE)
+        if plate_match:
+            val = plate_match.group(1).strip()
+            if len(val) >= 3 and val not in ocr_kws:
+                ocr_kws.append(val)
 
         return cleaned_text, ocr_kws
 
     def extract_asr_keywords(self, text: str) -> Tuple[str, List[str]]:
-        """Trích xuất từ khóa ASR (Lời thoại / Âm thanh)"""
+        """
+        Trích xuất từ khóa ASR (Lời thoại / Âm thanh):
+        - Ưu tiên số 1: Lời thoại trong dấu ngoặc kép.
+        - Dự phòng tối giản: Cụm từ ngắn sau từ khóa 'nói rằng' hoặc 'bảo rằng'.
+        """
         if not text:
             return text, []
 
@@ -376,7 +395,7 @@ class SmartQueryDecomposer:
             if len(q_clean) >= 2 and q_clean not in asr_kws:
                 asr_kws.append(q_clean)
 
-        # 2. Trích xuất mọi chuỗi trong dấu ngoặc kép (người dùng tìm từ khóa văn bản / lời thoại)
+        # 2. Trích xuất mọi chuỗi trong dấu ngoặc kép
         general_quotes = re.findall(r'["\'“«](.*?)["\'”»]', text)
         for q in general_quotes:
             q_clean = q.strip()
@@ -386,17 +405,12 @@ class SmartQueryDecomposer:
         if asr_kws:
             return cleaned_text, asr_kws
 
-        patterns = [
-            r'(?:nói|kể|hát|phát\s+biểu|chia\s+sẻ|nhắc\s+đến|đọc\s+thơ|ca\s+ngợi)\s+về\s+[:：]?\s*([^,\.\n;]+)',
-            r'(?:nói\s+rằng|bảo\s+rằng|hát\s+câu)\s+[:：]?\s*([^,\.\n;]+)',
-            r'(?:bài\s+thơ|câu\s+thơ)\s+[:：]?\s*([^,\.\n;]+)'
-        ]
-        for pat in patterns:
-            for m in re.finditer(pat, text, re.IGNORECASE):
-                val = m.group(1).strip(" \"'“”«»")
-                val = re.split(r'\b(?:ở|tại|trên|dưới|trong|sau\s+đó|tiếp\s+theo)\b', val, flags=re.IGNORECASE)[0].strip()
-                if len(val) >= 2 and val not in asr_kws:
-                    asr_kws.append(val)
+        # 3. Dự phòng tối giản: nói rằng/bảo rằng không dùng ngoặc kép
+        spoken_match = re.search(r'(?:nói\s+rằng|bảo\s+rằng|nói|bảo)\s*[:：]?\s*([^\s,;\.\n]+(?:\s+[^\s,;\.\n]+){0,3})', text, re.IGNORECASE)
+        if spoken_match:
+            val = spoken_match.group(1).strip()
+            if len(val) >= 2 and val not in asr_kws:
+                asr_kws.append(val)
 
         return cleaned_text, asr_kws
 
@@ -422,30 +436,48 @@ class SmartQueryDecomposer:
 
         return "", text
 
+    def enrich_visual_concepts(self, text_vn: str) -> Tuple[List[str], List[str]]:
+        """
+        Trích xuất danh sách thực thể thị giác chuẩn hóa (Visual Entities) từ từ điển VIET_TO_ENG_VISUAL_MAP.
+        Áp dụng ranh giới từ (word boundary) và span masking để tránh bắt nhầm từ con (vd: 'cá' trong 'các').
+        Trả về (danh sách thực thể tiếng Việt khớp, danh sách khái niệm tiếng Anh chuẩn hóa).
+        """
+        if not text_vn:
+            return [], []
+
+        masked_text = text_vn.lower()
+        matched_vi_entities = []
+        matched_en_terms = []
+
+        sorted_keys = sorted(VIET_TO_ENG_VISUAL_MAP.keys(), key=lambda k: len(k), reverse=True)
+        for key in sorted_keys:
+            pattern = r'(?<!\w)' + re.escape(key) + r'(?!\w)'
+            if re.search(pattern, masked_text):
+                matched_vi_entities.append(key)
+                en_val = VIET_TO_ENG_VISUAL_MAP[key]
+                if en_val not in matched_en_terms:
+                    matched_en_terms.append(en_val)
+                # Mask out the matched span so sub-words don't double trigger
+                masked_text = re.sub(pattern, ' ' * len(key), masked_text)
+
+        return matched_vi_entities, matched_en_terms
+
     def translate_to_visual_english(self, text_vn: str) -> str:
         """
-        Dịch và làm giàu câu mô tả tiếng Việt sang tiếng Anh tự nhiên (Visual English)
-        giúp tăng 5-10% độ chính xác cho SigLIP 2 Giant (WebLI Pretrained).
+        Bổ trợ chuẩn hóa thực thể tiếng Anh cho câu truy vấn thị giác:
+        1. Kiểm tra từ điển dịch sẵn offline (offline_dict).
+        2. Trích xuất các thực thể thị giác chuẩn hóa (enrich_visual_concepts).
+        Hoạt động hoàn toàn offline, 0ms network latency.
         """
         if not text_vn:
             return ""
 
-        t_lower = text_vn.lower().strip()
-        matched_en_terms = []
+        t_clean = text_vn.strip().lower()
+        if t_clean in self.offline_dict:
+            return self.offline_dict[t_clean]
 
-        # 1. Tìm các cụm từ trong từ điển theo thứ tự độ dài giảm dần
-        sorted_keys = sorted(VIET_TO_ENG_VISUAL_MAP.keys(), key=lambda k: len(k), reverse=True)
-        for key in sorted_keys:
-            if key in t_lower:
-                en_val = VIET_TO_ENG_VISUAL_MAP[key]
-                if en_val not in matched_en_terms:
-                    matched_en_terms.append(en_val)
-
-        if matched_en_terms:
-            # Tạo câu visual English cô đọng
-            combined_en = ", ".join(matched_en_terms)
-            return f"A video scene of {combined_en}"
-        return ""
+        _, concepts = self.enrich_visual_concepts(text_vn)
+        return ", ".join(concepts) if concepts else ""
 
     def decompose(self, raw_text: str, current_topic: str = "") -> DecomposedQuery:
         """
@@ -464,10 +496,12 @@ class SmartQueryDecomposer:
         text_no_ocr, ocr_kws = self.extract_ocr_keywords(text_no_topic)
         text_no_asr, asr_kws = self.extract_asr_keywords(text_no_topic)
 
-        # Mọi từ khóa trong ngoặc kép đều được tìm kiếm song song trên cả OCR và ASR
-        all_exact_kws = list(dict.fromkeys(ocr_kws + asr_kws))
-        ocr_kws = all_exact_kws
-        asr_kws = all_exact_kws
+        # Dấu ngoặc kép được tìm kiếm song song trên cả OCR và ASR
+        quotes = re.findall(r'["\'“«](.*?)["\'”»]', text_no_topic)
+        quote_kws = [q.strip() for q in quotes if len(q.strip()) >= 2]
+        if quote_kws:
+            ocr_kws = list(dict.fromkeys(ocr_kws + quote_kws))
+            asr_kws = list(dict.fromkeys(asr_kws + quote_kws))
 
         # 3. Làm sạch câu hỏi Video QA & từ nối rác
         cleaned_core, is_qa = self.clean_qa_question(text_no_ocr)
@@ -480,7 +514,7 @@ class SmartQueryDecomposer:
         valid_stages = []
         for s in raw_stages:
             clean_s = self.clean_noise(s)
-            clean_s = re.sub(r'^(?:sau\s+đó|tiếp\s+theo|tiếp\s+đến|kế\s+tiếp|ngay\s+sau\s+đó|về\s+sau|lúc\s+sau|đoạn\s+sau|rồi\s+mới|rồi\s+sau\s+đó|rồi|then|after\s+that|afterwards|following\s+that|next)\s*[:,\.\-–]?\s*', '', clean_s, flags=re.IGNORECASE).strip()
+            clean_s = re.sub(r'^(?:sau\s+đó|tiếp\s+theo|tiếp\s+đến|kế\s+tiếp|ngay\s+sau\s+đó|về\s+sau|lúc\s+sau|đoạn\s+sau|sau\s+cùng|cuối\s+cùng|rồi\s+mới|rồi\s+sau\s+đó|rồi|then|after\s+that|afterwards|following\s+that|next)\s*[:,\.\-–]?\s*', '', clean_s, flags=re.IGNORECASE).strip()
             # Xóa các dấu câu ở đầu và cuối stage
             clean_s = clean_s.strip(" ,;.:-–—/|")
             if len(clean_s) >= 3 and not re.match(r'^(?:->|-->|=>|;|stage|bước|cảnh)\s*[0-9]*$', clean_s, re.IGNORECASE):
@@ -505,12 +539,14 @@ class SmartQueryDecomposer:
             mode = "kis"
             explanation = "Nhận diện mô tả khoảnh khắc đơn lẻ (KIS Mode)."
 
-        # 6. Tạo visual query sạch và visual query tiếng Anh
+        # 6. Tạo visual query sạch và visual query tiếng Anh bổ trợ song song
         final_visual_vn = " - ".join(valid_stages) if is_temporal else (cleaned_core or raw_clean)
         if global_topic and global_topic.lower() not in final_visual_vn.lower():
             final_visual_vn = f"{global_topic} - {final_visual_vn}"
 
-        visual_en = self.translate_to_visual_english(final_visual_vn)
+        # Bổ trợ thực thể song song: Giữ nguyên câu tiếng Việt đầy đủ sắc thái, đồng thời cấp thực thể tiếng Anh chuẩn hóa
+        detected_entities, visual_en_list = self.enrich_visual_concepts(final_visual_vn)
+        visual_en = ", ".join(visual_en_list) if visual_en_list else ""
 
         return DecomposedQuery(
             raw_query=raw_clean,
@@ -521,7 +557,7 @@ class SmartQueryDecomposer:
             visual_query_en=visual_en,
             ocr_keywords=ocr_kws,
             asr_keywords=asr_kws,
-            detected_entities=[k for k in VIET_TO_ENG_VISUAL_MAP if k in raw_clean.lower()],
+            detected_entities=detected_entities,
             is_temporal=is_temporal,
             is_qa=is_qa,
             is_ocr_dominant=(mode == "ocr"),
